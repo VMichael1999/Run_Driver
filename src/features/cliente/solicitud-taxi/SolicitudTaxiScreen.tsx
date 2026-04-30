@@ -221,6 +221,7 @@ export function SolicitudTaxiScreen() {
     return selected ? [selected, ...rest] : vehicles;
   }, [appliedSelectedVehicle]);
 
+
   React.useEffect(() => {
     if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
       UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -233,11 +234,11 @@ export function SolicitudTaxiScreen() {
     isExpandedRef.current = expanded;
     scrollEnabledRef.current = expanded;
     setScrollEnabled(expanded);
-    // Apply reorder with slide animation on both expand and collapse
     LayoutAnimation.configureNext({
-      duration: 320,
-      create: { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.scaleY },
-      update: { type: LayoutAnimation.Types.easeInEaseOut },
+      duration: 420,
+      create: { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.opacity },
+      update: { type: LayoutAnimation.Types.spring, springDamping: 0.82 },
+      delete: { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.opacity },
     });
     setAppliedSelectedVehicle(selectedVehicleRef.current);
     Animated.spring(sheetHeight, {
