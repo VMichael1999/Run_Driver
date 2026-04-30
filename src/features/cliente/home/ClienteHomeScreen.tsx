@@ -78,7 +78,15 @@ export function ClienteHomeScreen() {
   useFocusEffect(
     React.useCallback(() => {
       void recalculateRoute();
-    }, [recalculateRoute]),
+
+      if (!origin) {
+        setIsOriginSearched(false);
+        void (async () => {
+          const currentLocation = await getCurrentLocationMarker();
+          if (currentLocation) setOrigin(currentLocation);
+        })();
+      }
+    }, [origin, recalculateRoute, setOrigin]),
   );
 
   const handleNowPress = React.useCallback(() => {

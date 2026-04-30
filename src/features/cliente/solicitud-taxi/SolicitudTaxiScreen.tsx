@@ -346,11 +346,12 @@ export function SolicitudTaxiScreen() {
 
     clearRequest();
     clearExtraStops();
+    setOrigin(null);
     setDestination(null);
     setRoutePoints([]);
     setComment('');
     navigation.popToTop();
-  }, [animateSheet, clearExtraStops, clearRequest, isAuctionPickupMode, navigation, setComment, setDestination, setRoutePoints]);
+  }, [animateSheet, clearExtraStops, clearRequest, isAuctionPickupMode, navigation, setComment, setDestination, setOrigin, setRoutePoints]);
 
   const handleBook = () => {
     const selected = vehicles.find((vehicle) => vehicle.vehiclePlate === selectedVehicle) || vehicles[0];
