@@ -3,10 +3,10 @@
   "version": "1.0.0",
   "main": "index.ts",
   "scripts": {
-    "start": "expo start --port 8083",
-    "android": "expo start --android --port 8083",
-    "ios": "expo start --ios --port 8083",
-    "web": "expo start --web --port 8083",
+    "start": "expo start --port 8084",
+    "android": "expo start --android --port 8084",
+    "ios": "expo start --ios --port 8084",
+    "web": "expo start --web --port 8084",
     "test": "jest --watchAll",
     "test:ci": "jest --coverage"
   },

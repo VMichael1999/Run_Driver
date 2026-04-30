@@ -714,7 +714,7 @@ export function SolicitudTaxiScreen() {
         <MapView
           ref={mapRef}
           style={StyleSheet.absoluteFillObject}
-          provider={PROVIDER_GOOGLE}
+          provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
           initialRegion={region}
           onMapReady={() => {
             void updateAuctionOriginScreenPoint();
@@ -754,7 +754,7 @@ export function SolicitudTaxiScreen() {
               ))
             : null}
           {request && request.routePoints.length > 1 ? (
-            <Polyline coordinates={request.routePoints} strokeColor="#111111" strokeWidth={5} />
+            <Polyline coordinates={request.routePoints} strokeColor="#000000" strokeWidth={5} lineCap="round" lineJoin="round" />
           ) : null}
         </MapView>
 
