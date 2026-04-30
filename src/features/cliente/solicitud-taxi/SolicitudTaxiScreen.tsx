@@ -208,11 +208,18 @@ export function SolicitudTaxiScreen() {
   const sheetHeight = React.useRef(new Animated.Value(COLLAPSED_HEIGHT)).current;
   const currentHeightRef = React.useRef(COLLAPSED_HEIGHT);
   const dragStartHeightRef = React.useRef(COLLAPSED_HEIGHT);
+  const isExpandedRef = React.useRef(false);
+  const scrollAtTopRef = React.useRef(true);
+  const [scrollEnabled, setScrollEnabled] = React.useState(false);
+  const scrollEnabledRef = React.useRef(false);
+  // Vehicles reorder only applied when sheet is expanded
+  const [appliedSelectedVehicle, setAppliedSelectedVehicle] = React.useState(vehicles[0].vehiclePlate);
+  const selectedVehicleRef = React.useRef(vehicles[0].vehiclePlate);
   const orderedVehicles = React.useMemo(() => {
-    const selected = vehicles.find((vehicle) => vehicle.vehiclePlate === selectedVehicle);
-    const rest = vehicles.filter((vehicle) => vehicle.vehiclePlate !== selectedVehicle);
+    const selected = vehicles.find((vehicle) => vehicle.vehiclePlate === appliedSelectedVehicle);
+    const rest = vehicles.filter((vehicle) => vehicle.vehiclePlate !== appliedSelectedVehicle);
     return selected ? [selected, ...rest] : vehicles;
-  }, [selectedVehicle]);
+  }, [appliedSelectedVehicle]);
 
   React.useEffect(() => {
     if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -222,6 +229,17 @@ export function SolicitudTaxiScreen() {
 
   const animateSheet = React.useCallback((toValue: number) => {
     currentHeightRef.current = toValue;
+    const expanded = toValue >= EXPANDED_HEIGHT;
+    isExpandedRef.current = expanded;
+    scrollEnabledRef.current = expanded;
+    setScrollEnabled(expanded);
+    // Apply reorder with slide animation on both expand and collapse
+    LayoutAnimation.configureNext({
+      duration: 320,
+      create: { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.scaleY },
+      update: { type: LayoutAnimation.Types.easeInEaseOut },
+    });
+    setAppliedSelectedVehicle(selectedVehicleRef.current);
     Animated.spring(sheetHeight, {
       toValue,
       useNativeDriver: false,
@@ -250,8 +268,24 @@ export function SolicitudTaxiScreen() {
   const panResponder = React.useMemo(
     () =>
       PanResponder.create({
-        onStartShouldSetPanResponder: () => true,
-        onMoveShouldSetPanResponder: (_, gestureState) => Math.abs(gestureState.dy) > 4,
+        onStartShouldSetPanResponder: () => false,
+        onStartShouldSetPanResponderCapture: () => false,
+        onMoveShouldSetPanResponder: (_, gestureState) => {
+          const isVertical =
+            Math.abs(gestureState.dy) > 8 &&
+            Math.abs(gestureState.dy) > Math.abs(gestureState.dx);
+          if (!isVertical) return false;
+          // Scroll cedido: expandido y scroll deshabilitado
+          if (!scrollEnabledRef.current && isExpandedRef.current) {
+            if (gestureState.dy > 0) return true; // colapsar
+            // Usuario quiere scrollear hacia arriba → re-habilitar scroll
+            scrollEnabledRef.current = true;
+            setScrollEnabled(true);
+            return false;
+          }
+          // Expandir: sheet no está al tope
+          return !isExpandedRef.current;
+        },
         onPanResponderGrant: () => {
           dragStartHeightRef.current = currentHeightRef.current;
         },
@@ -262,6 +296,9 @@ export function SolicitudTaxiScreen() {
             EXPANDED_HEIGHT,
           );
           sheetHeight.setValue(nextHeight);
+          isExpandedRef.current = nextHeight >= EXPANDED_HEIGHT;
+          if (nextHeight >= EXPANDED_HEIGHT) { scrollEnabledRef.current = true; setScrollEnabled(true); }
+          else if (nextHeight <= COLLAPSED_HEIGHT) { scrollEnabledRef.current = false; setScrollEnabled(false); }
         },
         onPanResponderRelease: (_, gestureState) => {
           const projected = clamp(
@@ -540,9 +577,7 @@ export function SolicitudTaxiScreen() {
               </View>
               <View style={styles.auctionPickupStem} />
             </Animated.View>
-            <View style={styles.auctionPickupPulse}>
-              <View style={styles.auctionPickupDot} />
-            </View>
+            <View style={styles.auctionPickupShadowDot} />
           </View>
         ) : null}
 
@@ -577,7 +612,7 @@ export function SolicitudTaxiScreen() {
           style={[
             styles.mapActionButton,
             isAuctionPickupMode ? styles.auctionBackFab : styles.backFab,
-            isAuctionPickupMode && { bottom: Math.max(insets.bottom, Spacing.md) + 134 },
+            isAuctionPickupMode && { bottom: Math.max(insets.bottom, Spacing.md) + 170 },
           ]}
           onPress={handleExitToHome}
           activeOpacity={0.85}
@@ -589,7 +624,7 @@ export function SolicitudTaxiScreen() {
           style={[
             styles.mapActionButton,
             isAuctionPickupMode ? styles.auctionCenterFab : styles.centerRouteFab,
-            isAuctionPickupMode && { bottom: Math.max(insets.bottom, Spacing.md) + 134 },
+            isAuctionPickupMode && { bottom: Math.max(insets.bottom, Spacing.md) + 170 },
           ]}
           onPress={isAuctionPickupMode ? focusAuctionPickupMap : fitRouteToMap}
           activeOpacity={0.85}
@@ -598,8 +633,8 @@ export function SolicitudTaxiScreen() {
         </TouchableOpacity>
       </View>
 
-      {!isAuctionPickupMode ? <Animated.View style={[styles.sheet, { height: sheetHeight }]}>
-        <View {...panResponder.panHandlers} style={styles.dragArea}>
+      {!isAuctionPickupMode ? <Animated.View {...panResponder.panHandlers} style={[styles.sheet, { height: sheetHeight }]}>
+        <View style={styles.dragArea}>
           <View style={styles.handle} />
         </View>
 
@@ -622,6 +657,27 @@ export function SolicitudTaxiScreen() {
             { paddingBottom: insets.bottom + 120 },
           ]}
           showsVerticalScrollIndicator={false}
+          scrollEnabled={scrollEnabled}
+          bounces={false}
+          overScrollMode="never"
+          onScroll={(e) => {
+            scrollAtTopRef.current = e.nativeEvent.contentOffset.y <= 0;
+          }}
+          scrollEventThrottle={16}
+          onMomentumScrollEnd={(e) => {
+            // Lista llegó al tope con momentum → cede al PanResponder para siguiente drag
+            if (e.nativeEvent.contentOffset.y <= 0 && isExpandedRef.current) {
+              scrollEnabledRef.current = false;
+              setScrollEnabled(false);
+            }
+          }}
+          onScrollEndDrag={(e) => {
+            // Usuario soltó el dedo en el tope sin momentum → cede al PanResponder
+            if (e.nativeEvent.contentOffset.y <= 0 && isExpandedRef.current) {
+              scrollEnabledRef.current = false;
+              setScrollEnabled(false);
+            }
+          }}
         >
           {orderedVehicles.map((item, index) => {
             const active = selectedVehicle === item.vehiclePlate;
@@ -631,20 +687,7 @@ export function SolicitudTaxiScreen() {
                 key={item.vehiclePlate}
                 style={[styles.vehicleCard, active && styles.vehicleCardActive]}
                 onPress={() => {
-                  LayoutAnimation.configureNext({
-                    duration: 260,
-                    create: {
-                      type: LayoutAnimation.Types.easeInEaseOut,
-                      property: LayoutAnimation.Properties.opacity,
-                    },
-                    update: {
-                      type: LayoutAnimation.Types.easeInEaseOut,
-                    },
-                    delete: {
-                      type: LayoutAnimation.Types.easeInEaseOut,
-                      property: LayoutAnimation.Properties.opacity,
-                    },
-                  });
+                  selectedVehicleRef.current = item.vehiclePlate;
                   setSelectedVehicle(item.vehiclePlate);
                 }}
                 activeOpacity={0.88}
@@ -725,9 +768,9 @@ export function SolicitudTaxiScreen() {
 
       {isAuctionPickupMode ? (
         <View style={[styles.auctionPickupPanel, { paddingBottom: Math.max(insets.bottom, Spacing.md) }]}>
-          <Text style={styles.auctionPickupTitle}>Confirmar punto de partida</Text>
+          <Text style={styles.auctionPickupTitle}>Confirmar punto de origen</Text>
           <View style={styles.auctionPickupDivider} />
-          <Text style={styles.auctionPickupHelper}>Desplaza el mapa para establecer tu punto de partida.</Text>
+          <Text style={styles.auctionPickupHelper}>Desplaza el mapa para establecer tu punto de origen.</Text>
           <TouchableOpacity
             style={[styles.auctionPickupConfirmButton, isConfirmingPickup && styles.auctionPickupConfirmButtonDisabled]}
             onPress={handleConfirmAuctionPickup}
@@ -1034,22 +1077,16 @@ const styles = StyleSheet.create({
     marginTop: -2,
     zIndex: -1,
   },
-  auctionPickupPulse: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    borderWidth: 1,
-    borderColor: '#60a5fa',
-    backgroundColor: 'rgba(96, 165, 250, 0.12)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: -16,
-  },
-  auctionPickupDot: {
-    width: 9,
-    height: 9,
-    borderRadius: 4.5,
-    backgroundColor: '#2563eb',
+  auctionPickupShadowDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 999,
+    backgroundColor: '#000000',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: -1 },
+    shadowOpacity: 0.38,
+    shadowRadius: 0,
+    elevation: 1,
   },
   originMarker: {
     width: 22,
