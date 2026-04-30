@@ -6,6 +6,7 @@ import { ConductorHomeScreen } from '@features/conductor/home/ConductorHomeScree
 import { SolicitudesScreen } from '@features/conductor/solicitudes/SolicitudesScreen';
 import { SolicitudesDetalleScreen } from '@features/conductor/solicitudes-detalle/SolicitudesDetalleScreen';
 import { SolicitudesTrayectoScreen } from '@features/conductor/solicitudes-trayecto/SolicitudesTrayectoScreen';
+import { ConfirmarPuntoPartidaScreen } from '@features/conductor/confirmar-punto-partida/ConfirmarPuntoPartidaScreen';
 import { CuentaScreen } from '@features/conductor/cuenta/CuentaScreen';
 import { ExperienciaScreen } from '@features/conductor/experiencia/ExperienciaScreen';
 import { IngresosScreen } from '@features/conductor/ingresos/IngresosScreen';
@@ -49,6 +50,7 @@ export function ConductorNavigator() {
       <Stack.Screen name="ConductorHome" component={ConductorTabs} />
       <Stack.Screen name="SolicitudesDetalle" component={SolicitudesDetalleScreen} />
       <Stack.Screen name="SolicitudesTrayecto" component={SolicitudesTrayectoScreen} />
+      <Stack.Screen name="ConfirmarPuntoPartida" component={ConfirmarPuntoPartidaScreen} />
       <Stack.Screen name="Chat" component={ChatScreen} />
       <Stack.Screen name="HistorialViaje" component={HistorialViajeScreen} />
       <Stack.Screen name="Configuracion" component={ConfiguracionScreen} />

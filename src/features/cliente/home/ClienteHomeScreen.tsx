@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
+import MapView, { PROVIDER_GOOGLE } from 'react-native-maps';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { ClienteStackParamList } from '@navigation/types';
@@ -98,7 +98,6 @@ export function ClienteHomeScreen() {
             showsUserLocation
             showsMyLocationButton={false}
           >
-            {favorites[0] ? <Marker coordinate={favorites[0].position} pinColor="#1e40af" /> : null}
           </MapView>
           <TouchableOpacity style={styles.mapFab} activeOpacity={0.85}>
             <Ionicons name="navigate" size={18} color={Colors.primary} />
@@ -148,8 +147,8 @@ export function ClienteHomeScreen() {
                   style={styles.favoriteItem}
                   onPress={async () => {
                     setDestination(favorite);
-                    if (origin) {
-                      await requestTaxi();
+                    const didCreateRequest = await requestTaxi(favorite);
+                    if (didCreateRequest) {
                       navigation.navigate('SolicitudTaxi');
                     }
                   }}

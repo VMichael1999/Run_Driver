@@ -19,12 +19,14 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker, { DateTimePickerAndroid, type DateTimePickerEvent } from '@react-native-community/datetimepicker';
-import MapView, { Marker, Polyline, PROVIDER_GOOGLE, type LatLng } from 'react-native-maps';
+import MapView, { Marker, Polyline, PROVIDER_GOOGLE, type LatLng, type Region } from 'react-native-maps';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { ClienteStackParamList } from '@navigation/types';
-import type { DriverAlert } from '@shared/types';
+import type { Coordinates, DriverAlert, LocationMarker } from '@shared/types';
+import { getRoutePolyline } from '@shared/services/googleMapsService';
+import { getPlaceNameFromCoordinates } from '@shared/utils/locationUtils';
 import { useRideDraftStore } from '@store/useRideDraftStore';
 import { useTaxiStore } from '@store/useTaxiStore';
 import { LegacyImages } from '@shared/assets/legacyAssets';
@@ -173,10 +175,15 @@ function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
 }
 
+function formatFare(value: number) {
+  return value.toFixed(2);
+}
+
 export function SolicitudTaxiScreen() {
   const navigation = useNavigation<Nav>();
   const insets = useSafeAreaInsets();
-  const { request, acceptOffer, clearRequest } = useTaxiStore();
+  const { request, setRequest, acceptOffer, clearRequest } = useTaxiStore();
+  const setOrigin = useRideDraftStore((s) => s.setOrigin);
   const setDestination = useRideDraftStore((s) => s.setDestination);
   const setRoutePoints = useRideDraftStore((s) => s.setRoutePoints);
   const setComment = useRideDraftStore((s) => s.setComment);
@@ -188,7 +195,16 @@ export function SolicitudTaxiScreen() {
   const [calendarVisible, setCalendarVisible] = React.useState(false);
   const [notesVisible, setNotesVisible] = React.useState(false);
   const [tripNotes, setTripNotes] = React.useState('');
+  const [auctionFare, setAuctionFare] = React.useState(0);
+  const [auctionFareText, setAuctionFareText] = React.useState('0.00');
+  const [auctionFareVisible, setAuctionFareVisible] = React.useState(false);
+  const [isAuctionPickupMode, setIsAuctionPickupMode] = React.useState(false);
+  const [auctionDriver, setAuctionDriver] = React.useState<DriverAlert | null>(null);
+  const [selectedPickupPoint, setSelectedPickupPoint] = React.useState<Coordinates | null>(null);
+  const [selectedPickupAddress, setSelectedPickupAddress] = React.useState('Punto de partida seleccionado');
+  const [isConfirmingPickup, setIsConfirmingPickup] = React.useState(false);
   const mapRef = React.useRef<MapView | null>(null);
+  const pickupPinLift = React.useRef(new Animated.Value(0)).current;
   const sheetHeight = React.useRef(new Animated.Value(COLLAPSED_HEIGHT)).current;
   const currentHeightRef = React.useRef(COLLAPSED_HEIGHT);
   const dragStartHeightRef = React.useRef(COLLAPSED_HEIGHT);
@@ -213,6 +229,23 @@ export function SolicitudTaxiScreen() {
       friction: 14,
     }).start();
   }, [sheetHeight]);
+
+  const animatePickupPin = React.useCallback((toValue: number) => {
+    Animated.timing(pickupPinLift, {
+      toValue,
+      duration: 180,
+      useNativeDriver: true,
+    }).start();
+  }, [pickupPinLift]);
+
+  const resolvePickupAddress = React.useCallback(async (region: Region) => {
+    try {
+      const placeName = await getPlaceNameFromCoordinates(region.latitude, region.longitude);
+      setSelectedPickupAddress(placeName);
+    } catch {
+      setSelectedPickupAddress('Punto de partida seleccionado');
+    }
+  }, []);
 
   const panResponder = React.useMemo(
     () =>
@@ -248,18 +281,122 @@ export function SolicitudTaxiScreen() {
   );
 
   const handleExitToHome = React.useCallback(() => {
+    if (isAuctionPickupMode) {
+      setIsAuctionPickupMode(false);
+      setAuctionDriver(null);
+      setSelectedPickupPoint(null);
+      setSelectedPickupAddress('Punto de partida seleccionado');
+      animateSheet(COLLAPSED_HEIGHT);
+      return;
+    }
+
     clearRequest();
     setDestination(null);
     setRoutePoints([]);
     setComment('');
     navigation.popToTop();
-  }, [clearRequest, navigation, setComment, setDestination, setRoutePoints]);
+  }, [animateSheet, clearRequest, isAuctionPickupMode, navigation, setComment, setDestination, setRoutePoints]);
 
   const handleBook = () => {
     const selected = vehicles.find((vehicle) => vehicle.vehiclePlate === selectedVehicle) || vehicles[0];
+    if (selected.vehiclePlate === 'SUBASTA') {
+      const driver = { ...selected, price: auctionFare };
+      setAuctionDriver(driver);
+      setSelectedPickupPoint(request?.origin.position ?? null);
+      setSelectedPickupAddress(request?.origin.placeName ?? 'Punto de partida seleccionado');
+      setIsAuctionPickupMode(true);
+      return;
+    }
+
     acceptOffer(selected);
     navigation.replace('TrayectoTaxi');
   };
+
+  const handleMapRegionChange = React.useCallback(() => {
+    if (!isAuctionPickupMode) return;
+    animatePickupPin(-16);
+  }, [animatePickupPin, isAuctionPickupMode]);
+
+  const handleMapRegionChangeComplete = React.useCallback((nextRegion: Region) => {
+    if (!isAuctionPickupMode) return;
+    setSelectedPickupPoint({
+      latitude: nextRegion.latitude,
+      longitude: nextRegion.longitude,
+    });
+    animatePickupPin(0);
+    void resolvePickupAddress(nextRegion);
+  }, [animatePickupPin, isAuctionPickupMode, resolvePickupAddress]);
+
+  const handleConfirmAuctionPickup = React.useCallback(async () => {
+    if (!request || !auctionDriver || isConfirmingPickup) return;
+
+    setIsConfirmingPickup(true);
+    const pickupPoint = selectedPickupPoint ?? request.origin.position;
+    const nextOrigin: LocationMarker = {
+      position: pickupPoint,
+      placeName: selectedPickupAddress,
+    };
+
+    if (!selectedPickupAddress || selectedPickupAddress === 'Punto de partida seleccionado') {
+      try {
+        nextOrigin.placeName = await getPlaceNameFromCoordinates(pickupPoint.latitude, pickupPoint.longitude);
+      } catch {
+        nextOrigin.placeName = request.origin.placeName;
+      }
+    }
+
+    let nextRoutePoints = request.routePoints;
+    try {
+      nextRoutePoints = await getRoutePolyline(pickupPoint, request.destination.position);
+    } catch {
+      nextRoutePoints = [pickupPoint, request.destination.position];
+    }
+
+    setOrigin(nextOrigin);
+    setRoutePoints(nextRoutePoints);
+    setRequest({
+      ...request,
+      origin: nextOrigin,
+      routePoints: nextRoutePoints,
+    });
+    acceptOffer(auctionDriver);
+    setIsConfirmingPickup(false);
+    setIsAuctionPickupMode(false);
+    navigation.replace('TrayectoTaxi');
+  }, [
+    acceptOffer,
+    auctionDriver,
+    isConfirmingPickup,
+    navigation,
+    request,
+    selectedPickupAddress,
+    selectedPickupPoint,
+    setOrigin,
+    setRequest,
+    setRoutePoints,
+  ]);
+
+  const updateAuctionFare = React.useCallback((delta: number) => {
+    const typedFare = Number(auctionFareText.replace(',', '.'));
+    const baseFare = auctionFareVisible && Number.isFinite(typedFare) ? typedFare : auctionFare;
+    const nextFare = Math.max(0, Number((baseFare + delta).toFixed(2)));
+    setAuctionFare(nextFare);
+    setAuctionFareText(formatFare(nextFare));
+  }, [auctionFare, auctionFareText, auctionFareVisible]);
+
+  const openAuctionFareSheet = React.useCallback(() => {
+    setSelectedVehicle('SUBASTA');
+    setAuctionFareText(formatFare(auctionFare));
+    setAuctionFareVisible(true);
+  }, [auctionFare]);
+
+  const confirmAuctionFare = React.useCallback(() => {
+    const normalized = Number(auctionFareText.replace(',', '.'));
+    const nextFare = Number.isFinite(normalized) ? Math.max(0, normalized) : 0;
+    setAuctionFare(nextFare);
+    setAuctionFareText(formatFare(nextFare));
+    setAuctionFareVisible(false);
+  }, [auctionFareText]);
 
   const region = request
     ? {
@@ -275,6 +412,20 @@ export function SolicitudTaxiScreen() {
         longitudeDelta: 0.04,
       };
 
+  const focusAuctionPickupMap = React.useCallback(() => {
+    if (!mapRef.current || !request) return;
+
+    mapRef.current.animateToRegion(
+      {
+        latitude: request.origin.position.latitude,
+        longitude: request.origin.position.longitude,
+        latitudeDelta: 0.007,
+        longitudeDelta: 0.007,
+      },
+      520,
+    );
+  }, [request]);
+
   const fitRouteToMap = React.useCallback(() => {
     if (!mapRef.current || !request) return;
 
@@ -287,20 +438,27 @@ export function SolicitudTaxiScreen() {
     if (coords.length < 2) return;
 
     mapRef.current.fitToCoordinates(coords, {
-      edgePadding: { top: 180, right: 48, bottom: 420, left: 48 },
+      edgePadding: isAuctionPickupMode
+        ? { top: 90, right: 48, bottom: 210, left: 48 }
+        : { top: 180, right: 48, bottom: 420, left: 48 },
       animated: true,
     });
-  }, [request]);
+  }, [isAuctionPickupMode, request]);
 
   React.useEffect(() => {
     if (!request) return;
 
     const timeout = setTimeout(() => {
+      if (isAuctionPickupMode) {
+        focusAuctionPickupMap();
+        return;
+      }
+
       fitRouteToMap();
     }, 250);
 
     return () => clearTimeout(timeout);
-  }, [fitRouteToMap, request]);
+  }, [fitRouteToMap, focusAuctionPickupMap, isAuctionPickupMode, request]);
 
   const openCalendar = () => {
     if (Platform.OS === 'android') {
@@ -350,17 +508,19 @@ export function SolicitudTaxiScreen() {
           style={StyleSheet.absoluteFillObject}
           provider={PROVIDER_GOOGLE}
           initialRegion={region}
-          showsUserLocation={false}
+          onRegionChange={handleMapRegionChange}
+          onRegionChangeComplete={handleMapRegionChangeComplete}
+          showsUserLocation={isAuctionPickupMode}
           showsMyLocationButton={false}
         >
-          {request ? (
+          {request && !isAuctionPickupMode ? (
             <Marker coordinate={request.origin.position} anchor={{ x: 0.5, y: 0.5 }}>
               <View style={styles.originMarker}>
                 <View style={styles.markerInnerDot} />
               </View>
             </Marker>
           ) : null}
-          {request ? (
+          {request && !isAuctionPickupMode ? (
             <Marker coordinate={request.destination.position} anchor={{ x: 0.5, y: 0.5 }}>
               <View style={styles.destinationMarker}>
                 <View style={styles.markerInnerDot} />
@@ -372,41 +532,73 @@ export function SolicitudTaxiScreen() {
           ) : null}
         </MapView>
 
-        <View style={[styles.routeCard, styles.routeCardTop]}>
-          <View style={styles.routeRow}>
-            <View style={styles.routeDotGreen} />
-            <Text numberOfLines={1} style={styles.routeText}>
-              {request?.origin.placeName || 'Fairfax Drive Newark, NJ 07...'}
-            </Text>
-          </View>
-
-          <View style={styles.routeDivider} />
-
-          <View style={styles.routeRow}>
-            <View style={styles.routeDotRed} />
-            <Text numberOfLines={1} style={styles.routeText}>
-              {request?.destination.placeName || '3963 Mattson Street Portland...'}
-            </Text>
-            <View style={styles.routeActionWrap}>
-              <Ionicons name="add" size={18} color="#334155" />
+        {isAuctionPickupMode ? (
+          <View pointerEvents="none" style={styles.auctionPickupMarkerWrap}>
+            <Animated.View style={[styles.auctionPickupPinWrap, { transform: [{ translateY: pickupPinLift }] }]}>
+              <View style={styles.auctionPickupMarker}>
+                <View style={styles.auctionPickupMarkerDot} />
+              </View>
+              <View style={styles.auctionPickupStem} />
+            </Animated.View>
+            <View style={styles.auctionPickupPulse}>
+              <View style={styles.auctionPickupDot} />
             </View>
           </View>
-        </View>
+        ) : null}
 
-        <View style={styles.expandFab}>
+        {!isAuctionPickupMode ? (
+          <View style={[styles.routeCard, styles.routeCardTop]}>
+            <View style={styles.routeRow}>
+              <View style={styles.routeDotGreen} />
+              <Text numberOfLines={1} style={styles.routeText}>
+                {request?.origin.placeName || 'Fairfax Drive Newark, NJ 07...'}
+              </Text>
+            </View>
+
+            <View style={styles.routeDivider} />
+
+            <View style={styles.routeRow}>
+              <View style={styles.routeDotRed} />
+              <Text numberOfLines={1} style={styles.routeText}>
+                {request?.destination.placeName || '3963 Mattson Street Portland...'}
+              </Text>
+              <View style={styles.routeActionWrap}>
+                <Ionicons name="add" size={18} color="#334155" />
+              </View>
+            </View>
+          </View>
+        ) : null}
+
+        {!isAuctionPickupMode ? <View style={styles.expandFab}>
           <Ionicons name="scan-outline" size={20} color="#1f2a44" />
-        </View>
+        </View> : null}
 
-        <TouchableOpacity style={[styles.mapActionButton, styles.backFab]} onPress={handleExitToHome} activeOpacity={0.85}>
+        <TouchableOpacity
+          style={[
+            styles.mapActionButton,
+            isAuctionPickupMode ? styles.auctionBackFab : styles.backFab,
+            isAuctionPickupMode && { bottom: Math.max(insets.bottom, Spacing.md) + 134 },
+          ]}
+          onPress={handleExitToHome}
+          activeOpacity={0.85}
+        >
           <Ionicons name="arrow-back" size={22} color="#1f2a44" />
         </TouchableOpacity>
 
-        <TouchableOpacity style={[styles.mapActionButton, styles.centerRouteFab]} onPress={fitRouteToMap} activeOpacity={0.85}>
-          <Ionicons name="navigate" size={22} color="#334155" />
+        <TouchableOpacity
+          style={[
+            styles.mapActionButton,
+            isAuctionPickupMode ? styles.auctionCenterFab : styles.centerRouteFab,
+            isAuctionPickupMode && { bottom: Math.max(insets.bottom, Spacing.md) + 134 },
+          ]}
+          onPress={isAuctionPickupMode ? focusAuctionPickupMap : fitRouteToMap}
+          activeOpacity={0.85}
+        >
+          <Ionicons name={isAuctionPickupMode ? 'locate-outline' : 'navigate'} size={22} color="#334155" />
         </TouchableOpacity>
       </View>
 
-      <Animated.View style={[styles.sheet, { height: sheetHeight }]}>
+      {!isAuctionPickupMode ? <Animated.View style={[styles.sheet, { height: sheetHeight }]}>
         <View {...panResponder.panHandlers} style={styles.dragArea}>
           <View style={styles.handle} />
         </View>
@@ -433,6 +625,7 @@ export function SolicitudTaxiScreen() {
         >
           {orderedVehicles.map((item, index) => {
             const active = selectedVehicle === item.vehiclePlate;
+            const isAuction = item.vehiclePlate === 'SUBASTA';
             return (
               <TouchableOpacity
                 key={item.vehiclePlate}
@@ -456,24 +649,49 @@ export function SolicitudTaxiScreen() {
                 }}
                 activeOpacity={0.88}
               >
-                <View style={styles.vehicleTextWrap}>
-                  <View style={styles.vehicleTitleRow}>
-                    <Text style={styles.vehicleName}>{item.vehicleModel}</Text>
-                    {index === 0 ? <Ionicons name="information-circle" size={16} color="#1d5fa8" /> : null}
-                  </View>
-                  <Text style={styles.vehicleMeta}>{item.seatsLabel}</Text>
-                  <View style={styles.vehicleBottomRow}>
-                    <Text style={styles.vehiclePrice}>
-                      {item.currency}
-                      {item.price.toFixed(2)}
-                    </Text>
-                    <View style={styles.timeWrap}>
-                      <Ionicons name="radio-button-off-outline" size={14} color="#0f172a" />
-                      <Text style={styles.vehicleEta}>1-{item.etaMinutes} min</Text>
+                <View style={styles.vehicleContentRow}>
+                  <View style={styles.vehicleTextWrap}>
+                    <View style={styles.vehicleTitleRow}>
+                      <Text style={styles.vehicleName}>{item.vehicleModel}</Text>
+                      {index === 0 ? <Ionicons name="information-circle" size={16} color="#1d5fa8" /> : null}
+                    </View>
+                    <Text style={styles.vehicleMeta}>{item.seatsLabel}</Text>
+                    <View style={styles.vehicleBottomRow}>
+                      <Text style={styles.vehiclePrice}>
+                        {item.currency}
+                        {isAuction ? formatFare(auctionFare) : item.price.toFixed(2)}
+                      </Text>
+                      <View style={styles.timeWrap}>
+                        <Ionicons name="radio-button-off-outline" size={14} color="#0f172a" />
+                        <Text style={styles.vehicleEta}>1-{item.etaMinutes} min</Text>
+                      </View>
                     </View>
                   </View>
+                  <Image source={item.serviceImage} style={styles.vehicleImage} resizeMode="contain" />
                 </View>
-                <Image source={item.serviceImage} style={styles.vehicleImage} resizeMode="contain" />
+                {isAuction && active ? (
+                  <View style={styles.auctionControls}>
+                    <TouchableOpacity
+                      style={[styles.auctionStepButton, auctionFare <= 0 && styles.auctionStepButtonDisabled]}
+                      onPress={() => updateAuctionFare(-0.5)}
+                      activeOpacity={0.82}
+                      disabled={auctionFare <= 0}
+                    >
+                      <Text style={[styles.auctionStepText, auctionFare <= 0 && styles.auctionStepTextDisabled]}>- 0.50</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity style={styles.auctionFareButton} onPress={openAuctionFareSheet} activeOpacity={0.82}>
+                      <Text style={styles.auctionFareText}>
+                        {item.currency} {formatFare(auctionFare)}
+                      </Text>
+                      <Ionicons name="create-outline" size={14} color="#64748b" />
+                    </TouchableOpacity>
+
+                    <TouchableOpacity style={styles.auctionStepButton} onPress={() => updateAuctionFare(0.5)} activeOpacity={0.82}>
+                      <Text style={styles.auctionStepText}>+ 0.50</Text>
+                    </TouchableOpacity>
+                  </View>
+                ) : null}
               </TouchableOpacity>
             );
           })}
@@ -503,7 +721,23 @@ export function SolicitudTaxiScreen() {
             </TouchableOpacity>
           </View>
         </View>
-      </Animated.View>
+      </Animated.View> : null}
+
+      {isAuctionPickupMode ? (
+        <View style={[styles.auctionPickupPanel, { paddingBottom: Math.max(insets.bottom, Spacing.md) }]}>
+          <Text style={styles.auctionPickupTitle}>Confirmar punto de partida</Text>
+          <View style={styles.auctionPickupDivider} />
+          <Text style={styles.auctionPickupHelper}>Desplaza el mapa para establecer tu punto de partida.</Text>
+          <TouchableOpacity
+            style={[styles.auctionPickupConfirmButton, isConfirmingPickup && styles.auctionPickupConfirmButtonDisabled]}
+            onPress={handleConfirmAuctionPickup}
+            activeOpacity={0.88}
+            disabled={isConfirmingPickup}
+          >
+            <Text style={styles.auctionPickupConfirmText}>{isConfirmingPickup ? 'CONFIRMANDO...' : 'CONFIRMAR'}</Text>
+          </TouchableOpacity>
+        </View>
+      ) : null}
 
       <Modal
         visible={paymentSheetVisible}
@@ -609,6 +843,63 @@ export function SolicitudTaxiScreen() {
           </View>
         </KeyboardAvoidingView>
       </Modal>
+
+      <Modal
+        visible={auctionFareVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setAuctionFareVisible(false)}
+      >
+        <Pressable style={styles.overlayBackdrop} onPress={() => setAuctionFareVisible(false)}>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            style={styles.auctionKeyboardLayer}
+          >
+            <Pressable
+              style={[styles.auctionSheet, { paddingBottom: Math.max(insets.bottom, Spacing.md) }]}
+              onPress={(event) => event.stopPropagation()}
+            >
+              <View style={styles.paymentSheetHandle} />
+              <Text style={styles.auctionSheetTitle}>Propón una tarifa de viaje</Text>
+              <Text style={styles.auctionSheetText}>Puedes modificar la tarifa sugerida</Text>
+
+              <View style={styles.auctionSheetControls}>
+                <TouchableOpacity
+                  style={[styles.auctionStepButton, styles.auctionSheetStepButton, auctionFare <= 0 && styles.auctionStepButtonDisabled]}
+                  onPress={() => updateAuctionFare(-0.5)}
+                  activeOpacity={0.82}
+                  disabled={auctionFare <= 0}
+                >
+                  <Text style={[styles.auctionStepText, auctionFare <= 0 && styles.auctionStepTextDisabled]}>- 0.50</Text>
+                </TouchableOpacity>
+
+                <View style={styles.auctionInputWrap}>
+                  <Text style={styles.auctionInputCurrency}>S/</Text>
+                  <TextInput
+                    value={auctionFareText}
+                    onChangeText={setAuctionFareText}
+                    keyboardType="decimal-pad"
+                    selectTextOnFocus
+                    style={styles.auctionInput}
+                  />
+                </View>
+
+                <TouchableOpacity
+                  style={[styles.auctionStepButton, styles.auctionSheetStepButton]}
+                  onPress={() => updateAuctionFare(0.5)}
+                  activeOpacity={0.82}
+                >
+                  <Text style={styles.auctionStepText}>+ 0.50</Text>
+                </TouchableOpacity>
+              </View>
+
+              <TouchableOpacity style={styles.auctionConfirmButton} onPress={confirmAuctionFare} activeOpacity={0.88}>
+                <Text style={styles.auctionConfirmButtonText}>CONFIRMAR</Text>
+              </TouchableOpacity>
+            </Pressable>
+          </KeyboardAvoidingView>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -700,6 +991,66 @@ const styles = StyleSheet.create({
     right: Spacing.lg,
     bottom: COLLAPSED_HEIGHT + 18,
   },
+  auctionBackFab: {
+    left: Spacing.lg,
+  },
+  auctionCenterFab: {
+    right: Spacing.lg,
+  },
+  auctionPickupMarkerWrap: {
+    position: 'absolute',
+    left: '50%',
+    top: '50%',
+    width: 64,
+    height: 82,
+    marginLeft: -32,
+    marginTop: -58,
+    alignItems: 'center',
+  },
+  auctionPickupPinWrap: {
+    alignItems: 'center',
+  },
+  auctionPickupMarker: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#111111',
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...Shadow.md,
+  },
+  auctionPickupMarkerDot: {
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: Colors.white,
+  },
+  auctionPickupStem: {
+    width: 4,
+    height: 24,
+    backgroundColor: '#111111',
+    borderBottomLeftRadius: 2,
+    borderBottomRightRadius: 2,
+    marginTop: -2,
+    zIndex: -1,
+  },
+  auctionPickupPulse: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: '#60a5fa',
+    backgroundColor: 'rgba(96, 165, 250, 0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: -16,
+  },
+  auctionPickupDot: {
+    width: 9,
+    height: 9,
+    borderRadius: 4.5,
+    backgroundColor: '#2563eb',
+  },
   originMarker: {
     width: 22,
     height: 22,
@@ -737,6 +1088,50 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg,
     paddingTop: 0,
     ...Shadow.lg,
+  },
+  auctionPickupPanel: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: Colors.white,
+    paddingTop: Spacing.md,
+  },
+  auctionPickupTitle: {
+    color: '#111827',
+    fontFamily: FontFamily.bold,
+    fontSize: FontSize.md,
+    paddingHorizontal: Spacing.lg,
+    marginBottom: Spacing.md,
+  },
+  auctionPickupDivider: {
+    height: 1,
+    backgroundColor: '#eef2f7',
+  },
+  auctionPickupHelper: {
+    color: '#334155',
+    fontFamily: FontFamily.regular,
+    fontSize: FontSize.sm,
+    textAlign: 'center',
+    paddingHorizontal: Spacing.lg,
+    marginTop: Spacing.lg,
+    marginBottom: Spacing.md,
+  },
+  auctionPickupConfirmButton: {
+    minHeight: 56,
+    marginHorizontal: Spacing.lg,
+    borderRadius: 10,
+    backgroundColor: '#1d5fa8',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  auctionPickupConfirmButtonDisabled: {
+    opacity: 0.72,
+  },
+  auctionPickupConfirmText: {
+    color: Colors.white,
+    fontFamily: FontFamily.bold,
+    fontSize: FontSize.md,
   },
   dragArea: {
     alignItems: 'center',
@@ -785,8 +1180,7 @@ const styles = StyleSheet.create({
     borderColor: '#e2e8f0',
     borderRadius: 14,
     padding: Spacing.md,
-    flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'stretch',
     backgroundColor: '#ffffff',
   },
   vehicleCardActive: {
@@ -795,6 +1189,10 @@ const styles = StyleSheet.create({
   },
   vehicleTextWrap: {
     flex: 1,
+  },
+  vehicleContentRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   vehicleTitleRow: {
     flexDirection: 'row',
@@ -816,6 +1214,56 @@ const styles = StyleSheet.create({
   vehicleBottomRow: {
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  auctionControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: Spacing.sm,
+    marginTop: Spacing.md,
+  },
+  auctionStepButton: {
+    flex: 1,
+    minWidth: 0,
+    height: 42,
+    borderRadius: 10,
+    backgroundColor: Colors.white,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    ...Shadow.sm,
+  },
+  auctionStepButtonDisabled: {
+    backgroundColor: '#f8fafc',
+    borderColor: '#edf2f7',
+  },
+  auctionStepText: {
+    color: '#334155',
+    fontFamily: FontFamily.bold,
+    fontSize: FontSize.sm,
+  },
+  auctionStepTextDisabled: {
+    color: '#cbd5e1',
+  },
+  auctionFareButton: {
+    flex: 1.35,
+    minWidth: 0,
+    height: 42,
+    borderRadius: 10,
+    backgroundColor: Colors.white,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 6,
+    borderWidth: 1,
+    borderColor: '#dbeafe',
+    ...Shadow.sm,
+  },
+  auctionFareText: {
+    color: '#1f2a44',
+    fontFamily: FontFamily.bold,
+    fontSize: FontSize.md,
   },
   vehiclePrice: {
     color: '#1d5fa8',
@@ -913,6 +1361,71 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'rgba(15, 23, 42, 0.28)',
     justifyContent: 'flex-end',
+  },
+  auctionKeyboardLayer: {
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
+  auctionSheet: {
+    backgroundColor: Colors.white,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.sm,
+    gap: Spacing.md,
+  },
+  auctionSheetTitle: {
+    color: '#1f2a44',
+    fontFamily: FontFamily.bold,
+    fontSize: FontSize.lg,
+  },
+  auctionSheetText: {
+    color: '#64748b',
+    fontFamily: FontFamily.regular,
+    fontSize: FontSize.md,
+    marginTop: -8,
+  },
+  auctionSheetControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: Spacing.sm,
+  },
+  auctionSheetStepButton: {
+    flex: 0,
+    minWidth: 104,
+  },
+  auctionInputWrap: {
+    flex: 1,
+    height: 48,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  auctionInputCurrency: {
+    color: '#1f2a44',
+    fontFamily: FontFamily.bold,
+    fontSize: FontSize.lg,
+  },
+  auctionInput: {
+    minWidth: 72,
+    color: '#1f2a44',
+    fontFamily: FontFamily.bold,
+    fontSize: FontSize.lg,
+    paddingVertical: 0,
+    textAlign: 'center',
+  },
+  auctionConfirmButton: {
+    backgroundColor: '#1d5fa8',
+    borderRadius: 12,
+    paddingVertical: 15,
+    alignItems: 'center',
+  },
+  auctionConfirmButtonText: {
+    color: Colors.white,
+    fontFamily: FontFamily.bold,
+    fontSize: FontSize.md,
   },
   calendarSheet: {
     backgroundColor: Colors.white,

@@ -17,7 +17,7 @@ interface UseClienteHomeReturn {
   setPaymentMethod: (method: PaymentMethod) => void;
   setComment: (text: string) => void;
   setSelectedHomeTab: (value: 'ride' | 'rental' | 'outstation') => void;
-  requestTaxi: () => Promise<void>;
+  requestTaxi: (nextDestination?: LocationMarker) => Promise<boolean>;
   canRequest: boolean;
   recalculateRoute: () => Promise<void>;
 }
@@ -53,15 +53,16 @@ export function useClienteHome(): UseClienteHomeReturn {
     }
   }, [destination, origin, setRoutePoints]);
 
-  const requestTaxi = useCallback(async () => {
-    if (!origin || !destination) return;
+  const requestTaxi = useCallback(async (nextDestination?: LocationMarker) => {
+    const selectedDestination = nextDestination ?? destination;
+    if (!origin || !selectedDestination) return false;
     setIsRouting(true);
     try {
-      const points = await getRoutePolyline(origin.position, destination.position);
+      const points = await getRoutePolyline(origin.position, selectedDestination.position);
       setRoutePoints(points);
       setRequest({
         origin,
-        destination,
+        destination: selectedDestination,
         routePoints: points,
         paymentMethod,
         comment: comment.trim() || undefined,
@@ -69,7 +70,7 @@ export function useClienteHome(): UseClienteHomeReturn {
     } catch {
       setRequest({
         origin,
-        destination,
+        destination: selectedDestination,
         routePoints,
         paymentMethod,
         comment: comment.trim() || undefined,
@@ -77,6 +78,7 @@ export function useClienteHome(): UseClienteHomeReturn {
     } finally {
       setIsRouting(false);
     }
+    return true;
   }, [comment, destination, origin, paymentMethod, routePoints, setRequest, setRoutePoints]);
 
   return {

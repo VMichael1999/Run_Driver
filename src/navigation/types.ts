@@ -41,6 +41,7 @@ export type ConductorStackParamList = {
   ConductorHome: undefined;
   SolicitudesDetalle: { alertId: string };
   SolicitudesTrayecto: undefined;
+  ConfirmarPuntoPartida: { routePoints?: { latitude: number; longitude: number }[] };
   Chat: { userId: string; userName: string };
   HistorialViaje: undefined;
   Configuracion: undefined;
