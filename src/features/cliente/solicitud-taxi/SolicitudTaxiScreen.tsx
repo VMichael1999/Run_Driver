@@ -16,6 +16,7 @@ import {
   ScrollView,
   LayoutAnimation,
   UIManager,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker, { DateTimePickerAndroid, type DateTimePickerEvent } from '@react-native-community/datetimepicker';
@@ -26,13 +27,14 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { ClienteStackParamList } from '@navigation/types';
 import type { Coordinates, DriverAlert, LocationMarker } from '@shared/types';
 import { getRoutePolyline } from '@shared/services/googleMapsService';
-import { getPlaceNameFromCoordinates } from '@shared/utils/locationUtils';
+import { getCurrentLocationMarker, getPlaceNameFromCoordinates } from '@shared/utils/locationUtils';
 import { useRideDraftStore } from '@store/useRideDraftStore';
 import { useTaxiStore } from '@store/useTaxiStore';
 import { LegacyImages } from '@shared/assets/legacyAssets';
 import { Colors } from '@theme/colors';
 import { FontFamily, FontSize } from '@theme/fonts';
 import { Spacing, BorderRadius, Shadow } from '@theme/spacing';
+import { DriverOfferCard, useAuctionSimulation } from './components';
 
 type Nav = NativeStackNavigationProp<ClienteStackParamList, 'SolicitudTaxi'>;
 
@@ -198,10 +200,12 @@ export function SolicitudTaxiScreen() {
   const [auctionFare, setAuctionFare] = React.useState(0);
   const [auctionFareText, setAuctionFareText] = React.useState('0.00');
   const [auctionFareVisible, setAuctionFareVisible] = React.useState(false);
+  const [isAuctionRequestMode, setIsAuctionRequestMode] = React.useState(false);
   const [isAuctionPickupMode, setIsAuctionPickupMode] = React.useState(false);
   const [auctionDriver, setAuctionDriver] = React.useState<DriverAlert | null>(null);
   const [selectedPickupPoint, setSelectedPickupPoint] = React.useState<Coordinates | null>(null);
   const [selectedPickupAddress, setSelectedPickupAddress] = React.useState('Punto de partida seleccionado');
+  const [isResolvingPickup, setIsResolvingPickup] = React.useState(false);
   const [isConfirmingPickup, setIsConfirmingPickup] = React.useState(false);
   const mapRef = React.useRef<MapView | null>(null);
   const pickupPinLift = React.useRef(new Animated.Value(0)).current;
@@ -221,6 +225,9 @@ export function SolicitudTaxiScreen() {
     return selected ? [selected, ...rest] : vehicles;
   }, [appliedSelectedVehicle]);
 
+  const auction = useAuctionSimulation();
+  const hasAuctionOffers = auction.offers.length > 0;
+  const shouldShowAuctionMapPin = isAuctionPickupMode || isAuctionRequestMode;
 
   React.useEffect(() => {
     if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -258,11 +265,14 @@ export function SolicitudTaxiScreen() {
   }, [pickupPinLift]);
 
   const resolvePickupAddress = React.useCallback(async (region: Region) => {
+    setIsResolvingPickup(true);
     try {
       const placeName = await getPlaceNameFromCoordinates(region.latitude, region.longitude);
       setSelectedPickupAddress(placeName);
     } catch {
       setSelectedPickupAddress('Punto de partida seleccionado');
+    } finally {
+      setIsResolvingPickup(false);
     }
   }, []);
 
@@ -324,6 +334,7 @@ export function SolicitudTaxiScreen() {
       setAuctionDriver(null);
       setSelectedPickupPoint(null);
       setSelectedPickupAddress('Punto de partida seleccionado');
+      setIsResolvingPickup(false);
       animateSheet(COLLAPSED_HEIGHT);
       return;
     }
@@ -349,6 +360,40 @@ export function SolicitudTaxiScreen() {
     acceptOffer(selected);
     navigation.replace('TrayectoTaxi');
   };
+
+  const handleAuctionOfferAccept = React.useCallback(
+    (offerId: string) => {
+      const offer = auction.offers.find((o) => o.id === offerId);
+      if (!offer) return;
+
+      setIsAuctionRequestMode(false);
+      acceptOffer(offer.driver);
+      auction.acceptOffer(offerId);
+      navigation.replace('TrayectoTaxi');
+    },
+    [acceptOffer, auction, navigation],
+  );
+
+  const handleAuctionOfferReject = React.useCallback(
+    (offerId: string) => {
+      auction.rejectOffer(offerId);
+    },
+    [auction],
+  );
+
+  const handleAuctionCancel = React.useCallback(() => {
+    setIsAuctionRequestMode(false);
+    auction.stopSimulation();
+    clearRequest();
+    setDestination(null);
+    setRoutePoints([]);
+    setComment('');
+    navigation.popToTop();
+  }, [auction, clearRequest, navigation, setComment, setDestination, setRoutePoints]);
+
+  const handleAuctionRetry = React.useCallback(() => {
+    auction.startSimulation(auctionFare);
+  }, [auction, auctionFare]);
 
   const handleMapRegionChange = React.useCallback(() => {
     if (!isAuctionPickupMode) return;
@@ -397,13 +442,17 @@ export function SolicitudTaxiScreen() {
       origin: nextOrigin,
       routePoints: nextRoutePoints,
     });
-    acceptOffer(auctionDriver);
+
+    setIsAuctionRequestMode(true);
+    auction.startSimulation(auctionFare);
+
     setIsConfirmingPickup(false);
     setIsAuctionPickupMode(false);
-    navigation.replace('TrayectoTaxi');
   }, [
     acceptOffer,
     auctionDriver,
+    auctionFare,
+    auction,
     isConfirmingPickup,
     navigation,
     request,
@@ -463,6 +512,25 @@ export function SolicitudTaxiScreen() {
       520,
     );
   }, [request]);
+
+  const handleAuctionRecenter = React.useCallback(async () => {
+    const currentLocation = await getCurrentLocationMarker();
+    if (!currentLocation) {
+      focusAuctionPickupMap();
+      return;
+    }
+
+    const nextRegion: Region = {
+      latitude: currentLocation.position.latitude,
+      longitude: currentLocation.position.longitude,
+      latitudeDelta: 0.007,
+      longitudeDelta: 0.007,
+    };
+
+    setSelectedPickupPoint(currentLocation.position);
+    setSelectedPickupAddress(currentLocation.placeName);
+    mapRef.current?.animateToRegion(nextRegion, 400);
+  }, [focusAuctionPickupMap]);
 
   const fitRouteToMap = React.useCallback(() => {
     if (!mapRef.current || !request) return;
@@ -551,14 +619,14 @@ export function SolicitudTaxiScreen() {
           showsUserLocation={isAuctionPickupMode}
           showsMyLocationButton={false}
         >
-          {request && !isAuctionPickupMode ? (
+          {request && !shouldShowAuctionMapPin ? (
             <Marker coordinate={request.origin.position} anchor={{ x: 0.5, y: 0.5 }}>
               <View style={styles.originMarker}>
                 <View style={styles.markerInnerDot} />
               </View>
             </Marker>
           ) : null}
-          {request && !isAuctionPickupMode ? (
+          {request && !shouldShowAuctionMapPin ? (
             <Marker coordinate={request.destination.position} anchor={{ x: 0.5, y: 0.5 }}>
               <View style={styles.destinationMarker}>
                 <View style={styles.markerInnerDot} />
@@ -570,7 +638,15 @@ export function SolicitudTaxiScreen() {
           ) : null}
         </MapView>
 
-        {isAuctionPickupMode ? (
+        {isAuctionRequestMode ? (
+          <View pointerEvents="none" style={styles.auctionSearchRadarWrap}>
+            <View style={styles.auctionSearchRadarOuter} />
+            <View style={styles.auctionSearchRadarMiddle} />
+            <View style={styles.auctionSearchRadarInner} />
+          </View>
+        ) : null}
+
+        {shouldShowAuctionMapPin ? (
           <View pointerEvents="none" style={styles.auctionPickupMarkerWrap}>
             <Animated.View style={[styles.auctionPickupPinWrap, { transform: [{ translateY: pickupPinLift }] }]}>
               <View style={styles.auctionPickupMarker}>
@@ -582,7 +658,7 @@ export function SolicitudTaxiScreen() {
           </View>
         ) : null}
 
-        {!isAuctionPickupMode ? (
+        {!shouldShowAuctionMapPin ? (
           <View style={[styles.routeCard, styles.routeCardTop]}>
             <View style={styles.routeRow}>
               <View style={styles.routeDotGreen} />
@@ -605,11 +681,26 @@ export function SolicitudTaxiScreen() {
           </View>
         ) : null}
 
-        {!isAuctionPickupMode ? <View style={styles.expandFab}>
+        {!shouldShowAuctionMapPin ? <View style={styles.expandFab}>
           <Ionicons name="scan-outline" size={20} color="#1f2a44" />
         </View> : null}
 
-        <TouchableOpacity
+        {isAuctionPickupMode ? (
+          <View style={[styles.auctionFabColumn, { top: insets.top + Spacing.md }]}>
+            <TouchableOpacity style={styles.auctionFabButton} onPress={() => void handleAuctionRecenter()} activeOpacity={0.85}>
+              <Ionicons name="refresh" size={20} color={Colors.textPrimary} />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.auctionFabButton} activeOpacity={0.85}>
+              <Ionicons name="ellipsis-horizontal" size={20} color={Colors.textPrimary} />
+            </TouchableOpacity>
+          </View>
+        ) : null}
+
+        {isAuctionPickupMode && isResolvingPickup ? (
+          <ActivityIndicator style={styles.auctionResolvingIndicator} size="small" color={Colors.primary} />
+        ) : null}
+
+        {!isAuctionRequestMode ? <TouchableOpacity
           style={[
             styles.mapActionButton,
             isAuctionPickupMode ? styles.auctionBackFab : styles.backFab,
@@ -619,22 +710,22 @@ export function SolicitudTaxiScreen() {
           activeOpacity={0.85}
         >
           <Ionicons name="arrow-back" size={22} color="#1f2a44" />
-        </TouchableOpacity>
+        </TouchableOpacity> : null}
 
-        <TouchableOpacity
+        {!isAuctionRequestMode ? <TouchableOpacity
           style={[
             styles.mapActionButton,
             isAuctionPickupMode ? styles.auctionCenterFab : styles.centerRouteFab,
             isAuctionPickupMode && { bottom: Math.max(insets.bottom, Spacing.md) + 170 },
           ]}
-          onPress={isAuctionPickupMode ? focusAuctionPickupMap : fitRouteToMap}
+          onPress={isAuctionPickupMode ? () => void handleAuctionRecenter() : fitRouteToMap}
           activeOpacity={0.85}
         >
           <Ionicons name={isAuctionPickupMode ? 'locate-outline' : 'navigate'} size={22} color="#334155" />
-        </TouchableOpacity>
+        </TouchableOpacity> : null}
       </View>
 
-      {!isAuctionPickupMode ? <Animated.View {...panResponder.panHandlers} style={[styles.sheet, { height: sheetHeight }]}>
+      {!isAuctionPickupMode && !isAuctionRequestMode ? <Animated.View {...panResponder.panHandlers} style={[styles.sheet, { height: sheetHeight }]}>
         <View style={styles.dragArea}>
           <View style={styles.handle} />
         </View>
@@ -782,6 +873,129 @@ export function SolicitudTaxiScreen() {
           </TouchableOpacity>
         </View>
       ) : null}
+
+      {isAuctionRequestMode && (
+        <View style={StyleSheet.absoluteFill} pointerEvents="none">
+          <View style={styles.searchingOverlay} />
+        </View>
+      )}
+
+      {isAuctionRequestMode && hasAuctionOffers && (
+        <View style={styles.auctionOffersOverlay}>
+          <ScrollView
+            style={styles.auctionOffersList}
+            contentContainerStyle={styles.auctionOffersContent}
+            showsVerticalScrollIndicator={false}
+          >
+            {auction.offers.map((offer) => (
+              <View key={offer.id} style={styles.auctionOfferItem}>
+                <DriverOfferCard
+                  driver={offer.driver}
+                  startTime={offer.startTime}
+                  totalDurationSeconds={offer.totalDuration}
+                  offeredFare={auctionFare}
+                  onAccept={() => handleAuctionOfferAccept(offer.id)}
+                  onReject={() => handleAuctionOfferReject(offer.id)}
+                  onExpired={() => handleAuctionOfferReject(offer.id)}
+                />
+              </View>
+            ))}
+          </ScrollView>
+        </View>
+      )}
+
+      {isAuctionRequestMode && (
+        hasAuctionOffers ? (
+          <View style={styles.auctionOffersBottomPanel}>
+            <View style={styles.auctionSeenHeader}>
+              <Text style={styles.auctionSeenTitle}>
+                {auction.offers.length} {auction.offers.length === 1 ? 'conductor ha' : 'conductores han'} visto tu solicitud
+              </Text>
+              <Image source={{ uri: auction.offers[0].driver.imageUrl }} style={styles.auctionSeenAvatar} />
+            </View>
+            <View style={styles.auctionOffersBody}>
+              <Text style={styles.auctionOffersBodyText}>Posibles ofertas finales de los conductores</Text>
+              <TouchableOpacity
+                style={styles.auctionCancelButton}
+                onPress={handleAuctionCancel}
+                activeOpacity={0.85}>
+                <Text style={styles.auctionCancelButtonText}>CANCELAR SERVICIO</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        ) : (
+          <View style={styles.auctionBottomPanel}>
+            <View style={styles.auctionPanelHandle} />
+            <View style={styles.auctionBottomPanelHeader}>
+              <Text style={styles.auctionBottomPanelTitle}>Buscando conductores...</Text>
+              <Text style={styles.auctionBottomPanelSubtitle}>Prueba ofrecer un mejor precio</Text>
+            </View>
+
+            <View style={styles.auctionRequestFareRow}>
+              <TouchableOpacity
+                style={[styles.auctionRequestStepButton, auctionFare <= 0 && styles.auctionStepButtonDisabled]}
+                onPress={() => updateAuctionFare(-0.5)}
+                activeOpacity={0.82}
+                disabled={auctionFare <= 0}
+              >
+                <Text style={[styles.auctionRequestStepText, auctionFare <= 0 && styles.auctionStepTextDisabled]}>- 0.50</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.auctionRequestFareButton} onPress={openAuctionFareSheet} activeOpacity={0.82}>
+                <Text style={styles.auctionRequestFareText}>S/ {formatFare(auctionFare)}</Text>
+                <Ionicons name="create-outline" size={15} color="#64748b" />
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.auctionRequestStepButton} onPress={() => updateAuctionFare(0.5)} activeOpacity={0.82}>
+                <Text style={styles.auctionRequestStepText}>+ 0.50</Text>
+              </TouchableOpacity>
+            </View>
+
+            <TouchableOpacity style={styles.auctionRetryButton} onPress={handleAuctionRetry} activeOpacity={0.88}>
+              <Text style={styles.auctionRetryButtonText}>Volver a solicitar</Text>
+            </TouchableOpacity>
+
+            <View style={styles.auctionDetailsBlock}>
+              <View style={styles.auctionInfoRow}>
+                <Text style={styles.auctionInfoLabel}>Método de pago</Text>
+                <View style={styles.auctionInfoValueRow}>
+                  <Image source={selectedPaymentMethod.image} style={styles.auctionInfoPaymentIcon} resizeMode="contain" />
+                  <Text style={styles.auctionInfoValue}>{selectedPaymentMethod.label}</Text>
+                </View>
+              </View>
+
+              <View style={styles.auctionInfoRow}>
+                <Text style={styles.auctionInfoLabel}>Producto</Text>
+                <View style={styles.auctionInfoValueRow}>
+                  <Image source={vehicles.find((vehicle) => vehicle.vehiclePlate === 'SUBASTA')?.serviceImage} style={styles.auctionInfoProductIcon} resizeMode="contain" />
+                  <Text style={styles.auctionInfoValue}>Subasta</Text>
+                </View>
+              </View>
+
+              <View style={styles.auctionRouteInfoRow}>
+                <View style={styles.auctionRouteDot} />
+                <Text style={styles.auctionRouteText} numberOfLines={1}>
+                  {request?.origin.placeName || 'Punto de partida'}
+                </Text>
+              </View>
+
+              <View style={styles.auctionRouteInfoRow}>
+                <View style={styles.auctionRouteSquare} />
+                <Text style={styles.auctionRouteText} numberOfLines={1}>
+                  {request?.destination.placeName || 'Destino'}
+                </Text>
+              </View>
+            </View>
+
+            <TouchableOpacity
+              style={styles.auctionCancelButton}
+              onPress={handleAuctionCancel}
+              activeOpacity={0.85}>
+              <Text style={styles.auctionCancelButtonText}>CANCELAR SERVICIO</Text>
+            </TouchableOpacity>
+          </View>
+        )
+      )}
 
       <Modal
         visible={paymentSheetVisible}
@@ -1041,6 +1255,37 @@ const styles = StyleSheet.create({
   auctionCenterFab: {
     right: Spacing.lg,
   },
+  auctionSearchRadarWrap: {
+    position: 'absolute',
+    left: '50%',
+    top: '50%',
+    width: 220,
+    height: 220,
+    marginLeft: -110,
+    marginTop: -120,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  auctionSearchRadarOuter: {
+    position: 'absolute',
+    width: 220,
+    height: 220,
+    borderRadius: 110,
+    backgroundColor: 'rgba(245, 158, 11, 0.24)',
+  },
+  auctionSearchRadarMiddle: {
+    position: 'absolute',
+    width: 142,
+    height: 142,
+    borderRadius: 71,
+    backgroundColor: 'rgba(245, 158, 11, 0.35)',
+  },
+  auctionSearchRadarInner: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: 'rgba(245, 158, 11, 0.48)',
+  },
   auctionPickupMarkerWrap: {
     position: 'absolute',
     left: '50%',
@@ -1088,6 +1333,25 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.38,
     shadowRadius: 0,
     elevation: 1,
+  },
+  auctionFabColumn: {
+    position: 'absolute',
+    right: Spacing.md,
+    gap: Spacing.sm,
+  },
+  auctionFabButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: Colors.white,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...Shadow.md,
+  },
+  auctionResolvingIndicator: {
+    position: 'absolute',
+    top: Spacing.lg,
+    alignSelf: 'center',
   },
   originMarker: {
     width: 22,
@@ -1579,5 +1843,248 @@ const styles = StyleSheet.create({
     fontFamily: FontFamily.bold,
     fontSize: FontSize.md,
     letterSpacing: 0.4,
+  },
+  searchingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.35)',
+  },
+  auctionOffersOverlay: {
+    position: 'absolute',
+    left: Spacing.md,
+    right: Spacing.md,
+    top: Spacing.lg,
+    bottom: 156,
+  },
+  auctionOffersList: {
+    flex: 1,
+  },
+  auctionOffersContent: {
+    paddingBottom: Spacing.md,
+  },
+  auctionOfferItem: {
+    marginBottom: Spacing.sm,
+  },
+  auctionBottomPanel: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: Colors.white,
+    borderTopLeftRadius: 8,
+    borderTopRightRadius: 8,
+    paddingTop: 8,
+    paddingBottom: Spacing.lg,
+    paddingHorizontal: Spacing.md,
+    ...Shadow.lg,
+  },
+  auctionOffersBottomPanel: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: Colors.white,
+    ...Shadow.lg,
+  },
+  auctionSeenHeader: {
+    minHeight: 48,
+    backgroundColor: '#111111',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.md,
+  },
+  auctionSeenTitle: {
+    flex: 1,
+    fontFamily: FontFamily.bold,
+    fontSize: FontSize.md,
+    color: Colors.white,
+    marginRight: Spacing.md,
+  },
+  auctionSeenAvatar: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    borderWidth: 2,
+    borderColor: Colors.white,
+  },
+  auctionOffersBody: {
+    paddingHorizontal: Spacing.md,
+    paddingTop: Spacing.md,
+    paddingBottom: Spacing['2xl'],
+  },
+  auctionOffersBodyText: {
+    fontFamily: FontFamily.regular,
+    fontSize: FontSize.md,
+    color: '#334155',
+    marginBottom: Spacing.md,
+  },
+  auctionPanelHandle: {
+    alignSelf: 'center',
+    width: 48,
+    height: 5,
+    borderRadius: 999,
+    backgroundColor: '#c8c8c8',
+    marginBottom: Spacing.sm,
+  },
+  auctionBottomPanelHeader: {
+    marginBottom: Spacing.md,
+  },
+  auctionBottomPanelTitle: {
+    fontFamily: FontFamily.bold,
+    fontSize: FontSize.md,
+    color: '#1f2937',
+    marginBottom: 4,
+  },
+  auctionBottomPanelSubtitle: {
+    fontFamily: FontFamily.regular,
+    fontSize: FontSize.sm,
+    color: '#475569',
+  },
+  auctionRequestFareRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    marginBottom: Spacing.sm,
+  },
+  auctionRequestStepButton: {
+    flex: 1,
+    minHeight: 48,
+    borderRadius: 8,
+    backgroundColor: Colors.white,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...Shadow.sm,
+  },
+  auctionRequestStepText: {
+    fontFamily: FontFamily.regular,
+    fontSize: FontSize.sm,
+    color: '#334155',
+  },
+  auctionRequestFareButton: {
+    flex: 1.6,
+    minHeight: 48,
+    borderRadius: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.sm,
+    backgroundColor: Colors.white,
+  },
+  auctionRequestFareText: {
+    fontFamily: FontFamily.bold,
+    fontSize: FontSize.lg,
+    color: '#111827',
+  },
+  auctionRetryButton: {
+    minHeight: 52,
+    borderRadius: 8,
+    backgroundColor: '#1d5fa8',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: Spacing.md,
+  },
+  auctionRetryButtonText: {
+    fontFamily: FontFamily.bold,
+    fontSize: FontSize.md,
+    color: Colors.white,
+  },
+  auctionDetailsBlock: {
+    gap: Spacing.sm,
+    marginBottom: Spacing.lg,
+  },
+  auctionInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: Spacing.md,
+  },
+  auctionInfoLabel: {
+    fontFamily: FontFamily.regular,
+    fontSize: FontSize.sm,
+    color: '#334155',
+  },
+  auctionInfoValueRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    maxWidth: '58%',
+  },
+  auctionInfoPaymentIcon: {
+    width: 28,
+    height: 18,
+  },
+  auctionInfoProductIcon: {
+    width: 26,
+    height: 18,
+  },
+  auctionInfoValue: {
+    fontFamily: FontFamily.regular,
+    fontSize: FontSize.sm,
+    color: '#1f2937',
+  },
+  auctionRouteInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  auctionRouteDot: {
+    width: 9,
+    height: 9,
+    borderRadius: 4.5,
+    backgroundColor: '#f59e0b',
+  },
+  auctionRouteSquare: {
+    width: 9,
+    height: 9,
+    borderRadius: 2,
+    backgroundColor: '#f59e0b',
+  },
+  auctionRouteText: {
+    flex: 1,
+    fontFamily: FontFamily.regular,
+    fontSize: FontSize.sm,
+    color: '#334155',
+  },
+  auctionCountersRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: Spacing.sm,
+  },
+  auctionDriverAvatar: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: 2,
+    borderColor: Colors.white,
+  },
+  auctionDriverAvatarImage: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+  },
+  auctionDriverAvatarMore: {
+    backgroundColor: '#64748b',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  auctionDriverAvatarMoreText: {
+    fontFamily: FontFamily.bold,
+    fontSize: FontSize.xs,
+    color: Colors.white,
+  },
+  auctionCancelButton: {
+    backgroundColor: Colors.white,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  auctionCancelButtonText: {
+    fontFamily: FontFamily.bold,
+    fontSize: FontSize.md,
+    color: '#1d5fa8',
   },
 });
