@@ -30,6 +30,7 @@ export function SearchAddressScreen({ route, navigation }: Props) {
   const destination = useRideDraftStore((s) => s.destination);
   const setOrigin = useRideDraftStore((s) => s.setOrigin);
   const setDestination = useRideDraftStore((s) => s.setDestination);
+  const addExtraStop = useRideDraftStore((s) => s.addExtraStop);
   const setRoutePoints = useRideDraftStore((s) => s.setRoutePoints);
   const addFavorite = useFavoriteAddressesStore((s) => s.addFavorite);
   const paymentMethod = useRideDraftStore((s) => s.paymentMethod);
@@ -84,6 +85,9 @@ export function SearchAddressScreen({ route, navigation }: Props) {
         setOrigin(place);
         setRoutePoints([]);
         navigation.goBack();
+      } else if (target === 'extra-stop') {
+        addExtraStop(place);
+        navigation.goBack();
       } else {
         setDestination(place);
         if (origin) {
@@ -109,14 +113,14 @@ export function SearchAddressScreen({ route, navigation }: Props) {
 
   return (
     <View style={styles.container}>
-      <BackAppBar title={saveFavorite ? 'Agregar favorita' : target === 'origin' ? 'Buscar origen' : 'Buscar destino'} />
+      <BackAppBar title={saveFavorite ? 'Agregar favorita' : target === 'origin' ? 'Buscar origen' : target === 'extra-stop' ? 'Agregar parada' : 'Buscar destino'} />
       <View style={styles.content}>
         <View style={styles.searchBox}>
           <Ionicons name="search" size={18} color="#94a3b8" />
           <TextInput
             value={query}
             onChangeText={onQueryChanged}
-            placeholder={saveFavorite ? 'Buscar direccion favorita' : target === 'origin' ? 'Ingresa origen' : 'Ingresa destino'}
+            placeholder={saveFavorite ? 'Buscar direccion favorita' : target === 'origin' ? 'Ingresa origen' : target === 'extra-stop' ? 'Ingresa parada intermedia' : 'Ingresa destino'}
             placeholderTextColor="#94a3b8"
             style={styles.searchInput}
             autoFocus

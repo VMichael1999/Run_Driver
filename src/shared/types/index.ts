@@ -12,7 +12,7 @@ export interface LocationMarker {
   placeName: string;
 }
 
-export type SearchTarget = 'origin' | 'destination';
+export type SearchTarget = 'origin' | 'destination' | 'extra-stop';
 
 export interface PaymentMethod {
   amount: number;

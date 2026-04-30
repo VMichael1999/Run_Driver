@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import MapView, { PROVIDER_GOOGLE, type Region } from 'react-native-maps';
+import MapView, { Marker, PROVIDER_GOOGLE, type Region } from 'react-native-maps';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { ClienteStackParamList } from '@navigation/types';
@@ -34,6 +34,7 @@ export function ClienteHomeScreen() {
   const insets = useSafeAreaInsets();
   const mapRef = React.useRef<MapView | null>(null);
   const [homeScrollEnabled, setHomeScrollEnabled] = React.useState(true);
+  const [isOriginSearched, setIsOriginSearched] = React.useState(false);
   const {
     origin,
     selectedHomeTab,
@@ -80,6 +81,11 @@ export function ClienteHomeScreen() {
     }, [recalculateRoute]),
   );
 
+  const handleNowPress = React.useCallback(() => {
+    setIsOriginSearched(true);
+    navigation.navigate('SearchAddress', { target: 'origin' });
+  }, [navigation]);
+
   return (
     <View style={styles.container}>
       <ScrollView
@@ -109,18 +115,26 @@ export function ClienteHomeScreen() {
             onTouchStart={() => setHomeScrollEnabled(false)}
             onTouchEnd={() => setHomeScrollEnabled(true)}
             onTouchCancel={() => setHomeScrollEnabled(true)}
-          />
+          >
+            {isOriginSearched && origin ? (
+              <Marker coordinate={origin.position} anchor={{ x: 0.5, y: 0.5 }}>
+                <View style={styles.searchedOriginMarker}>
+                  <View style={styles.searchedOriginDot} />
+                </View>
+              </Marker>
+            ) : null}
+          </MapView>
           <TouchableOpacity
             style={styles.mapFab}
-            onPress={() => {
-              if (!origin) return;
-
+            onPress={async () => {
+              const current = await getCurrentLocationMarker();
+              if (!current) return;
               mapRef.current?.animateToRegion(
                 {
-                  latitude: origin.position.latitude,
-                  longitude: origin.position.longitude,
-                  latitudeDelta: 0.04,
-                  longitudeDelta: 0.04,
+                  latitude: current.position.latitude,
+                  longitude: current.position.longitude,
+                  latitudeDelta: 0.02,
+                  longitudeDelta: 0.02,
                 },
                 420,
               );
@@ -137,7 +151,7 @@ export function ClienteHomeScreen() {
               Buscar ruta
             </Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.nowPill} onPress={() => navigation.navigate('SearchAddress', { target: 'origin' })} activeOpacity={0.85}>
+          <TouchableOpacity style={styles.nowPill} onPress={handleNowPress} activeOpacity={0.85}>
             <Ionicons name="person-outline" size={14} color={Colors.white} />
             <Text style={styles.nowText}>{isRouting ? '...' : 'Ahora'}</Text>
             <Ionicons name="chevron-down" size={14} color={Colors.white} />
@@ -482,5 +496,26 @@ const styles = StyleSheet.create({
   bannerImage: {
     width: 100,
     height: 100,
+  },
+  searchedOriginMarker: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: '#111111',
+    borderWidth: 2.5,
+    borderColor: Colors.white,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  searchedOriginDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: Colors.white,
   },
 });

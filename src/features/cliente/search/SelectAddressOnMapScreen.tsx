@@ -36,6 +36,7 @@ export function SelectAddressOnMapScreen({ route, navigation }: Props) {
   const origin = useRideDraftStore((s) => s.origin);
   const setOrigin = useRideDraftStore((s) => s.setOrigin);
   const setDestination = useRideDraftStore((s) => s.setDestination);
+  const addExtraStop = useRideDraftStore((s) => s.addExtraStop);
   const setRoutePoints = useRideDraftStore((s) => s.setRoutePoints);
   const paymentMethod = useRideDraftStore((s) => s.paymentMethod);
   const comment = useRideDraftStore((s) => s.comment);
@@ -136,6 +137,12 @@ export function SelectAddressOnMapScreen({ route, navigation }: Props) {
         return;
       }
 
+      if (target === 'extra-stop') {
+        addExtraStop(selectedLocation);
+        navigation.goBack();
+        return;
+      }
+
       setDestination(selectedLocation);
 
       const effectiveOrigin = origin ?? (await getCurrentLocationMarker());
@@ -167,7 +174,7 @@ export function SelectAddressOnMapScreen({ route, navigation }: Props) {
 
   return (
     <View style={styles.container}>
-      <BackAppBar title={saveFavorite ? 'Agregar favorita' : target === 'origin' ? 'Elegir origen' : 'Elegir destino'} />
+      <BackAppBar title={saveFavorite ? 'Agregar favorita' : target === 'origin' ? 'Elegir origen' : target === 'extra-stop' ? 'Elegir parada' : 'Elegir destino'} />
 
       <View style={styles.mapWrap}>
         <MapView

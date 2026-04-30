@@ -188,6 +188,9 @@ export function SolicitudTaxiScreen() {
   const { request, setRequest, acceptOffer, clearRequest } = useTaxiStore();
   const setOrigin = useRideDraftStore((s) => s.setOrigin);
   const setDestination = useRideDraftStore((s) => s.setDestination);
+  const extraStops = useRideDraftStore((s) => s.extraStops);
+  const removeExtraStop = useRideDraftStore((s) => s.removeExtraStop);
+  const clearExtraStops = useRideDraftStore((s) => s.clearExtraStops);
   const setRoutePoints = useRideDraftStore((s) => s.setRoutePoints);
   const setComment = useRideDraftStore((s) => s.setComment);
   const [selectedVehicle, setSelectedVehicle] = React.useState(vehicles[0].vehiclePlate);
@@ -342,11 +345,12 @@ export function SolicitudTaxiScreen() {
     }
 
     clearRequest();
+    clearExtraStops();
     setDestination(null);
     setRoutePoints([]);
     setComment('');
     navigation.popToTop();
-  }, [animateSheet, clearRequest, isAuctionPickupMode, navigation, setComment, setDestination, setRoutePoints]);
+  }, [animateSheet, clearExtraStops, clearRequest, isAuctionPickupMode, navigation, setComment, setDestination, setRoutePoints]);
 
   const handleBook = () => {
     const selected = vehicles.find((vehicle) => vehicle.vehiclePlate === selectedVehicle) || vehicles[0];
@@ -387,11 +391,12 @@ export function SolicitudTaxiScreen() {
     setIsAuctionRequestMode(false);
     auction.stopSimulation();
     clearRequest();
+    clearExtraStops();
     setDestination(null);
     setRoutePoints([]);
     setComment('');
     navigation.popToTop();
-  }, [auction, clearRequest, navigation, setComment, setDestination, setRoutePoints]);
+  }, [auction, clearExtraStops, clearRequest, navigation, setComment, setDestination, setRoutePoints]);
 
   const handleAuctionRetry = React.useCallback(() => {
     auction.startSimulation(auctionFare);
@@ -615,6 +620,35 @@ export function SolicitudTaxiScreen() {
     return () => clearTimeout(timeout);
   }, [fitRouteToMap, focusAuctionPickupMap, focusAuctionRequestMap, isAuctionPickupMode, isAuctionRequestMode, request]);
 
+  // Recalculate polyline through all extra stops when they change
+  React.useEffect(() => {
+    if (!request || extraStops.length === 0) return;
+
+    let active = true;
+    void (async () => {
+      try {
+        const waypoints = [
+          request.origin.position,
+          ...extraStops.map((s) => s.position),
+          request.destination.position,
+        ];
+        const segments = await Promise.all(
+          waypoints.slice(0, -1).map((from, i) =>
+            getRoutePolyline(from, waypoints[i + 1]).catch(() => [from, waypoints[i + 1]]),
+          ),
+        );
+        if (!active) return;
+        const combined = segments.flat();
+        setRoutePoints(combined);
+        setRequest({ ...request, routePoints: combined });
+        setTimeout(() => fitRouteToMap(), 150);
+      } catch {
+        // silently ignore
+      }
+    })();
+    return () => { active = false; };
+  }, [extraStops]);
+
   React.useEffect(() => {
     if (!isAuctionRequestMode) {
       setAuctionOriginScreenPoint(null);
@@ -698,11 +732,20 @@ export function SolicitudTaxiScreen() {
           ) : null}
           {request && !shouldShowAuctionMapPin ? (
             <Marker coordinate={request.destination.position} anchor={{ x: 0.5, y: 0.5 }}>
-              <View style={styles.destinationMarker}>
-                <View style={styles.markerInnerDot} />
+              <View style={styles.stopNumberMarker}>
+                <Text style={styles.stopNumberText}>1</Text>
               </View>
             </Marker>
           ) : null}
+          {!shouldShowAuctionMapPin
+            ? extraStops.map((stop, index) => (
+                <Marker key={`stop-${index}`} coordinate={stop.position} anchor={{ x: 0.5, y: 0.5 }}>
+                  <View style={styles.stopNumberMarker}>
+                    <Text style={styles.stopNumberText}>{index + 2}</Text>
+                  </View>
+                </Marker>
+              ))
+            : null}
           {request && request.routePoints.length > 1 ? (
             <Polyline coordinates={request.routePoints} strokeColor="#111111" strokeWidth={5} />
           ) : null}
@@ -732,14 +775,41 @@ export function SolicitudTaxiScreen() {
             <View style={styles.routeDivider} />
 
             <View style={styles.routeRow}>
-              <View style={styles.routeDotRed} />
+              <View style={styles.routeDestBadge}>
+                <Text style={styles.routeDestBadgeText}>1</Text>
+              </View>
               <Text numberOfLines={1} style={styles.routeText}>
                 {request?.destination.placeName || '3963 Mattson Street Portland...'}
               </Text>
-              <View style={styles.routeActionWrap}>
-                <Ionicons name="add" size={18} color="#334155" />
-              </View>
+              <TouchableOpacity
+                style={styles.routeActionWrap}
+                onPress={() => navigation.navigate('SearchAddress', { target: 'extra-stop' })}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <View style={styles.addStopButton}>
+                  <Ionicons name="add" size={16} color={Colors.white} />
+                </View>
+              </TouchableOpacity>
             </View>
+
+            {extraStops.map((stop, index) => (
+              <React.Fragment key={index}>
+                <View style={styles.routeDivider} />
+                <View style={styles.routeRow}>
+                  <View style={styles.routeDestBadge}>
+                    <Text style={styles.routeDestBadgeText}>{index + 2}</Text>
+                  </View>
+                  <Text numberOfLines={1} style={styles.routeText}>{stop.placeName}</Text>
+                  <TouchableOpacity
+                    style={styles.routeActionWrap}
+                    onPress={() => removeExtraStop(index)}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <Ionicons name="close-circle" size={18} color="#94a3b8" />
+                  </TouchableOpacity>
+                </View>
+              </React.Fragment>
+            ))}
           </View>
         ) : null}
 
@@ -1296,6 +1366,36 @@ const styles = StyleSheet.create({
     backgroundColor: '#ef4444',
     marginRight: Spacing.sm,
   },
+  routeDotBlue: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#3b82f6',
+    marginRight: Spacing.sm,
+  },
+  addStopButton: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: '#334155',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  routeDestBadge: {
+    width: 18,
+    height: 18,
+    borderRadius: 4,
+    backgroundColor: '#111111',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: Spacing.sm,
+  },
+  routeDestBadgeText: {
+    color: Colors.white,
+    fontSize: 10,
+    fontFamily: FontFamily.bold,
+    lineHeight: 12,
+  },
   routeText: {
     flex: 1,
     color: '#334155',
@@ -1453,6 +1553,27 @@ const styles = StyleSheet.create({
     height: 8,
     borderRadius: 4,
     backgroundColor: Colors.white,
+  },
+  stopNumberMarker: {
+    width: 26,
+    height: 26,
+    borderRadius: 6,
+    backgroundColor: '#111111',
+    borderWidth: 2,
+    borderColor: Colors.white,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
+    elevation: 4,
+  },
+  stopNumberText: {
+    color: Colors.white,
+    fontSize: 11,
+    fontFamily: FontFamily.bold,
+    lineHeight: 14,
   },
   sheet: {
     position: 'absolute',
