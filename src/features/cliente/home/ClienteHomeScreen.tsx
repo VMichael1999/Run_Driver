@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import MapView, { PROVIDER_GOOGLE } from 'react-native-maps';
+import MapView, { PROVIDER_GOOGLE, type Region } from 'react-native-maps';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { ClienteStackParamList } from '@navigation/types';
@@ -32,6 +32,8 @@ const homeActions: Array<{ id: 'ride' | 'rental' | 'outstation'; label: string; 
 export function ClienteHomeScreen() {
   const navigation = useNavigation<Nav>();
   const insets = useSafeAreaInsets();
+  const mapRef = React.useRef<MapView | null>(null);
+  const [homeScrollEnabled, setHomeScrollEnabled] = React.useState(true);
   const {
     origin,
     selectedHomeTab,
@@ -59,6 +61,19 @@ export function ClienteHomeScreen() {
     };
   }, [setOrigin]);
 
+  React.useEffect(() => {
+    if (!origin) return;
+
+    const nextRegion: Region = {
+      latitude: origin.position.latitude,
+      longitude: origin.position.longitude,
+      latitudeDelta: 0.04,
+      longitudeDelta: 0.04,
+    };
+
+    mapRef.current?.animateToRegion(nextRegion, 420);
+  }, [origin]);
+
   useFocusEffect(
     React.useCallback(() => {
       void recalculateRoute();
@@ -70,6 +85,7 @@ export function ClienteHomeScreen() {
       <ScrollView
         style={styles.container}
         contentContainerStyle={{ paddingTop: insets.top + Spacing.md, paddingBottom: insets.bottom + Spacing['2xl'] }}
+        scrollEnabled={homeScrollEnabled}
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.header}>
@@ -80,26 +96,37 @@ export function ClienteHomeScreen() {
 
         <View style={styles.mapCard}>
           <MapView
+            ref={mapRef}
             style={styles.map}
             provider={PROVIDER_GOOGLE}
             initialRegion={LIMA_REGION}
-            region={
-              origin
-                ? {
-                    latitude: origin.position.latitude,
-                    longitude: origin.position.longitude,
-                    latitudeDelta: 0.04,
-                    longitudeDelta: 0.04,
-                  }
-                : undefined
-            }
-            scrollEnabled={false}
+            scrollEnabled
+            zoomEnabled
             rotateEnabled={false}
+            pitchEnabled={false}
             showsUserLocation
             showsMyLocationButton={false}
+            onTouchStart={() => setHomeScrollEnabled(false)}
+            onTouchEnd={() => setHomeScrollEnabled(true)}
+            onTouchCancel={() => setHomeScrollEnabled(true)}
+          />
+          <TouchableOpacity
+            style={styles.mapFab}
+            onPress={() => {
+              if (!origin) return;
+
+              mapRef.current?.animateToRegion(
+                {
+                  latitude: origin.position.latitude,
+                  longitude: origin.position.longitude,
+                  latitudeDelta: 0.04,
+                  longitudeDelta: 0.04,
+                },
+                420,
+              );
+            }}
+            activeOpacity={0.85}
           >
-          </MapView>
-          <TouchableOpacity style={styles.mapFab} activeOpacity={0.85}>
             <Ionicons name="navigate" size={18} color={Colors.primary} />
           </TouchableOpacity>
         </View>

@@ -31,6 +31,7 @@ export function DriverOfferCard({
   const [remainingSeconds, setRemainingSeconds] = useState(totalDurationSeconds);
   const acceptProgress = useRef(new Animated.Value(1)).current;
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const didExpireRef = useRef(false);
   const showYourFare = Math.abs(driver.price - offeredFare) < 0.01;
 
   useEffect(() => {
@@ -38,9 +39,6 @@ export function DriverOfferCard({
       setRemainingSeconds((current) => {
         const next = Math.max(0, current - 1);
         onTimeUpdate?.(next);
-        if (next === 0) {
-          onExpired?.();
-        }
         return next;
       });
     }, 1000);
@@ -48,7 +46,17 @@ export function DriverOfferCard({
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [onExpired, onTimeUpdate]);
+  }, [onTimeUpdate]);
+
+  useEffect(() => {
+    if (remainingSeconds > 0 || didExpireRef.current) return;
+    didExpireRef.current = true;
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+    onExpired?.();
+  }, [onExpired, remainingSeconds]);
 
   useEffect(() => {
     Animated.timing(acceptProgress, {

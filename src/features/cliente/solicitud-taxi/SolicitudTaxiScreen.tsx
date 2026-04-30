@@ -20,6 +20,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker, { DateTimePickerAndroid, type DateTimePickerEvent } from '@react-native-community/datetimepicker';
+import LottieView from 'lottie-react-native';
 import MapView, { Marker, Polyline, PROVIDER_GOOGLE, type LatLng, type Region } from 'react-native-maps';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -207,6 +208,7 @@ export function SolicitudTaxiScreen() {
   const [selectedPickupAddress, setSelectedPickupAddress] = React.useState('Punto de partida seleccionado');
   const [isResolvingPickup, setIsResolvingPickup] = React.useState(false);
   const [isConfirmingPickup, setIsConfirmingPickup] = React.useState(false);
+  const [auctionOriginScreenPoint, setAuctionOriginScreenPoint] = React.useState<{ x: number; y: number } | null>(null);
   const mapRef = React.useRef<MapView | null>(null);
   const pickupPinLift = React.useRef(new Animated.Value(0)).current;
   const sheetHeight = React.useRef(new Animated.Value(COLLAPSED_HEIGHT)).current;
@@ -395,12 +397,30 @@ export function SolicitudTaxiScreen() {
     auction.startSimulation(auctionFare);
   }, [auction, auctionFare]);
 
+  const updateAuctionOriginScreenPoint = React.useCallback(async () => {
+    if (!mapRef.current || !request || !isAuctionRequestMode) {
+      setAuctionOriginScreenPoint(null);
+      return;
+    }
+
+    try {
+      const point = await mapRef.current.pointForCoordinate(request.origin.position);
+      setAuctionOriginScreenPoint(point);
+    } catch {
+      setAuctionOriginScreenPoint(null);
+    }
+  }, [isAuctionRequestMode, request]);
+
   const handleMapRegionChange = React.useCallback(() => {
     if (!isAuctionPickupMode) return;
     animatePickupPin(-16);
   }, [animatePickupPin, isAuctionPickupMode]);
 
   const handleMapRegionChangeComplete = React.useCallback((nextRegion: Region) => {
+    if (isAuctionRequestMode) {
+      void updateAuctionOriginScreenPoint();
+    }
+
     if (!isAuctionPickupMode) return;
     setSelectedPickupPoint({
       latitude: nextRegion.latitude,
@@ -408,7 +428,13 @@ export function SolicitudTaxiScreen() {
     });
     animatePickupPin(0);
     void resolvePickupAddress(nextRegion);
-  }, [animatePickupPin, isAuctionPickupMode, resolvePickupAddress]);
+  }, [
+    animatePickupPin,
+    isAuctionPickupMode,
+    isAuctionRequestMode,
+    resolvePickupAddress,
+    updateAuctionOriginScreenPoint,
+  ]);
 
   const handleConfirmAuctionPickup = React.useCallback(async () => {
     if (!request || !auctionDriver || isConfirmingPickup) return;
@@ -513,6 +539,24 @@ export function SolicitudTaxiScreen() {
     );
   }, [request]);
 
+  const focusAuctionRequestMap = React.useCallback(() => {
+    if (!mapRef.current || !request) return;
+
+    mapRef.current.animateToRegion(
+      {
+        latitude: request.origin.position.latitude,
+        longitude: request.origin.position.longitude,
+        latitudeDelta: 0.018,
+        longitudeDelta: 0.018,
+      },
+      520,
+    );
+
+    setTimeout(() => {
+      void updateAuctionOriginScreenPoint();
+    }, 580);
+  }, [request, updateAuctionOriginScreenPoint]);
+
   const handleAuctionRecenter = React.useCallback(async () => {
     const currentLocation = await getCurrentLocationMarker();
     if (!currentLocation) {
@@ -560,11 +604,29 @@ export function SolicitudTaxiScreen() {
         return;
       }
 
+      if (isAuctionRequestMode) {
+        focusAuctionRequestMap();
+        return;
+      }
+
       fitRouteToMap();
     }, 250);
 
     return () => clearTimeout(timeout);
-  }, [fitRouteToMap, focusAuctionPickupMap, isAuctionPickupMode, request]);
+  }, [fitRouteToMap, focusAuctionPickupMap, focusAuctionRequestMap, isAuctionPickupMode, isAuctionRequestMode, request]);
+
+  React.useEffect(() => {
+    if (!isAuctionRequestMode) {
+      setAuctionOriginScreenPoint(null);
+      return;
+    }
+
+    const timeout = setTimeout(() => {
+      void updateAuctionOriginScreenPoint();
+    }, 650);
+
+    return () => clearTimeout(timeout);
+  }, [isAuctionRequestMode, request?.origin.position.latitude, request?.origin.position.longitude, updateAuctionOriginScreenPoint]);
 
   const openCalendar = () => {
     if (Platform.OS === 'android') {
@@ -608,12 +670,20 @@ export function SolicitudTaxiScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.mapArea}>
+      <View
+        style={styles.mapArea}
+        onLayout={() => {
+          void updateAuctionOriginScreenPoint();
+        }}
+      >
         <MapView
           ref={mapRef}
           style={StyleSheet.absoluteFillObject}
           provider={PROVIDER_GOOGLE}
           initialRegion={region}
+          onMapReady={() => {
+            void updateAuctionOriginScreenPoint();
+          }}
           onRegionChange={handleMapRegionChange}
           onRegionChangeComplete={handleMapRegionChangeComplete}
           showsUserLocation={isAuctionPickupMode}
@@ -638,15 +708,7 @@ export function SolicitudTaxiScreen() {
           ) : null}
         </MapView>
 
-        {isAuctionRequestMode ? (
-          <View pointerEvents="none" style={styles.auctionSearchRadarWrap}>
-            <View style={styles.auctionSearchRadarOuter} />
-            <View style={styles.auctionSearchRadarMiddle} />
-            <View style={styles.auctionSearchRadarInner} />
-          </View>
-        ) : null}
-
-        {shouldShowAuctionMapPin ? (
+        {isAuctionPickupMode ? (
           <View pointerEvents="none" style={styles.auctionPickupMarkerWrap}>
             <Animated.View style={[styles.auctionPickupPinWrap, { transform: [{ translateY: pickupPinLift }] }]}>
               <View style={styles.auctionPickupMarker}>
@@ -879,6 +941,33 @@ export function SolicitudTaxiScreen() {
           <View style={styles.searchingOverlay} />
         </View>
       )}
+
+      {isAuctionRequestMode && auctionOriginScreenPoint ? (
+        <View
+          pointerEvents="none"
+          style={[
+            styles.auctionMapMarkerWrap,
+            {
+              left: auctionOriginScreenPoint.x - 130,
+              top: auctionOriginScreenPoint.y - 150,
+            },
+          ]}
+        >
+          <LottieView
+            source={require('../../../../assets/lotties/ripple_lottie.json')}
+            autoPlay
+            loop
+            style={styles.auctionMapMarkerLottie}
+          />
+          <View style={styles.auctionMapMarkerPin}>
+            <View style={styles.auctionPickupMarker}>
+              <View style={styles.auctionPickupMarkerDot} />
+            </View>
+            <View style={styles.auctionPickupStem} />
+            <View style={styles.auctionPickupShadowDot} />
+          </View>
+        </View>
+      ) : null}
 
       {isAuctionRequestMode && hasAuctionOffers && (
         <View style={styles.auctionOffersOverlay}>
@@ -1255,36 +1344,22 @@ const styles = StyleSheet.create({
   auctionCenterFab: {
     right: Spacing.lg,
   },
-  auctionSearchRadarWrap: {
+  auctionMapMarkerWrap: {
     position: 'absolute',
-    left: '50%',
-    top: '50%',
-    width: 220,
-    height: 220,
-    marginLeft: -110,
-    marginTop: -120,
+    width: 260,
+    height: 260,
     alignItems: 'center',
     justifyContent: 'center',
+    zIndex: 2,
+    elevation: 2,
   },
-  auctionSearchRadarOuter: {
+  auctionMapMarkerLottie: {
     position: 'absolute',
-    width: 220,
-    height: 220,
-    borderRadius: 110,
-    backgroundColor: 'rgba(245, 158, 11, 0.24)',
+    width: 260,
+    height: 260,
   },
-  auctionSearchRadarMiddle: {
-    position: 'absolute',
-    width: 142,
-    height: 142,
-    borderRadius: 71,
-    backgroundColor: 'rgba(245, 158, 11, 0.35)',
-  },
-  auctionSearchRadarInner: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: 'rgba(245, 158, 11, 0.48)',
+  auctionMapMarkerPin: {
+    alignItems: 'center',
   },
   auctionPickupMarkerWrap: {
     position: 'absolute',
@@ -1854,6 +1929,8 @@ const styles = StyleSheet.create({
     right: Spacing.md,
     top: Spacing.lg,
     bottom: 156,
+    zIndex: 4,
+    elevation: 4,
   },
   auctionOffersList: {
     flex: 1,
@@ -1875,6 +1952,7 @@ const styles = StyleSheet.create({
     paddingTop: 8,
     paddingBottom: Spacing.lg,
     paddingHorizontal: Spacing.md,
+    zIndex: 5,
     ...Shadow.lg,
   },
   auctionOffersBottomPanel: {
@@ -1883,6 +1961,7 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     backgroundColor: Colors.white,
+    zIndex: 5,
     ...Shadow.lg,
   },
   auctionSeenHeader: {
