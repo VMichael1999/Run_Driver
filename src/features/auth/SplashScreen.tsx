@@ -17,7 +17,7 @@ export function SplashScreen() {
   return (
     <View style={styles.container}>
       <Image
-        source={require('../../../android/playstore-icon.png')}
+        source={require('../../../app-icons/playstore-icon.png')}
         style={styles.logo}
         resizeMode="contain"
       />

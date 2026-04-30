@@ -732,9 +732,15 @@ export function SolicitudTaxiScreen() {
           ) : null}
           {request && !shouldShowAuctionMapPin ? (
             <Marker coordinate={request.destination.position} anchor={{ x: 0.5, y: 0.5 }}>
-              <View style={styles.stopNumberMarker}>
-                <Text style={styles.stopNumberText}>1</Text>
-              </View>
+              {extraStops.length === 0 ? (
+                <View style={styles.destinationMarker}>
+                  <View style={styles.markerInnerDot} />
+                </View>
+              ) : (
+                <View style={styles.stopNumberMarker}>
+                  <Text style={styles.stopNumberText}>1</Text>
+                </View>
+              )}
             </Marker>
           ) : null}
           {!shouldShowAuctionMapPin
@@ -775,9 +781,13 @@ export function SolicitudTaxiScreen() {
             <View style={styles.routeDivider} />
 
             <View style={styles.routeRow}>
-              <View style={styles.routeDestBadge}>
-                <Text style={styles.routeDestBadgeText}>1</Text>
-              </View>
+              {extraStops.length === 0 ? (
+                <View style={styles.routeDotRed} />
+              ) : (
+                <View style={styles.routeDestBadge}>
+                  <Text style={styles.routeDestBadgeText}>1</Text>
+                </View>
+              )}
               <Text numberOfLines={1} style={styles.routeText}>
                 {request?.destination.placeName || '3963 Mattson Street Portland...'}
               </Text>

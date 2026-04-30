@@ -232,7 +232,7 @@ export function ClienteHomeScreen() {
             <Text style={styles.bannerTitle}>Invierte hoy y asegura un mejor manana para ti cada dia.</Text>
             <Text style={styles.bannerLink}>Invierte ahora</Text>
           </View>
-          <Image source={require('../../../../android/ic_launcher-web.png')} style={styles.bannerImage} resizeMode="contain" />
+          <Image source={require('../../../../app-icons/ic_launcher-web.png')} style={styles.bannerImage} resizeMode="contain" />
         </TouchableOpacity>
       </ScrollView>
     </View>

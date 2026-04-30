@@ -84,7 +84,7 @@ export function LoginVerificacionScreen({ route, navigation }: LoginVerificacion
 
       {/* Logo */}
       <View style={styles.logoWrap}>
-        <Image source={require('../../../android/playstore-icon.png')} style={styles.logo} resizeMode="contain" />
+        <Image source={require('../../../app-icons/playstore-icon.png')} style={styles.logo} resizeMode="contain" />
       </View>
 
       {/* Textos */}
