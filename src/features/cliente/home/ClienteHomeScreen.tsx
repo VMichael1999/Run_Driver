@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, Platform, ScrollView } from 'react-native';
+import { Animated, View, Text, StyleSheet, TouchableOpacity, Image, Platform, ScrollView, useWindowDimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MapView, { Marker, PROVIDER_GOOGLE, type Region } from 'react-native-maps';
@@ -35,6 +35,7 @@ const homeActions: Array<{ id: 'ride' | 'rental' | 'outstation'; label: string; 
 export function ClienteHomeScreen() {
   const navigation = useNavigation<Nav>();
   const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
   const mapRef = React.useRef<MapView | null>(null);
   const [homeScrollEnabled, setHomeScrollEnabled] = React.useState(true);
   const [isOriginSearched, setIsOriginSearched] = React.useState(false);
@@ -54,8 +55,46 @@ export function ClienteHomeScreen() {
   const phone = useAuthStore((s) => s.phone);
   const countryCode = useAuthStore((s) => s.countryCode);
   const [drawerOpen, setDrawerOpen] = React.useState<boolean>(false);
+  const drawerProgress = React.useRef(new Animated.Value(0)).current;
 
   const phoneLabel = phone ? `${countryCode} ${phone}` : '+51 000 000 000';
+  const drawerSceneOffset = Math.round(width * 0.54);
+
+  React.useEffect(() => {
+    Animated.timing(drawerProgress, {
+      toValue: drawerOpen ? 1 : 0,
+      duration: drawerOpen ? 280 : 220,
+      useNativeDriver: false,
+    }).start();
+  }, [drawerOpen, drawerProgress]);
+
+  const animatedSceneStyle = {
+    borderRadius: drawerProgress.interpolate({
+      inputRange: [0, 1],
+      outputRange: [0, 24],
+    }),
+    transform: [
+      { perspective: 900 },
+      {
+        translateX: drawerProgress.interpolate({
+          inputRange: [0, 1],
+          outputRange: [0, drawerSceneOffset],
+        }),
+      },
+      {
+        scale: drawerProgress.interpolate({
+          inputRange: [0, 1],
+          outputRange: [1, 0.86],
+        }),
+      },
+      {
+        rotateY: drawerProgress.interpolate({
+          inputRange: [0, 1],
+          outputRange: ['0deg', '-9deg'],
+        }),
+      },
+    ],
+  };
 
   React.useEffect(() => {
     let active = true;
@@ -105,154 +144,156 @@ export function ClienteHomeScreen() {
   }, [navigation]);
 
   return (
-    <View style={styles.container}>
-      <ScrollView
-        style={styles.container}
-        contentContainerStyle={{ paddingTop: insets.top + Spacing.md, paddingBottom: insets.bottom + Spacing['2xl'] }}
-        scrollEnabled={homeScrollEnabled}
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.header}>
-          <TouchableOpacity
-            style={styles.headerIcon}
-            activeOpacity={0.8}
-            onPress={() => setDrawerOpen(true)}
-          >
-            <Ionicons name="menu" size={24} color={Colors.textPrimary} />
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.mapCard}>
-          <MapView
-            ref={mapRef}
-            style={styles.map}
-            provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
-            initialRegion={LIMA_REGION}
-            scrollEnabled
-            zoomEnabled
-            rotateEnabled={false}
-            pitchEnabled={false}
-            showsUserLocation
-            showsMyLocationButton={false}
-            onTouchStart={() => setHomeScrollEnabled(false)}
-            onTouchEnd={() => setHomeScrollEnabled(true)}
-            onTouchCancel={() => setHomeScrollEnabled(true)}
-          >
-            {isOriginSearched && origin ? (
-              <Marker coordinate={origin.position} anchor={{ x: 0.5, y: 0.5 }}>
-                <View style={styles.searchedOriginMarker}>
-                  <View style={styles.searchedOriginDot} />
-                </View>
-              </Marker>
-            ) : null}
-          </MapView>
-          <TouchableOpacity
-            style={styles.mapFab}
-            onPress={async () => {
-              const current = await getCurrentLocationMarker();
-              if (!current) return;
-              mapRef.current?.animateToRegion(
-                {
-                  latitude: current.position.latitude,
-                  longitude: current.position.longitude,
-                  latitudeDelta: 0.02,
-                  longitudeDelta: 0.02,
-                },
-                420,
-              );
-            }}
-            activeOpacity={0.85}
-          >
-            <Ionicons name="navigate" size={18} color={Colors.primary} />
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.searchRow}>
-          <TouchableOpacity style={styles.searchBox} onPress={() => navigation.navigate('SearchAddress', { target: 'destination' })} activeOpacity={0.85}>
-            <Text style={styles.searchPlaceholder}>
-              Buscar ruta
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.nowPill} onPress={handleNowPress} activeOpacity={0.85}>
-            <Ionicons name="person-outline" size={14} color={Colors.white} />
-            <Text style={styles.nowText}>{isRouting ? '...' : 'Ahora'}</Text>
-            <Ionicons name="chevron-down" size={14} color={Colors.white} />
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.addressList}>
-          <View style={styles.favoriteHeader}>
-            <View style={styles.favoriteNotice}>
-              <View style={styles.favoriteNoticeIcon}>
-                <Ionicons name="bookmark-outline" size={18} color={Colors.primary} />
-              </View>
-              <View style={styles.favoriteNoticeTextWrap}>
-                <Text style={styles.favoriteNoticeTitle}>Direcciones favoritas</Text>
-                <Text style={styles.favoriteNoticeText}>
-                  {favorites.length > 0 ? 'Toca una direccion para usarla en tu ruta.' : 'Agrega tus direcciones mas usadas.'}
-                </Text>
-              </View>
-            </View>
+    <View style={styles.root}>
+      <Animated.View style={[styles.scene, animatedSceneStyle]}>
+        <ScrollView
+          style={styles.container}
+          contentContainerStyle={{ paddingTop: insets.top + Spacing.md, paddingBottom: insets.bottom + Spacing['2xl'] }}
+          scrollEnabled={homeScrollEnabled}
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.header}>
             <TouchableOpacity
-              style={styles.addFavoriteButton}
-              onPress={() => navigation.navigate('SearchAddress', { target: 'destination', saveFavorite: true })}
-              activeOpacity={0.85}
+              style={styles.headerIcon}
+              activeOpacity={0.8}
+              onPress={() => setDrawerOpen(true)}
             >
-              <Ionicons name="add" size={18} color={Colors.white} />
+              <Ionicons name="menu" size={24} color={Colors.textPrimary} />
             </TouchableOpacity>
           </View>
 
-          {favorites.length > 0 ? (
-            <View style={styles.favoriteItems}>
-              {favorites.map((favorite) => (
-                <SwipeableFavoriteItem
-                  key={favorite.id}
-                  id={favorite.id}
-                  placeName={favorite.placeName}
-                  onPress={async () => {
-                    setDestination(favorite);
-                    const didCreateRequest = await requestTaxi(favorite);
-                    if (didCreateRequest) {
-                      navigation.navigate('SolicitudTaxi');
-                    }
-                  }}
-                  onDelete={removeFavorite}
-                />
-              ))}
-            </View>
-          ) : null}
-        </View>
+          <View style={styles.mapCard}>
+            <MapView
+              ref={mapRef}
+              style={styles.map}
+              provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
+              initialRegion={LIMA_REGION}
+              scrollEnabled
+              zoomEnabled
+              rotateEnabled={false}
+              pitchEnabled={false}
+              showsUserLocation
+              showsMyLocationButton={false}
+              onTouchStart={() => setHomeScrollEnabled(false)}
+              onTouchEnd={() => setHomeScrollEnabled(true)}
+              onTouchCancel={() => setHomeScrollEnabled(true)}
+            >
+              {isOriginSearched && origin ? (
+                <Marker coordinate={origin.position} anchor={{ x: 0.5, y: 0.5 }}>
+                  <View style={styles.searchedOriginMarker}>
+                    <View style={styles.searchedOriginDot} />
+                  </View>
+                </Marker>
+              ) : null}
+            </MapView>
+            <TouchableOpacity
+              style={styles.mapFab}
+              onPress={async () => {
+                const current = await getCurrentLocationMarker();
+                if (!current) return;
+                mapRef.current?.animateToRegion(
+                  {
+                    latitude: current.position.latitude,
+                    longitude: current.position.longitude,
+                    latitudeDelta: 0.02,
+                    longitudeDelta: 0.02,
+                  },
+                  420,
+                );
+              }}
+              activeOpacity={0.85}
+            >
+              <Ionicons name="navigate" size={18} color={Colors.primary} />
+            </TouchableOpacity>
+          </View>
 
-        <View style={styles.actionRow}>
-          {homeActions.map((action) => {
-            const active = selectedHomeTab === action.id;
-            return (
+          <View style={styles.searchRow}>
+            <TouchableOpacity style={styles.searchBox} onPress={() => navigation.navigate('SearchAddress', { target: 'destination' })} activeOpacity={0.85}>
+              <Text style={styles.searchPlaceholder}>
+                Buscar ruta
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.nowPill} onPress={handleNowPress} activeOpacity={0.85}>
+              <Ionicons name="person-outline" size={14} color={Colors.white} />
+              <Text style={styles.nowText}>{isRouting ? '...' : 'Ahora'}</Text>
+              <Ionicons name="chevron-down" size={14} color={Colors.white} />
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.addressList}>
+            <View style={styles.favoriteHeader}>
+              <View style={styles.favoriteNotice}>
+                <View style={styles.favoriteNoticeIcon}>
+                  <Ionicons name="bookmark-outline" size={18} color={Colors.primary} />
+                </View>
+                <View style={styles.favoriteNoticeTextWrap}>
+                  <Text style={styles.favoriteNoticeTitle}>Direcciones favoritas</Text>
+                  <Text style={styles.favoriteNoticeText}>
+                    {favorites.length > 0 ? 'Toca una direccion para usarla en tu ruta.' : 'Agrega tus direcciones mas usadas.'}
+                  </Text>
+                </View>
+              </View>
               <TouchableOpacity
-                key={action.id}
-                style={[styles.actionCard, active && styles.actionCardActive]}
-                onPress={() => setSelectedHomeTab(action.id)}
+                style={styles.addFavoriteButton}
+                onPress={() => navigation.navigate('SearchAddress', { target: 'destination', saveFavorite: true })}
                 activeOpacity={0.85}
               >
-                {action.badge ? (
-                  <View style={styles.badge}>
-                    <Text style={styles.badgeText}>{action.badge}</Text>
-                  </View>
-                ) : null}
-                <Image source={action.image} style={styles.actionImage} resizeMode="contain" />
-                <Text style={[styles.actionTitle, active && styles.actionTitleActive]}>{action.label}</Text>
+                <Ionicons name="add" size={18} color={Colors.white} />
               </TouchableOpacity>
-            );
-          })}
-        </View>
+            </View>
 
-        <TouchableOpacity style={styles.banner} activeOpacity={0.9}>
-          <View style={styles.bannerTextWrap}>
-            <Text style={styles.bannerTitle}>Invierte hoy y asegura un mejor manana para ti cada dia.</Text>
-            <Text style={styles.bannerLink}>Invierte ahora</Text>
+            {favorites.length > 0 ? (
+              <View style={styles.favoriteItems}>
+                {favorites.map((favorite) => (
+                  <SwipeableFavoriteItem
+                    key={favorite.id}
+                    id={favorite.id}
+                    placeName={favorite.placeName}
+                    onPress={async () => {
+                      setDestination(favorite);
+                      const didCreateRequest = await requestTaxi(favorite);
+                      if (didCreateRequest) {
+                        navigation.navigate('SolicitudTaxi');
+                      }
+                    }}
+                    onDelete={removeFavorite}
+                  />
+                ))}
+              </View>
+            ) : null}
           </View>
-          <Image source={require('../../../../app-icons/ic_launcher-web.png')} style={styles.bannerImage} resizeMode="contain" />
-        </TouchableOpacity>
-      </ScrollView>
+
+          <View style={styles.actionRow}>
+            {homeActions.map((action) => {
+              const active = selectedHomeTab === action.id;
+              return (
+                <TouchableOpacity
+                  key={action.id}
+                  style={[styles.actionCard, active && styles.actionCardActive]}
+                  onPress={() => setSelectedHomeTab(action.id)}
+                  activeOpacity={0.85}
+                >
+                  {action.badge ? (
+                    <View style={styles.badge}>
+                      <Text style={styles.badgeText}>{action.badge}</Text>
+                    </View>
+                  ) : null}
+                  <Image source={action.image} style={styles.actionImage} resizeMode="contain" />
+                  <Text style={[styles.actionTitle, active && styles.actionTitleActive]}>{action.label}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+
+          <TouchableOpacity style={styles.banner} activeOpacity={0.9}>
+            <View style={styles.bannerTextWrap}>
+              <Text style={styles.bannerTitle}>Invierte hoy y asegura un mejor manana para ti cada dia.</Text>
+              <Text style={styles.bannerLink}>Invierte ahora</Text>
+            </View>
+            <Image source={require('../../../../app-icons/ic_launcher-web.png')} style={styles.bannerImage} resizeMode="contain" />
+          </TouchableOpacity>
+        </ScrollView>
+      </Animated.View>
 
       <AppDrawer
         visible={drawerOpen}
@@ -266,6 +307,20 @@ export function ClienteHomeScreen() {
 }
 
 const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+    backgroundColor: '#1a2f4e',
+  },
+  scene: {
+    flex: 1,
+    backgroundColor: '#f4f7fb',
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: -10, height: 14 },
+    shadowOpacity: 0.18,
+    shadowRadius: 22,
+    elevation: 14,
+  },
   container: {
     flex: 1,
     backgroundColor: '#f4f7fb',
