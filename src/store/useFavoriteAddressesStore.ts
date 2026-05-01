@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import type { LocationMarker } from '@shared/types';
 
-interface FavoriteAddress extends LocationMarker {
+export interface FavoriteAddress extends LocationMarker {
   id: string;
 }
 
@@ -9,6 +9,8 @@ interface FavoriteAddressesState {
   favorites: FavoriteAddress[];
   addFavorite: (location: LocationMarker) => void;
   removeFavorite: (id: string) => void;
+  renameFavorite: (id: string, placeName: string) => void;
+  moveFavorite: (id: string, direction: 'up' | 'down') => void;
 }
 
 export const useFavoriteAddressesStore = create<FavoriteAddressesState>((set) => ({
@@ -35,4 +37,25 @@ export const useFavoriteAddressesStore = create<FavoriteAddressesState>((set) =>
     set((state) => ({
       favorites: state.favorites.filter((item) => item.id !== id),
     })),
+  renameFavorite: (id, placeName) =>
+    set((state) => {
+      const trimmed = placeName.trim();
+      if (!trimmed) return state;
+      return {
+        favorites: state.favorites.map((item) =>
+          item.id === id ? { ...item, placeName: trimmed } : item,
+        ),
+      };
+    }),
+  moveFavorite: (id, direction) =>
+    set((state) => {
+      const index = state.favorites.findIndex((item) => item.id === id);
+      if (index === -1) return state;
+      const targetIndex = direction === 'up' ? index - 1 : index + 1;
+      if (targetIndex < 0 || targetIndex >= state.favorites.length) return state;
+      const next = state.favorites.slice();
+      const [moved] = next.splice(index, 1);
+      next.splice(targetIndex, 0, moved);
+      return { favorites: next };
+    }),
 }));

@@ -5,6 +5,7 @@ import {
   Easing,
   Modal,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -20,7 +21,7 @@ import appJson from '../../../../app.json';
 
 type ClienteRoute = keyof ClienteStackParamList;
 
-type DrawerSection = 'main' | 'preferences';
+type DrawerSection = 'main' | 'wallet' | 'personal' | 'preferences';
 
 interface DrawerOption {
   id: string;
@@ -40,12 +41,20 @@ interface AppDrawerProps {
 
 const SECTION_LABELS: Record<DrawerSection, string> = {
   main: 'Navegacion',
+  wallet: 'Pagos y promociones',
+  personal: 'Personales',
   preferences: 'Preferencias',
 };
+
+const SECTION_ORDER: DrawerSection[] = ['main', 'wallet', 'personal', 'preferences'];
 
 const DRAWER_OPTIONS: DrawerOption[] = [
   { id: 'home', icon: 'home-outline', label: 'Mapa', route: 'ClienteHome', section: 'main' },
   { id: 'trips', icon: 'time-outline', label: 'Mis viajes', route: 'HistorialViaje', section: 'main' },
+  { id: 'schedule', icon: 'alarm-outline', label: 'Programar viaje', route: 'ProgramarViaje', section: 'main' },
+  { id: 'payment', icon: 'card-outline', label: 'Metodos de pago', route: 'MetodosPago', section: 'wallet' },
+  { id: 'promos', icon: 'pricetag-outline', label: 'Promociones', route: 'Promociones', section: 'wallet' },
+  { id: 'favorites', icon: 'bookmark-outline', label: 'Direcciones favoritas', route: 'Favoritas', section: 'personal' },
   { id: 'settings', icon: 'settings-outline', label: 'Configuracion', route: 'Configuracion', section: 'preferences' },
 ];
 
@@ -61,7 +70,10 @@ function groupBySection(options: DrawerOption[]): Array<[DrawerSection, DrawerOp
     list.push(option);
     groups.set(option.section, list);
   }
-  return Array.from(groups.entries());
+  return SECTION_ORDER.flatMap((section) => {
+    const list = groups.get(section);
+    return list ? [[section, list] as [DrawerSection, DrawerOption[]]] : [];
+  });
 }
 
 export function AppDrawer({ visible, onClose, onNavigate, onLogout, phoneLabel }: AppDrawerProps) {
@@ -142,7 +154,11 @@ export function AppDrawer({ visible, onClose, onNavigate, onLogout, phoneLabel }
 
             <View style={styles.divider} />
 
-            <View style={styles.sectionsWrap}>
+            <ScrollView
+              style={styles.sectionsWrap}
+              contentContainerStyle={styles.sectionsContent}
+              showsVerticalScrollIndicator={false}
+            >
               {sections.map(([section, options]) => (
                 <View key={section} style={styles.sectionWrap}>
                   <Text style={styles.sectionLabel}>{SECTION_LABELS[section]}</Text>
@@ -159,7 +175,7 @@ export function AppDrawer({ visible, onClose, onNavigate, onLogout, phoneLabel }
                   ))}
                 </View>
               ))}
-            </View>
+            </ScrollView>
 
             <View style={styles.divider} />
             <TouchableOpacity style={styles.logoutButton} onPress={handleLogout} activeOpacity={0.8}>
@@ -229,7 +245,10 @@ const styles = StyleSheet.create({
   },
   sectionsWrap: {
     flex: 1,
+  },
+  sectionsContent: {
     paddingTop: Spacing.sm,
+    paddingBottom: Spacing.sm,
   },
   sectionWrap: {
     marginBottom: Spacing.md,

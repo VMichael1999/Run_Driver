@@ -10,6 +10,10 @@ import { ChatScreen } from '@features/chat/ChatScreen';
 import { HistorialViajeScreen } from '@features/historial/HistorialViajeScreen';
 import { ConfiguracionScreen } from '@features/configuracion/ConfiguracionScreen';
 import { PerfilScreen } from '@features/cliente/perfil';
+import { MetodosPagoScreen } from '@features/cliente/metodos-pago';
+import { PromocionesScreen } from '@features/cliente/promociones';
+import { FavoritasScreen } from '@features/cliente/favoritas';
+import { ProgramarViajeScreen } from '@features/cliente/programar-viaje';
 
 const Stack = createNativeStackNavigator<ClienteStackParamList>();
 
@@ -25,6 +29,10 @@ export function ClienteNavigator() {
       <Stack.Screen name="HistorialViaje" component={HistorialViajeScreen} />
       <Stack.Screen name="Configuracion" component={ConfiguracionScreen} />
       <Stack.Screen name="Perfil" component={PerfilScreen} />
+      <Stack.Screen name="MetodosPago" component={MetodosPagoScreen} />
+      <Stack.Screen name="Promociones" component={PromocionesScreen} />
+      <Stack.Screen name="Favoritas" component={FavoritasScreen} />
+      <Stack.Screen name="ProgramarViaje" component={ProgramarViajeScreen} />
     </Stack.Navigator>
   );
 }

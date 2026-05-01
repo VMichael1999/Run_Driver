@@ -1,0 +1,1 @@
+export { FavoritasScreen } from './FavoritasScreen';

@@ -31,6 +31,12 @@ import { getRoutePolyline } from '@shared/services/googleMapsService';
 import { getCurrentLocationMarker, getPlaceNameFromCoordinates } from '@shared/utils/locationUtils';
 import { useRideDraftStore } from '@store/useRideDraftStore';
 import { useTaxiStore } from '@store/useTaxiStore';
+import { usePaymentSelectionStore } from '@store/usePaymentSelectionStore';
+import {
+  PAYMENT_METHODS,
+  getPaymentMethodById,
+  type PaymentMethodId,
+} from '@shared/data/paymentMethods';
 import { LegacyImages } from '@shared/assets/legacyAssets';
 import { Colors } from '@theme/colors';
 import { FontFamily, FontSize } from '@theme/fonts';
@@ -48,23 +54,7 @@ type ServiceVehicle = DriverAlert & {
   seatsLabel: string;
 };
 
-const paymentOptions = [
-  {
-    id: 'efectivo',
-    label: 'Efectivo',
-    image: require('../../../../assets/payment/Efectivo.png'),
-  },
-  {
-    id: 'yape',
-    label: 'Yape',
-    image: require('../../../../assets/payment/Yape.png'),
-  },
-  {
-    id: 'plin',
-    label: 'Plin',
-    image: require('../../../../assets/payment/Plin.png'),
-  },
-] as const;
+const paymentOptions = PAYMENT_METHODS;
 
 const vehicles: ServiceVehicle[] = [
   {
@@ -194,7 +184,18 @@ export function SolicitudTaxiScreen() {
   const setRoutePoints = useRideDraftStore((s) => s.setRoutePoints);
   const setComment = useRideDraftStore((s) => s.setComment);
   const [selectedVehicle, setSelectedVehicle] = React.useState(vehicles[0].vehiclePlate);
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = React.useState<(typeof paymentOptions)[number]>(paymentOptions[0]);
+  const selectedPaymentId = usePaymentSelectionStore((s) => s.selectedId);
+  const setSelectedPaymentId = usePaymentSelectionStore((s) => s.setSelected);
+  const selectedPaymentMethod = React.useMemo(
+    () => getPaymentMethodById(selectedPaymentId),
+    [selectedPaymentId],
+  );
+  const setSelectedPaymentMethod = React.useCallback(
+    (option: (typeof paymentOptions)[number]) => {
+      setSelectedPaymentId(option.id as PaymentMethodId);
+    },
+    [setSelectedPaymentId],
+  );
   const [paymentSheetVisible, setPaymentSheetVisible] = React.useState(false);
   const [selectedDate, setSelectedDate] = React.useState(new Date());
   const [draftDate, setDraftDate] = React.useState(new Date());

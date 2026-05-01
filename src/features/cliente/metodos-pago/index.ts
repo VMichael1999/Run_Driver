@@ -1,0 +1,1 @@
+export { MetodosPagoScreen } from './MetodosPagoScreen';

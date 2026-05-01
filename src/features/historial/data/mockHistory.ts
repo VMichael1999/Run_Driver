@@ -1,0 +1,55 @@
+import type { TripHistoryItem } from '../types';
+
+export const MOCK_TRIP_HISTORY: TripHistoryItem[] = [
+  {
+    id: 't-001',
+    date: new Date('2024-03-06T11:30:00'),
+    driver: {
+      id: 'd-001',
+      name: 'Jenny Wilson',
+      avatarUrl: 'https://randomuser.me/api/portraits/women/68.jpg',
+      yearsAtCompany: 1,
+      rideCount: 1000,
+    },
+    pickup: { label: 'Recogida', address: '6391 Elgin St. Celina, Delaware 10299' },
+    dropoff: { label: 'Destino', address: '3517 W. Gray St. Utica, Pennsylvania 57867' },
+    extraStop: null,
+    price: 7,
+    currency: 'S/',
+    status: 'completed',
+  },
+  {
+    id: 't-002',
+    date: new Date('2024-03-06T11:30:00'),
+    driver: {
+      id: 'd-002',
+      name: 'Robert Fox',
+      avatarUrl: 'https://randomuser.me/api/portraits/men/64.jpg',
+      yearsAtCompany: 1,
+      rideCount: 1000,
+    },
+    pickup: { label: 'Mi ubicacion actual', address: '' },
+    dropoff: { label: 'Destino', address: '3517 W. Gray St. Utica, Pennsylvania 57867' },
+    extraStop: { label: 'Parada extra', address: '' },
+    price: 7,
+    currency: 'S/',
+    status: 'completed',
+  },
+  {
+    id: 't-003',
+    date: new Date('2024-03-06T11:30:00'),
+    driver: {
+      id: 'd-003',
+      name: 'Jacob Jones',
+      avatarUrl: 'https://randomuser.me/api/portraits/men/72.jpg',
+      yearsAtCompany: 1,
+      rideCount: 1000,
+    },
+    pickup: { label: 'Mi ubicacion actual', address: '' },
+    dropoff: { label: 'Destino', address: '3517 W. Gray St. Utica, Pennsylvania 57867' },
+    extraStop: null,
+    price: 7,
+    currency: 'S/',
+    status: 'completed',
+  },
+];

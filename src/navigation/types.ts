@@ -27,6 +27,10 @@ export type ClienteStackParamList = {
   HistorialViaje: undefined;
   Configuracion: undefined;
   Perfil: undefined;
+  MetodosPago: undefined;
+  Promociones: undefined;
+  Favoritas: undefined;
+  ProgramarViaje: undefined;
 };
 
 // Conductor bottom tabs
