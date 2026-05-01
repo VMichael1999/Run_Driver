@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image, Platform, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MapView, { Marker, PROVIDER_GOOGLE, type Region } from 'react-native-maps';
@@ -8,6 +8,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { ClienteStackParamList } from '@navigation/types';
 import { useFocusEffect } from '@react-navigation/native';
 import { useClienteHome } from './hooks/useClienteHome';
+import { SwipeableFavoriteItem } from './components/SwipeableFavoriteItem';
 import { useFavoriteAddressesStore } from '@store/useFavoriteAddressesStore';
 import { getCurrentLocationMarker } from '@shared/utils/locationUtils';
 import { Colors } from '@theme/colors';
@@ -46,6 +47,7 @@ export function ClienteHomeScreen() {
     setDestination,
   } = useClienteHome();
   const favorites = useFavoriteAddressesStore((s) => s.favorites);
+  const removeFavorite = useFavoriteAddressesStore((s) => s.removeFavorite);
 
   React.useEffect(() => {
     let active = true;
@@ -112,7 +114,7 @@ export function ClienteHomeScreen() {
           <MapView
             ref={mapRef}
             style={styles.map}
-            provider={PROVIDER_GOOGLE}
+            provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
             initialRegion={LIMA_REGION}
             scrollEnabled
             zoomEnabled
@@ -191,9 +193,10 @@ export function ClienteHomeScreen() {
           {favorites.length > 0 ? (
             <View style={styles.favoriteItems}>
               {favorites.map((favorite) => (
-                <TouchableOpacity
+                <SwipeableFavoriteItem
                   key={favorite.id}
-                  style={styles.favoriteItem}
+                  id={favorite.id}
+                  placeName={favorite.placeName}
                   onPress={async () => {
                     setDestination(favorite);
                     const didCreateRequest = await requestTaxi(favorite);
@@ -201,13 +204,8 @@ export function ClienteHomeScreen() {
                       navigation.navigate('SolicitudTaxi');
                     }
                   }}
-                  activeOpacity={0.85}
-                >
-                  <View style={styles.favoriteDot} />
-                  <Text style={styles.favoriteItemText} numberOfLines={1}>
-                    {favorite.placeName}
-                  </Text>
-                </TouchableOpacity>
+                  onDelete={removeFavorite}
+                />
               ))}
             </View>
           ) : null}
@@ -397,27 +395,6 @@ const styles = StyleSheet.create({
   favoriteItems: {
     paddingBottom: Spacing.md,
     gap: Spacing.sm,
-  },
-  favoriteItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f8fbff',
-    borderRadius: 14,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: 12,
-  },
-  favoriteDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#1d5fa8',
-    marginRight: Spacing.sm,
-  },
-  favoriteItemText: {
-    flex: 1,
-    color: '#334155',
-    fontFamily: FontFamily.bold,
-    fontSize: FontSize.sm,
   },
   divider: {
     height: 1,

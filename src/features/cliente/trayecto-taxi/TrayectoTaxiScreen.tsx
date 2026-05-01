@@ -9,6 +9,7 @@ import {
   Animated,
   Dimensions,
   PanResponder,
+  Platform,
   ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -64,8 +65,8 @@ export function TrayectoTaxiScreen() {
   const region = {
     latitude: request.origin.position.latitude,
     longitude: request.origin.position.longitude,
-    latitudeDelta: 0.02,
-    longitudeDelta: 0.02,
+    latitudeDelta: 0.012,
+    longitudeDelta: 0.012,
   };
 
   const routeCoords: LatLng[] = [
@@ -79,10 +80,10 @@ export function TrayectoTaxiScreen() {
 
     mapRef.current.fitToCoordinates(routeCoords, {
       edgePadding: {
-        top: insets.top + 96,
-        right: 56,
-        bottom: Math.round((activeSheetHeight ?? currentHeightRef.current) + 84),
-        left: 56,
+        top: insets.top + 48,
+        right: 28,
+        bottom: Math.round((activeSheetHeight ?? currentHeightRef.current) + 36),
+        left: 28,
       },
       animated: true,
     });
@@ -146,7 +147,7 @@ export function TrayectoTaxiScreen() {
       <MapView
         ref={mapRef}
         style={StyleSheet.absoluteFillObject}
-        provider={PROVIDER_GOOGLE}
+        provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
         initialRegion={region}
         showsUserLocation={false}
         showsMyLocationButton={false}
@@ -162,7 +163,7 @@ export function TrayectoTaxiScreen() {
           </View>
         </Marker>
         {routeCoords.length > 1 ? (
-          <Polyline coordinates={routeCoords} strokeColor="#111111" strokeWidth={5} />
+          <Polyline coordinates={routeCoords} strokeColor="#000000" strokeWidth={5} lineCap="round" lineJoin="round" />
         ) : null}
       </MapView>
 
