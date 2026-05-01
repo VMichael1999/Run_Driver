@@ -39,3 +39,27 @@ export async function getCurrentLocationMarker(): Promise<LocationMarker | null>
     },
   };
 }
+
+export async function getQuickCurrentLocationMarker(): Promise<LocationMarker | null> {
+  const permission = await Location.requestForegroundPermissionsAsync();
+  if (!permission.granted) {
+    return null;
+  }
+
+  const lastKnown = await Location.getLastKnownPositionAsync({
+    maxAge: 60_000,
+    requiredAccuracy: 150,
+  });
+
+  if (!lastKnown) {
+    return getCurrentLocationMarker();
+  }
+
+  return {
+    placeName: 'Mi ubicacion actual',
+    position: {
+      latitude: lastKnown.coords.latitude,
+      longitude: lastKnown.coords.longitude,
+    },
+  };
+}

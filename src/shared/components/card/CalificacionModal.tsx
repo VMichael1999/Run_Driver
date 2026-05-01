@@ -12,6 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { UserNetworkAvatar } from '../avatar/UserNetworkAvatar';
 import { aspectosCalificacion, type Aspecto } from '@data/aspectosCalificacion';
 import { Colors } from '@theme/colors';
+import { useAppTheme } from '@theme/useAppTheme';
 import { FontFamily, FontSize } from '@theme/fonts';
 import { Spacing, BorderRadius, Shadow } from '@theme/spacing';
 
@@ -52,6 +53,7 @@ export function CalificacionModal({
   paymentMethod,
   vehicleImageSource,
 }: Props) {
+  const theme = useAppTheme();
   const [rating, setRating] = useState(0);
   const [selected, setSelected] = useState<Set<number>>(new Set());
 
@@ -78,16 +80,16 @@ export function CalificacionModal({
 
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
-      <View style={styles.screen}>
-        <View style={styles.topHandle} />
+      <View style={[styles.screen, { backgroundColor: theme.background }]}>
+        <View style={[styles.topHandle, { backgroundColor: theme.divider }]} />
 
         <View style={styles.header}>
-          <TouchableOpacity style={styles.headerButton} onPress={onClose} activeOpacity={0.85}>
-            <Ionicons name="close" size={18} color="#334155" />
+          <TouchableOpacity style={[styles.headerButton, { borderColor: theme.divider }]} onPress={onClose} activeOpacity={0.85}>
+            <Ionicons name="close" size={18} color={theme.text} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Has llegado</Text>
-          <TouchableOpacity style={styles.headerButton} activeOpacity={0.85}>
-            <Ionicons name="share-social-outline" size={18} color="#334155" />
+          <Text style={[styles.headerTitle, { color: theme.text }]}>Has llegado</Text>
+          <TouchableOpacity style={[styles.headerButton, { borderColor: theme.divider }]} activeOpacity={0.85}>
+            <Ionicons name="share-social-outline" size={18} color={theme.text} />
           </TouchableOpacity>
         </View>
 
@@ -109,32 +111,32 @@ export function CalificacionModal({
             </View>
           </View>
 
-          <Text style={styles.userName}>{user.nombres}</Text>
-          <Text style={styles.userVehicleMeta}>
+          <Text style={[styles.userName, { color: theme.text }]}>{user.nombres}</Text>
+          <Text style={[styles.userVehicleMeta, { color: theme.textMuted }]}>
             {vehicleModel || 'Vehiculo'} • {vehiclePlate || 'L-2323-RF'}
           </Text>
 
-          <View style={styles.infoGrid}>
+          <View style={[styles.infoGrid, { borderBottomColor: theme.divider }]}>
             <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Viaje completado</Text>
-              <Text style={styles.infoValue}>GoCab#2252031636</Text>
+              <Text style={[styles.infoLabel, { color: theme.text }]}>Viaje completado</Text>
+              <Text style={[styles.infoValue, { color: theme.textMuted }]}>GoCab#2252031636</Text>
             </View>
             <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Fecha</Text>
-              <Text style={styles.infoValue}>Lunes, 22 mayo 2023</Text>
+              <Text style={[styles.infoLabel, { color: theme.text }]}>Fecha</Text>
+              <Text style={[styles.infoValue, { color: theme.textMuted }]}>Lunes, 22 mayo 2023</Text>
             </View>
           </View>
 
           <View style={styles.ratingBlock}>
-            <Text style={styles.ratingTitle}>¿Como estuvo tu viaje?</Text>
-            <Text style={styles.ratingSubtitle}>Dale de una a cinco estrellas a tu viaje</Text>
+            <Text style={[styles.ratingTitle, { color: theme.text }]}>¿Como estuvo tu viaje?</Text>
+            <Text style={[styles.ratingSubtitle, { color: theme.textMuted }]}>Dale de una a cinco estrellas a tu viaje</Text>
             <View style={styles.starsRow}>
               {[1, 2, 3, 4, 5].map((star) => (
                 <TouchableOpacity key={star} onPress={() => setRating(star)} activeOpacity={0.8}>
                   <Ionicons
                     name={star <= rating ? 'star' : 'star-outline'}
                     size={34}
-                    color={star <= rating ? '#f3c623' : '#d8dee7'}
+                    color={star <= rating ? '#f3c623' : theme.textDisabled}
                     style={styles.starIcon}
                   />
                 </TouchableOpacity>
@@ -142,9 +144,9 @@ export function CalificacionModal({
             </View>
           </View>
 
-          <View style={styles.detailCard}>
+          <View style={[styles.detailCard, { backgroundColor: theme.surface, borderColor: theme.divider }]}>
             <View style={styles.detailHeader}>
-              <Text style={styles.detailTitle}>Detalle del viaje</Text>
+              <Text style={[styles.detailTitle, { color: theme.text }]}>Detalle del viaje</Text>
               <View style={styles.coinsBadge}>
                 <Ionicons name="leaf-outline" size={12} color="#1e7d4d" />
                 <Text style={styles.coinsText}>+3023 coins</Text>
@@ -152,16 +154,16 @@ export function CalificacionModal({
             </View>
 
             <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Recojo</Text>
-              <Text style={styles.detailValue}>{origin || 'Ubicacion de origen'}</Text>
+              <Text style={[styles.detailLabel, { color: theme.text }]}>Recojo</Text>
+              <Text style={[styles.detailValue, { color: theme.textMuted }]}>{origin || 'Ubicacion de origen'}</Text>
             </View>
             <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Destino</Text>
-              <Text style={styles.detailValue}>{destination || 'Ubicacion de destino'}</Text>
+              <Text style={[styles.detailLabel, { color: theme.text }]}>Destino</Text>
+              <Text style={[styles.detailValue, { color: theme.textMuted }]}>{destination || 'Ubicacion de destino'}</Text>
             </View>
             <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Metodo de pago</Text>
-              <Text style={styles.detailValue}>{paymentMethod || 'Efectivo'}</Text>
+              <Text style={[styles.detailLabel, { color: theme.text }]}>Metodo de pago</Text>
+              <Text style={[styles.detailValue, { color: theme.textMuted }]}>{paymentMethod || 'Efectivo'}</Text>
             </View>
 
             <View style={styles.tagWrap}>
@@ -170,11 +172,11 @@ export function CalificacionModal({
                 return (
                   <TouchableOpacity
                     key={a.id}
-                    style={[styles.tagChip, isSelected && styles.tagChipSelected]}
+                    style={[styles.tagChip, { backgroundColor: theme.surfaceMuted }, isSelected && { backgroundColor: theme.accent }]}
                     onPress={() => toggleAspecto(a.id)}
                     activeOpacity={0.85}
                   >
-                    <Text style={[styles.tagChipText, isSelected && styles.tagChipTextSelected]}>
+                    <Text style={[styles.tagChipText, { color: theme.text }, isSelected && styles.tagChipTextSelected]}>
                       {a.valor}
                     </Text>
                   </TouchableOpacity>
@@ -184,8 +186,8 @@ export function CalificacionModal({
           </View>
         </ScrollView>
 
-        <View style={styles.footer}>
-          <TouchableOpacity style={styles.primaryButtonSingle} onPress={handleSend} activeOpacity={0.85}>
+        <View style={[styles.footer, { backgroundColor: theme.background, borderTopColor: theme.divider }]}>
+          <TouchableOpacity style={[styles.primaryButtonSingle, { backgroundColor: theme.accent }]} onPress={handleSend} activeOpacity={0.85}>
             <Text style={styles.primaryButtonText}>Calificar</Text>
           </TouchableOpacity>
         </View>

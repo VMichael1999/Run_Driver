@@ -30,6 +30,7 @@ import type { Coordinates, DriverAlert, LocationMarker } from '@shared/types';
 import { getRoutePolyline } from '@shared/services/googleMapsService';
 import { getCurrentLocationMarker, getPlaceNameFromCoordinates } from '@shared/utils/locationUtils';
 import { useRideDraftStore } from '@store/useRideDraftStore';
+import { useThemeStore } from '@store/useThemeStore';
 import { useTaxiStore } from '@store/useTaxiStore';
 import { usePaymentSelectionStore } from '@store/usePaymentSelectionStore';
 import {
@@ -39,6 +40,7 @@ import {
 } from '@shared/data/paymentMethods';
 import { LegacyImages } from '@shared/assets/legacyAssets';
 import { Colors } from '@theme/colors';
+import { useAppTheme } from '@theme/useAppTheme';
 import { FontFamily, FontSize } from '@theme/fonts';
 import { Spacing, BorderRadius, Shadow } from '@theme/spacing';
 import { DriverOfferCard, useAuctionSimulation } from './components';
@@ -175,6 +177,8 @@ function formatFare(value: number) {
 export function SolicitudTaxiScreen() {
   const navigation = useNavigation<Nav>();
   const insets = useSafeAreaInsets();
+  const theme = useAppTheme();
+  const isDark = useThemeStore((state) => state.isDark);
   const { request, setRequest, acceptOffer, clearRequest } = useTaxiStore();
   const setOrigin = useRideDraftStore((s) => s.setOrigin);
   const setDestination = useRideDraftStore((s) => s.setDestination);
@@ -212,8 +216,11 @@ export function SolicitudTaxiScreen() {
   const [selectedPickupAddress, setSelectedPickupAddress] = React.useState('Punto de partida seleccionado');
   const [isResolvingPickup, setIsResolvingPickup] = React.useState(false);
   const [isConfirmingPickup, setIsConfirmingPickup] = React.useState(false);
+  const [isRetryingAuction, setIsRetryingAuction] = React.useState(false);
   const [auctionOriginScreenPoint, setAuctionOriginScreenPoint] = React.useState<{ x: number; y: number } | null>(null);
   const mapRef = React.useRef<MapView | null>(null);
+  const allowAuctionExitRef = React.useRef(false);
+  const retryTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const pickupPinLift = React.useRef(new Animated.Value(0)).current;
   const sheetHeight = React.useRef(new Animated.Value(COLLAPSED_HEIGHT)).current;
   const currentHeightRef = React.useRef(COLLAPSED_HEIGHT);
@@ -236,10 +243,50 @@ export function SolicitudTaxiScreen() {
   const shouldShowAuctionMapPin = isAuctionPickupMode || isAuctionRequestMode;
 
   React.useEffect(() => {
+    if (!isAuctionRequestMode) {
+      allowAuctionExitRef.current = false;
+      return undefined;
+    }
+
+    const unsubscribe = navigation.addListener('beforeRemove', (event) => {
+      if (allowAuctionExitRef.current) return;
+      event.preventDefault();
+    });
+
+    return unsubscribe;
+  }, [isAuctionRequestMode, navigation]);
+
+  React.useEffect(() => {
     if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
       UIManager.setLayoutAnimationEnabledExperimental(true);
     }
   }, []);
+
+  const fitRouteToMap = React.useCallback((activeSheetHeight?: number) => {
+    if (!mapRef.current || !request) return;
+
+    const coords: LatLng[] = [
+      request.origin.position,
+      request.destination.position,
+      ...request.routePoints,
+    ];
+
+    if (coords.length < 2) return;
+
+    const sheetPadding = Math.round((activeSheetHeight ?? currentHeightRef.current) + 36);
+
+    mapRef.current.fitToCoordinates(coords, {
+      edgePadding: isAuctionPickupMode
+        ? { top: 90, right: 48, bottom: 210, left: 48 }
+        : {
+            top: insets.top + 150,
+            right: 48,
+            bottom: sheetPadding,
+            left: 48,
+          },
+      animated: true,
+    });
+  }, [insets.top, isAuctionPickupMode, request]);
 
   const animateSheet = React.useCallback((toValue: number) => {
     currentHeightRef.current = toValue;
@@ -259,8 +306,10 @@ export function SolicitudTaxiScreen() {
       useNativeDriver: false,
       tension: 90,
       friction: 14,
-    }).start();
-  }, [sheetHeight]);
+    }).start(() => {
+      fitRouteToMap(toValue);
+    });
+  }, [fitRouteToMap, sheetHeight]);
 
   const animatePickupPin = React.useCallback((toValue: number) => {
     Animated.timing(pickupPinLift, {
@@ -374,6 +423,7 @@ export function SolicitudTaxiScreen() {
       const offer = auction.offers.find((o) => o.id === offerId);
       if (!offer) return;
 
+      allowAuctionExitRef.current = true;
       setIsAuctionRequestMode(false);
       acceptOffer(offer.driver);
       auction.acceptOffer(offerId);
@@ -390,6 +440,7 @@ export function SolicitudTaxiScreen() {
   );
 
   const handleAuctionCancel = React.useCallback(() => {
+    allowAuctionExitRef.current = true;
     setIsAuctionRequestMode(false);
     auction.stopSimulation();
     clearRequest();
@@ -401,8 +452,19 @@ export function SolicitudTaxiScreen() {
   }, [auction, clearExtraStops, clearRequest, navigation, setComment, setDestination, setRoutePoints]);
 
   const handleAuctionRetry = React.useCallback(() => {
+    if (isRetryingAuction) return;
+    setIsRetryingAuction(true);
     auction.startSimulation(auctionFare);
-  }, [auction, auctionFare]);
+    retryTimeoutRef.current = setTimeout(() => {
+      setIsRetryingAuction(false);
+    }, 900);
+  }, [auction, auctionFare, isRetryingAuction]);
+
+  React.useEffect(() => () => {
+    if (retryTimeoutRef.current) {
+      clearTimeout(retryTimeoutRef.current);
+    }
+  }, []);
 
   const updateAuctionOriginScreenPoint = React.useCallback(async () => {
     if (!mapRef.current || !request || !isAuctionRequestMode) {
@@ -583,25 +645,6 @@ export function SolicitudTaxiScreen() {
     mapRef.current?.animateToRegion(nextRegion, 400);
   }, [focusAuctionPickupMap]);
 
-  const fitRouteToMap = React.useCallback(() => {
-    if (!mapRef.current || !request) return;
-
-    const coords: LatLng[] = [
-      request.origin.position,
-      request.destination.position,
-      ...request.routePoints,
-    ];
-
-    if (coords.length < 2) return;
-
-    mapRef.current.fitToCoordinates(coords, {
-      edgePadding: isAuctionPickupMode
-        ? { top: 90, right: 48, bottom: 210, left: 48 }
-        : { top: 180, right: 48, bottom: 420, left: 48 },
-      animated: true,
-    });
-  }, [isAuctionPickupMode, request]);
-
   React.useEffect(() => {
     if (!request) return;
 
@@ -705,7 +748,7 @@ export function SolicitudTaxiScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
       <View
         style={styles.mapArea}
         onLayout={() => {
@@ -772,15 +815,15 @@ export function SolicitudTaxiScreen() {
         ) : null}
 
         {!shouldShowAuctionMapPin ? (
-          <View style={[styles.routeCard, styles.routeCardTop]}>
+          <View style={[styles.routeCard, styles.routeCardTop, { backgroundColor: theme.surface }]}>
             <View style={styles.routeRow}>
               <View style={styles.routeDotGreen} />
-              <Text numberOfLines={1} style={styles.routeText}>
+              <Text numberOfLines={1} style={[styles.routeText, { color: theme.text }]}>
                 {request?.origin.placeName || 'Fairfax Drive Newark, NJ 07...'}
               </Text>
             </View>
 
-            <View style={styles.routeDivider} />
+            <View style={[styles.routeDivider, { backgroundColor: theme.divider }]} />
 
             <View style={styles.routeRow}>
               {extraStops.length === 0 ? (
@@ -790,7 +833,7 @@ export function SolicitudTaxiScreen() {
                   <Text style={styles.routeDestBadgeText}>1</Text>
                 </View>
               )}
-              <Text numberOfLines={1} style={styles.routeText}>
+              <Text numberOfLines={1} style={[styles.routeText, { color: theme.text }]}>
                 {request?.destination.placeName || '3963 Mattson Street Portland...'}
               </Text>
               <TouchableOpacity
@@ -806,12 +849,12 @@ export function SolicitudTaxiScreen() {
 
             {extraStops.map((stop, index) => (
               <React.Fragment key={index}>
-                <View style={styles.routeDivider} />
+                <View style={[styles.routeDivider, { backgroundColor: theme.divider }]} />
                 <View style={styles.routeRow}>
                   <View style={styles.routeDestBadge}>
                     <Text style={styles.routeDestBadgeText}>{index + 2}</Text>
                   </View>
-                  <Text numberOfLines={1} style={styles.routeText}>{stop.placeName}</Text>
+                  <Text numberOfLines={1} style={[styles.routeText, { color: theme.text }]}>{stop.placeName}</Text>
                   <TouchableOpacity
                     style={styles.routeActionWrap}
                     onPress={() => removeExtraStop(index)}
@@ -825,57 +868,59 @@ export function SolicitudTaxiScreen() {
           </View>
         ) : null}
 
-        {!shouldShowAuctionMapPin ? <View style={styles.expandFab}>
-          <Ionicons name="scan-outline" size={20} color="#1f2a44" />
+        {!shouldShowAuctionMapPin ? <View style={[styles.expandFab, { backgroundColor: theme.surface }]}>
+          <Ionicons name="scan-outline" size={20} color={theme.text} />
         </View> : null}
 
         {isAuctionPickupMode ? (
           <View style={[styles.auctionFabColumn, { top: insets.top + Spacing.md }]}>
-            <TouchableOpacity style={styles.auctionFabButton} onPress={() => void handleAuctionRecenter()} activeOpacity={0.85}>
-              <Ionicons name="refresh" size={20} color={Colors.textPrimary} />
+            <TouchableOpacity style={[styles.auctionFabButton, { backgroundColor: theme.surface }]} onPress={() => void handleAuctionRecenter()} activeOpacity={0.85}>
+              <Ionicons name="refresh" size={20} color={theme.text} />
             </TouchableOpacity>
-            <TouchableOpacity style={styles.auctionFabButton} activeOpacity={0.85}>
-              <Ionicons name="ellipsis-horizontal" size={20} color={Colors.textPrimary} />
+            <TouchableOpacity style={[styles.auctionFabButton, { backgroundColor: theme.surface }]} activeOpacity={0.85}>
+              <Ionicons name="ellipsis-horizontal" size={20} color={theme.text} />
             </TouchableOpacity>
           </View>
         ) : null}
 
         {isAuctionPickupMode && isResolvingPickup ? (
-          <ActivityIndicator style={styles.auctionResolvingIndicator} size="small" color={Colors.primary} />
+          <ActivityIndicator style={styles.auctionResolvingIndicator} size="small" color={theme.accent} />
         ) : null}
 
         {!isAuctionRequestMode ? <TouchableOpacity
           style={[
             styles.mapActionButton,
             isAuctionPickupMode ? styles.auctionBackFab : styles.backFab,
+            { backgroundColor: theme.surface },
             isAuctionPickupMode && { bottom: Math.max(insets.bottom, Spacing.md) + 170 },
           ]}
           onPress={handleExitToHome}
           activeOpacity={0.85}
         >
-          <Ionicons name="arrow-back" size={22} color="#1f2a44" />
+          <Ionicons name="arrow-back" size={22} color={theme.text} />
         </TouchableOpacity> : null}
 
         {!isAuctionRequestMode ? <TouchableOpacity
           style={[
             styles.mapActionButton,
             isAuctionPickupMode ? styles.auctionCenterFab : styles.centerRouteFab,
+            { backgroundColor: theme.surface },
             isAuctionPickupMode && { bottom: Math.max(insets.bottom, Spacing.md) + 170 },
           ]}
-          onPress={isAuctionPickupMode ? () => void handleAuctionRecenter() : fitRouteToMap}
+          onPress={isAuctionPickupMode ? () => void handleAuctionRecenter() : () => fitRouteToMap()}
           activeOpacity={0.85}
         >
-          <Ionicons name={isAuctionPickupMode ? 'locate-outline' : 'navigate'} size={22} color="#334155" />
+          <Ionicons name={isAuctionPickupMode ? 'locate-outline' : 'navigate'} size={22} color={theme.text} />
         </TouchableOpacity> : null}
       </View>
 
-      {!isAuctionPickupMode && !isAuctionRequestMode ? <Animated.View {...panResponder.panHandlers} style={[styles.sheet, { height: sheetHeight }]}>
+      {!isAuctionPickupMode && !isAuctionRequestMode ? <Animated.View {...panResponder.panHandlers} style={[styles.sheet, { height: sheetHeight, backgroundColor: theme.surface }]}>
         <View style={styles.dragArea}>
-          <View style={styles.handle} />
+          <View style={[styles.handle, { backgroundColor: theme.divider }]} />
         </View>
 
         <View style={styles.sheetHeader}>
-          <Text style={styles.sheetTitle}>ELIGE UN VEHICULO</Text>
+          <Text style={[styles.sheetTitle, { color: theme.text }]}>ELIGE UN VEHICULO</Text>
           <View style={styles.headerIcons}>
             <TouchableOpacity style={styles.iconButton} onPress={openCalendar} activeOpacity={0.85}>
               <Ionicons name="calendar-outline" size={18} color={Colors.white} />
@@ -921,7 +966,7 @@ export function SolicitudTaxiScreen() {
             return (
               <TouchableOpacity
                 key={item.vehiclePlate}
-                style={[styles.vehicleCard, active && styles.vehicleCardActive]}
+                style={[styles.vehicleCard, { backgroundColor: theme.surface, borderColor: theme.divider }, active && { backgroundColor: theme.surfaceSoft, borderColor: theme.accent }]}
                 onPress={() => {
                   selectedVehicleRef.current = item.vehiclePlate;
                   setSelectedVehicle(item.vehiclePlate);
@@ -931,18 +976,18 @@ export function SolicitudTaxiScreen() {
                 <View style={styles.vehicleContentRow}>
                   <View style={styles.vehicleTextWrap}>
                     <View style={styles.vehicleTitleRow}>
-                      <Text style={styles.vehicleName}>{item.vehicleModel}</Text>
-                      {index === 0 ? <Ionicons name="information-circle" size={16} color="#1d5fa8" /> : null}
+                      <Text style={[styles.vehicleName, { color: theme.text }]}>{item.vehicleModel}</Text>
+                      {index === 0 ? <Ionicons name="information-circle" size={16} color={theme.accent} /> : null}
                     </View>
-                    <Text style={styles.vehicleMeta}>{item.seatsLabel}</Text>
+                    <Text style={[styles.vehicleMeta, { color: theme.textMuted }]}>{item.seatsLabel}</Text>
                     <View style={styles.vehicleBottomRow}>
-                      <Text style={styles.vehiclePrice}>
+                      <Text style={[styles.vehiclePrice, { color: theme.accent }]}>
                         {item.currency}
                         {isAuction ? formatFare(auctionFare) : item.price.toFixed(2)}
                       </Text>
                       <View style={styles.timeWrap}>
-                        <Ionicons name="radio-button-off-outline" size={14} color="#0f172a" />
-                        <Text style={styles.vehicleEta}>1-{item.etaMinutes} min</Text>
+                        <Ionicons name="radio-button-off-outline" size={14} color={theme.text} />
+                        <Text style={[styles.vehicleEta, { color: theme.text }]}>1-{item.etaMinutes} min</Text>
                       </View>
                     </View>
                   </View>
@@ -951,23 +996,34 @@ export function SolicitudTaxiScreen() {
                 {isAuction && active ? (
                   <View style={styles.auctionControls}>
                     <TouchableOpacity
-                      style={[styles.auctionStepButton, auctionFare <= 0 && styles.auctionStepButtonDisabled]}
+                      style={[
+                        styles.auctionStepButton,
+                        { backgroundColor: isDark ? theme.accent : theme.surface, borderColor: isDark ? theme.accent : theme.divider },
+                        auctionFare <= 0 && { backgroundColor: theme.surfaceMuted, borderColor: theme.divider },
+                      ]}
                       onPress={() => updateAuctionFare(-0.5)}
                       activeOpacity={0.82}
                       disabled={auctionFare <= 0}
                     >
-                      <Text style={[styles.auctionStepText, auctionFare <= 0 && styles.auctionStepTextDisabled]}>- 0.50</Text>
+                      <Text style={[styles.auctionStepText, { color: isDark ? Colors.white : theme.text }, auctionFare <= 0 && { color: theme.textDisabled }]}>- 0.50</Text>
                     </TouchableOpacity>
 
-                    <TouchableOpacity style={styles.auctionFareButton} onPress={openAuctionFareSheet} activeOpacity={0.82}>
-                      <Text style={styles.auctionFareText}>
+                    <TouchableOpacity style={[styles.auctionFareButton, { backgroundColor: theme.surface, borderColor: theme.divider }]} onPress={openAuctionFareSheet} activeOpacity={0.82}>
+                      <Text style={[styles.auctionFareText, { color: theme.text }]}>
                         {item.currency} {formatFare(auctionFare)}
                       </Text>
                       <Ionicons name="create-outline" size={14} color="#64748b" />
                     </TouchableOpacity>
 
-                    <TouchableOpacity style={styles.auctionStepButton} onPress={() => updateAuctionFare(0.5)} activeOpacity={0.82}>
-                      <Text style={styles.auctionStepText}>+ 0.50</Text>
+                    <TouchableOpacity
+                      style={[
+                        styles.auctionStepButton,
+                        { backgroundColor: isDark ? theme.accent : theme.surface, borderColor: isDark ? theme.accent : theme.divider },
+                      ]}
+                      onPress={() => updateAuctionFare(0.5)}
+                      activeOpacity={0.82}
+                    >
+                      <Text style={[styles.auctionStepText, { color: isDark ? Colors.white : theme.text }]}>+ 0.50</Text>
                     </TouchableOpacity>
                   </View>
                 ) : null}
@@ -976,7 +1032,7 @@ export function SolicitudTaxiScreen() {
           })}
         </ScrollView>
 
-        <View style={[styles.staticFooter, { paddingBottom: Math.max(insets.bottom, Spacing.sm) }]}>
+        <View style={[styles.staticFooter, { paddingBottom: Math.max(insets.bottom, Spacing.sm), backgroundColor: theme.surface, borderTopColor: theme.divider }]}>
           <TouchableOpacity style={styles.insuranceBanner} activeOpacity={0.9}>
             <View style={styles.insuranceLeft}>
               <Ionicons name="shield-checkmark-outline" size={16} color="#7c2d12" />
@@ -986,16 +1042,16 @@ export function SolicitudTaxiScreen() {
           </TouchableOpacity>
 
           <View style={styles.footerRow}>
-            <TouchableOpacity style={styles.paymentRow} onPress={() => setPaymentSheetVisible(true)} activeOpacity={0.85}>
+            <TouchableOpacity style={[styles.paymentRow, { backgroundColor: theme.surface }]} onPress={() => setPaymentSheetVisible(true)} activeOpacity={0.85}>
               <Image source={selectedPaymentMethod.image} style={styles.paymentMethodIcon} resizeMode="contain" />
               <View style={styles.paymentTextWrap}>
-                <Text style={styles.paymentLabel}>Metodo de pago</Text>
-                <Text style={styles.paymentText}>{selectedPaymentMethod.label}</Text>
+                <Text style={[styles.paymentLabel, { color: theme.textMuted }]}>Metodo de pago</Text>
+                <Text style={[styles.paymentText, { color: theme.text }]}>{selectedPaymentMethod.label}</Text>
               </View>
-              <Ionicons name="chevron-forward" size={16} color="#334155" />
+              <Ionicons name="chevron-forward" size={16} color={theme.textMuted} />
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.bookButton} onPress={handleBook} activeOpacity={0.88}>
+            <TouchableOpacity style={[styles.bookButton, { backgroundColor: theme.accent }]} onPress={handleBook} activeOpacity={0.88}>
               <Text style={styles.bookButtonText}>RESERVAR</Text>
             </TouchableOpacity>
           </View>
@@ -1003,12 +1059,12 @@ export function SolicitudTaxiScreen() {
       </Animated.View> : null}
 
       {isAuctionPickupMode ? (
-        <View style={[styles.auctionPickupPanel, { paddingBottom: Math.max(insets.bottom, Spacing.md) }]}>
-          <Text style={styles.auctionPickupTitle}>Confirmar punto de origen</Text>
-          <View style={styles.auctionPickupDivider} />
-          <Text style={styles.auctionPickupHelper}>Desplaza el mapa para establecer tu punto de origen.</Text>
+        <View style={[styles.auctionPickupPanel, { paddingBottom: Math.max(insets.bottom, Spacing.md), backgroundColor: theme.surface }]}>
+          <Text style={[styles.auctionPickupTitle, { color: theme.text }]}>Confirmar punto de origen</Text>
+          <View style={[styles.auctionPickupDivider, { backgroundColor: theme.divider }]} />
+          <Text style={[styles.auctionPickupHelper, { color: theme.textMuted }]}>Desplaza el mapa para establecer tu punto de origen.</Text>
           <TouchableOpacity
-            style={[styles.auctionPickupConfirmButton, isConfirmingPickup && styles.auctionPickupConfirmButtonDisabled]}
+            style={[styles.auctionPickupConfirmButton, { backgroundColor: theme.accent }, isConfirmingPickup && styles.auctionPickupConfirmButtonDisabled]}
             onPress={handleConfirmAuctionPickup}
             activeOpacity={0.88}
             disabled={isConfirmingPickup}
@@ -1077,92 +1133,124 @@ export function SolicitudTaxiScreen() {
 
       {isAuctionRequestMode && (
         hasAuctionOffers ? (
-          <View style={styles.auctionOffersBottomPanel}>
+          <View style={[styles.auctionOffersBottomPanel, { backgroundColor: theme.surface }]}>
             <View style={styles.auctionSeenHeader}>
               <Text style={styles.auctionSeenTitle}>
                 {auction.offers.length} {auction.offers.length === 1 ? 'conductor ha' : 'conductores han'} visto tu solicitud
               </Text>
-              <Image source={{ uri: auction.offers[0].driver.imageUrl }} style={styles.auctionSeenAvatar} />
+              <View style={styles.auctionSeenAvatars}>
+                {auction.offers.slice(0, 3).map((offer, index) => (
+                  <Image
+                    key={offer.id}
+                    source={{ uri: offer.driver.imageUrl }}
+                    style={[styles.auctionSeenAvatar, index > 0 && styles.auctionSeenAvatarOverlap]}
+                  />
+                ))}
+                {auction.offers.length > 3 ? (
+                  <View style={[styles.auctionSeenAvatar, styles.auctionSeenAvatarMore]}>
+                    <Text style={styles.auctionSeenAvatarMoreText}>+{auction.offers.length - 3}</Text>
+                  </View>
+                ) : null}
+              </View>
             </View>
             <View style={styles.auctionOffersBody}>
-              <Text style={styles.auctionOffersBodyText}>Posibles ofertas finales de los conductores</Text>
+              <Text style={[styles.auctionOffersBodyText, { color: theme.textMuted }]}>Posibles ofertas finales de los conductores</Text>
               <TouchableOpacity
-                style={styles.auctionCancelButton}
+                style={[styles.auctionCancelButton, { backgroundColor: theme.surface, borderColor: theme.divider }]}
                 onPress={handleAuctionCancel}
                 activeOpacity={0.85}>
-                <Text style={styles.auctionCancelButtonText}>CANCELAR SERVICIO</Text>
+                <Text style={[styles.auctionCancelButtonText, { color: theme.accent }]}>CANCELAR SERVICIO</Text>
               </TouchableOpacity>
             </View>
           </View>
         ) : (
-          <View style={styles.auctionBottomPanel}>
-            <View style={styles.auctionPanelHandle} />
+          <View style={[styles.auctionBottomPanel, { backgroundColor: theme.surface }]}>
+            <View style={[styles.auctionPanelHandle, { backgroundColor: theme.divider }]} />
             <View style={styles.auctionBottomPanelHeader}>
-              <Text style={styles.auctionBottomPanelTitle}>Buscando conductores...</Text>
-              <Text style={styles.auctionBottomPanelSubtitle}>Prueba ofrecer un mejor precio</Text>
+              <Text style={[styles.auctionBottomPanelTitle, { color: theme.text }]}>Buscando conductores...</Text>
+              <Text style={[styles.auctionBottomPanelSubtitle, { color: theme.textMuted }]}>Prueba ofrecer un mejor precio</Text>
             </View>
 
             <View style={styles.auctionRequestFareRow}>
               <TouchableOpacity
-                style={[styles.auctionRequestStepButton, auctionFare <= 0 && styles.auctionStepButtonDisabled]}
+                style={[
+                  styles.auctionRequestStepButton,
+                  { backgroundColor: isDark ? theme.accent : theme.surface, borderColor: isDark ? theme.accent : theme.divider },
+                  auctionFare <= 0 && { backgroundColor: theme.surfaceMuted, borderColor: theme.divider },
+                ]}
                 onPress={() => updateAuctionFare(-0.5)}
                 activeOpacity={0.82}
                 disabled={auctionFare <= 0}
               >
-                <Text style={[styles.auctionRequestStepText, auctionFare <= 0 && styles.auctionStepTextDisabled]}>- 0.50</Text>
+                <Text style={[styles.auctionRequestStepText, { color: isDark ? Colors.white : theme.text }, auctionFare <= 0 && { color: theme.textDisabled }]}>- 0.50</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity style={styles.auctionRequestFareButton} onPress={openAuctionFareSheet} activeOpacity={0.82}>
-                <Text style={styles.auctionRequestFareText}>S/ {formatFare(auctionFare)}</Text>
+              <TouchableOpacity style={[styles.auctionRequestFareButton, { backgroundColor: theme.surface }]} onPress={openAuctionFareSheet} activeOpacity={0.82}>
+                <Text style={[styles.auctionRequestFareText, { color: theme.text }]}>S/ {formatFare(auctionFare)}</Text>
                 <Ionicons name="create-outline" size={15} color="#64748b" />
               </TouchableOpacity>
 
-              <TouchableOpacity style={styles.auctionRequestStepButton} onPress={() => updateAuctionFare(0.5)} activeOpacity={0.82}>
-                <Text style={styles.auctionRequestStepText}>+ 0.50</Text>
+              <TouchableOpacity
+                style={[
+                  styles.auctionRequestStepButton,
+                  { backgroundColor: isDark ? theme.accent : theme.surface, borderColor: isDark ? theme.accent : theme.divider },
+                ]}
+                onPress={() => updateAuctionFare(0.5)}
+                activeOpacity={0.82}
+              >
+                <Text style={[styles.auctionRequestStepText, { color: isDark ? Colors.white : theme.text }]}>+ 0.50</Text>
               </TouchableOpacity>
             </View>
 
-            <TouchableOpacity style={styles.auctionRetryButton} onPress={handleAuctionRetry} activeOpacity={0.88}>
-              <Text style={styles.auctionRetryButtonText}>Volver a solicitar</Text>
+            <TouchableOpacity
+              style={[styles.auctionRetryButton, { backgroundColor: theme.accent }, isRetryingAuction && styles.auctionRetryButtonLoading]}
+              onPress={handleAuctionRetry}
+              activeOpacity={0.88}
+              disabled={isRetryingAuction}
+            >
+              {isRetryingAuction ? <ActivityIndicator size="small" color={Colors.white} /> : null}
+              <Text style={styles.auctionRetryButtonText}>
+                {isRetryingAuction ? 'Solicitando...' : 'Volver a solicitar'}
+              </Text>
             </TouchableOpacity>
 
             <View style={styles.auctionDetailsBlock}>
               <View style={styles.auctionInfoRow}>
-                <Text style={styles.auctionInfoLabel}>Método de pago</Text>
+                <Text style={[styles.auctionInfoLabel, { color: theme.textMuted }]}>Método de pago</Text>
                 <View style={styles.auctionInfoValueRow}>
                   <Image source={selectedPaymentMethod.image} style={styles.auctionInfoPaymentIcon} resizeMode="contain" />
-                  <Text style={styles.auctionInfoValue}>{selectedPaymentMethod.label}</Text>
+                  <Text style={[styles.auctionInfoValue, { color: theme.text }]}>{selectedPaymentMethod.label}</Text>
                 </View>
               </View>
 
               <View style={styles.auctionInfoRow}>
-                <Text style={styles.auctionInfoLabel}>Producto</Text>
+                <Text style={[styles.auctionInfoLabel, { color: theme.textMuted }]}>Producto</Text>
                 <View style={styles.auctionInfoValueRow}>
                   <Image source={vehicles.find((vehicle) => vehicle.vehiclePlate === 'SUBASTA')?.serviceImage} style={styles.auctionInfoProductIcon} resizeMode="contain" />
-                  <Text style={styles.auctionInfoValue}>Subasta</Text>
+                  <Text style={[styles.auctionInfoValue, { color: theme.text }]}>Subasta</Text>
                 </View>
               </View>
 
               <View style={styles.auctionRouteInfoRow}>
                 <View style={styles.auctionRouteDot} />
-                <Text style={styles.auctionRouteText} numberOfLines={1}>
+                <Text style={[styles.auctionRouteText, { color: theme.textMuted }]} numberOfLines={1}>
                   {request?.origin.placeName || 'Punto de partida'}
                 </Text>
               </View>
 
               <View style={styles.auctionRouteInfoRow}>
                 <View style={styles.auctionRouteSquare} />
-                <Text style={styles.auctionRouteText} numberOfLines={1}>
+                <Text style={[styles.auctionRouteText, { color: theme.textMuted }]} numberOfLines={1}>
                   {request?.destination.placeName || 'Destino'}
                 </Text>
               </View>
             </View>
 
             <TouchableOpacity
-              style={styles.auctionCancelButton}
+              style={[styles.auctionCancelButton, { backgroundColor: theme.surface, borderColor: theme.divider }]}
               onPress={handleAuctionCancel}
               activeOpacity={0.85}>
-              <Text style={styles.auctionCancelButtonText}>CANCELAR SERVICIO</Text>
+              <Text style={[styles.auctionCancelButtonText, { color: theme.accent }]}>CANCELAR SERVICIO</Text>
             </TouchableOpacity>
           </View>
         )
@@ -1175,16 +1263,16 @@ export function SolicitudTaxiScreen() {
         onRequestClose={() => setPaymentSheetVisible(false)}
       >
         <Pressable style={styles.paymentSheetBackdrop} onPress={() => setPaymentSheetVisible(false)} />
-        <View style={[styles.paymentSheet, { paddingBottom: Math.max(insets.bottom, Spacing.md) }]}>
-          <View style={styles.paymentSheetHandle} />
-          <Text style={styles.paymentSheetTitle}>Metodo de pago</Text>
+        <View style={[styles.paymentSheet, { paddingBottom: Math.max(insets.bottom, Spacing.md), backgroundColor: theme.surface }]}>
+          <View style={[styles.paymentSheetHandle, { backgroundColor: theme.divider }]} />
+          <Text style={[styles.paymentSheetTitle, { color: theme.text }]}>Metodo de pago</Text>
 
           {paymentOptions.map((option) => {
             const active = selectedPaymentMethod.id === option.id;
             return (
               <TouchableOpacity
                 key={option.id}
-                style={[styles.paymentOptionCard, active && styles.paymentOptionCardActive]}
+                style={[styles.paymentOptionCard, { backgroundColor: theme.surface, borderColor: theme.divider }, active && { backgroundColor: theme.surfaceSoft, borderColor: theme.accent }]}
                 onPress={() => {
                   setSelectedPaymentMethod(option);
                   setPaymentSheetVisible(false);
@@ -1192,8 +1280,8 @@ export function SolicitudTaxiScreen() {
                 activeOpacity={0.88}
               >
                 <Image source={option.image} style={styles.paymentOptionImage} resizeMode="contain" />
-                <Text style={styles.paymentOptionText}>{option.label}</Text>
-                {active ? <Ionicons name="checkmark-circle" size={22} color="#1d5fa8" /> : <Ionicons name="ellipse-outline" size={20} color="#94a3b8" />}
+                <Text style={[styles.paymentOptionText, { color: theme.text }]}>{option.label}</Text>
+                {active ? <Ionicons name="checkmark-circle" size={22} color={theme.accent} /> : <Ionicons name="ellipse-outline" size={20} color={theme.textDisabled} />}
               </TouchableOpacity>
             );
           })}
@@ -1209,12 +1297,12 @@ export function SolicitudTaxiScreen() {
         >
           <Pressable style={styles.overlayBackdrop} onPress={() => setCalendarVisible(false)}>
             <Pressable
-              style={[styles.calendarSheet, { paddingBottom: Math.max(insets.bottom, Spacing.md) }]}
+              style={[styles.calendarSheet, { paddingBottom: Math.max(insets.bottom, Spacing.md), backgroundColor: theme.surface }]}
               onPress={(event) => event.stopPropagation()}
             >
               <View style={styles.calendarActions}>
                 <TouchableOpacity onPress={() => setCalendarVisible(false)} activeOpacity={0.85}>
-                  <Text style={styles.calendarActionText}>Cancelar</Text>
+                  <Text style={[styles.calendarActionText, { color: theme.accent }]}>Cancelar</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   onPress={() => {
@@ -1223,7 +1311,7 @@ export function SolicitudTaxiScreen() {
                   }}
                   activeOpacity={0.85}
                 >
-                  <Text style={styles.calendarActionText}>Listo</Text>
+                  <Text style={[styles.calendarActionText, { color: theme.accent }]}>Listo</Text>
                 </TouchableOpacity>
               </View>
               <DateTimePicker
@@ -1232,7 +1320,7 @@ export function SolicitudTaxiScreen() {
                 display="spinner"
                 minimumDate={new Date()}
                 locale="es-ES"
-                themeVariant="light"
+                themeVariant={isDark ? 'dark' : 'light'}
                 onChange={handleDateChange}
                 style={styles.cupertinoPicker}
               />
@@ -1253,20 +1341,20 @@ export function SolicitudTaxiScreen() {
           behavior={Platform.OS === 'ios' ? 'padding' : 'position'}
           keyboardVerticalOffset={0}
         >
-          <View style={[styles.paymentSheet, styles.notesSheet, { paddingBottom: Math.max(insets.bottom, Spacing.md) }]}>
-            <View style={styles.paymentSheetHandle} />
-            <Text style={styles.paymentSheetTitle}>Notas del viaje</Text>
-            <Text style={styles.notesHelperText}>Agrega una indicacion para el conductor.</Text>
+          <View style={[styles.paymentSheet, styles.notesSheet, { paddingBottom: Math.max(insets.bottom, Spacing.md), backgroundColor: theme.surface }]}>
+            <View style={[styles.paymentSheetHandle, { backgroundColor: theme.divider }]} />
+            <Text style={[styles.paymentSheetTitle, { color: theme.text }]}>Notas del viaje</Text>
+            <Text style={[styles.notesHelperText, { color: theme.textMuted }]}>Agrega una indicacion para el conductor.</Text>
             <TextInput
               value={tripNotes}
               onChangeText={setTripNotes}
               placeholder="Ejemplo: estoy en la puerta principal."
-              placeholderTextColor="#94a3b8"
+              placeholderTextColor={theme.textDisabled}
               multiline
               textAlignVertical="top"
-              style={styles.notesInput}
+              style={[styles.notesInput, { backgroundColor: theme.surfaceMuted, borderColor: theme.divider, color: theme.text }]}
             />
-            <TouchableOpacity style={styles.saveNotesButton} onPress={() => setNotesVisible(false)} activeOpacity={0.88}>
+            <TouchableOpacity style={[styles.saveNotesButton, { backgroundColor: theme.accent }]} onPress={() => setNotesVisible(false)} activeOpacity={0.88}>
               <Text style={styles.saveNotesButtonText}>Guardar nota</Text>
             </TouchableOpacity>
           </View>
@@ -1285,44 +1373,53 @@ export function SolicitudTaxiScreen() {
             style={styles.auctionKeyboardLayer}
           >
             <Pressable
-              style={[styles.auctionSheet, { paddingBottom: Math.max(insets.bottom, Spacing.md) }]}
+              style={[styles.auctionSheet, { paddingBottom: Math.max(insets.bottom, Spacing.md), backgroundColor: theme.surface }]}
               onPress={(event) => event.stopPropagation()}
             >
-              <View style={styles.paymentSheetHandle} />
-              <Text style={styles.auctionSheetTitle}>Propón una tarifa de viaje</Text>
-              <Text style={styles.auctionSheetText}>Puedes modificar la tarifa sugerida</Text>
+              <View style={[styles.paymentSheetHandle, { backgroundColor: theme.divider }]} />
+              <Text style={[styles.auctionSheetTitle, { color: theme.text }]}>Propón una tarifa de viaje</Text>
+              <Text style={[styles.auctionSheetText, { color: theme.textMuted }]}>Puedes modificar la tarifa sugerida</Text>
 
               <View style={styles.auctionSheetControls}>
                 <TouchableOpacity
-                  style={[styles.auctionStepButton, styles.auctionSheetStepButton, auctionFare <= 0 && styles.auctionStepButtonDisabled]}
+                  style={[
+                    styles.auctionStepButton,
+                    styles.auctionSheetStepButton,
+                    { backgroundColor: isDark ? theme.accent : theme.surface, borderColor: isDark ? theme.accent : theme.divider },
+                    auctionFare <= 0 && { backgroundColor: theme.surfaceMuted, borderColor: theme.divider },
+                  ]}
                   onPress={() => updateAuctionFare(-0.5)}
                   activeOpacity={0.82}
                   disabled={auctionFare <= 0}
                 >
-                  <Text style={[styles.auctionStepText, auctionFare <= 0 && styles.auctionStepTextDisabled]}>- 0.50</Text>
+                  <Text style={[styles.auctionStepText, { color: isDark ? Colors.white : theme.text }, auctionFare <= 0 && { color: theme.textDisabled }]}>- 0.50</Text>
                 </TouchableOpacity>
 
                 <View style={styles.auctionInputWrap}>
-                  <Text style={styles.auctionInputCurrency}>S/</Text>
+                  <Text style={[styles.auctionInputCurrency, { color: theme.text }]}>S/</Text>
                   <TextInput
                     value={auctionFareText}
                     onChangeText={setAuctionFareText}
                     keyboardType="decimal-pad"
                     selectTextOnFocus
-                    style={styles.auctionInput}
+                    style={[styles.auctionInput, { color: theme.text }]}
                   />
                 </View>
 
                 <TouchableOpacity
-                  style={[styles.auctionStepButton, styles.auctionSheetStepButton]}
+                  style={[
+                    styles.auctionStepButton,
+                    styles.auctionSheetStepButton,
+                    { backgroundColor: isDark ? theme.accent : theme.surface, borderColor: isDark ? theme.accent : theme.divider },
+                  ]}
                   onPress={() => updateAuctionFare(0.5)}
                   activeOpacity={0.82}
                 >
-                  <Text style={styles.auctionStepText}>+ 0.50</Text>
+                  <Text style={[styles.auctionStepText, { color: isDark ? Colors.white : theme.text }]}>+ 0.50</Text>
                 </TouchableOpacity>
               </View>
 
-              <TouchableOpacity style={styles.auctionConfirmButton} onPress={confirmAuctionFare} activeOpacity={0.88}>
+              <TouchableOpacity style={[styles.auctionConfirmButton, { backgroundColor: theme.accent }]} onPress={confirmAuctionFare} activeOpacity={0.88}>
                 <Text style={styles.auctionConfirmButtonText}>CONFIRMAR</Text>
               </TouchableOpacity>
             </Pressable>
@@ -2112,12 +2209,31 @@ const styles = StyleSheet.create({
     color: Colors.white,
     marginRight: Spacing.md,
   },
+  auctionSeenAvatars: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingLeft: 10,
+  },
   auctionSeenAvatar: {
     width: 38,
     height: 38,
     borderRadius: 19,
     borderWidth: 2,
     borderColor: Colors.white,
+  },
+  auctionSeenAvatarOverlap: {
+    marginLeft: -10,
+  },
+  auctionSeenAvatarMore: {
+    marginLeft: -10,
+    backgroundColor: '#334155',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  auctionSeenAvatarMoreText: {
+    color: Colors.white,
+    fontFamily: FontFamily.bold,
+    fontSize: FontSize.xs,
   },
   auctionOffersBody: {
     paddingHorizontal: Spacing.md,
@@ -2195,7 +2311,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#1d5fa8',
     alignItems: 'center',
     justifyContent: 'center',
+    flexDirection: 'row',
+    gap: Spacing.sm,
     marginBottom: Spacing.md,
+  },
+  auctionRetryButtonLoading: {
+    opacity: 0.82,
   },
   auctionRetryButtonText: {
     fontFamily: FontFamily.bold,

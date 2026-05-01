@@ -2,6 +2,7 @@ import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import type { TripStatus } from '../types';
 import { Colors } from '@theme/colors';
+import { useAppTheme } from '@theme/useAppTheme';
 import { FontFamily, FontSize } from '@theme/fonts';
 import { Spacing, BorderRadius } from '@theme/spacing';
 
@@ -22,8 +23,11 @@ const STATUS_COLOR: Record<TripStatus, string> = {
 };
 
 export function TripStatusPill({ status }: Props) {
+  const theme = useAppTheme();
+  const backgroundColor = status === 'completed' ? theme.drawer : STATUS_COLOR[status];
+
   return (
-    <View style={[styles.pill, { backgroundColor: STATUS_COLOR[status] }]}>
+    <View style={[styles.pill, { backgroundColor }]}>
       <Text style={styles.text}>{STATUS_LABEL[status]}</Text>
     </View>
   );

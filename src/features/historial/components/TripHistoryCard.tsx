@@ -6,6 +6,7 @@ import type { TripHistoryItem } from '../types';
 import { TripTimeline } from './TripTimeline';
 import { TripStatusPill } from './TripStatusPill';
 import { Colors } from '@theme/colors';
+import { useAppTheme } from '@theme/useAppTheme';
 import { FontFamily, FontSize } from '@theme/fonts';
 import { Spacing, BorderRadius, Shadow } from '@theme/spacing';
 
@@ -24,34 +25,36 @@ function formatTripDate(date: Date): string {
 }
 
 export function TripHistoryCard({ trip, onPressMenu }: Props) {
+  const theme = useAppTheme();
+
   return (
-    <View style={styles.card}>
+    <View style={[styles.card, { backgroundColor: theme.surface }]}>
       <View style={styles.headerRow}>
-        <Text style={styles.dateLabel}>{formatTripDate(trip.date)}</Text>
+        <Text style={[styles.dateLabel, { color: theme.text }]}>{formatTripDate(trip.date)}</Text>
         <TouchableOpacity
           onPress={() => onPressMenu?.(trip)}
           activeOpacity={0.85}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
-          <Ionicons name="ellipsis-vertical" size={18} color={Colors.textPrimary} />
+          <Ionicons name="ellipsis-vertical" size={18} color={theme.text} />
         </TouchableOpacity>
       </View>
 
       <View style={styles.driverRow}>
         <UserNetworkAvatar imageUrl={trip.driver.avatarUrl} radius={22} />
         <View style={styles.driverInfo}>
-          <Text style={styles.driverName}>{trip.driver.name}</Text>
-          <Text style={styles.driverMeta}>Antiguedad: {trip.driver.yearsAtCompany} ano</Text>
-          <Text style={styles.driverMeta}>Viajes: {trip.driver.rideCount}</Text>
+          <Text style={[styles.driverName, { color: theme.text }]}>{trip.driver.name}</Text>
+          <Text style={[styles.driverMeta, { color: theme.textMuted }]}>Antiguedad: {trip.driver.yearsAtCompany} ano</Text>
+          <Text style={[styles.driverMeta, { color: theme.textMuted }]}>Viajes: {trip.driver.rideCount}</Text>
         </View>
       </View>
 
       <TripTimeline pickup={trip.pickup} dropoff={trip.dropoff} extraStop={trip.extraStop} />
 
-      <View style={styles.divider} />
+      <View style={[styles.divider, { backgroundColor: theme.divider }]} />
 
       <View style={styles.footerRow}>
-        <Text style={styles.priceLabel}>
+        <Text style={[styles.priceLabel, { color: theme.text }]}>
           {trip.currency} {trip.price.toFixed(2)}
         </Text>
         <TripStatusPill status={trip.status} />

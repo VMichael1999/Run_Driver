@@ -1,8 +1,9 @@
 import React from 'react';
-import { Animated, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Animated, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Swipeable } from 'react-native-gesture-handler';
 import { Colors } from '@theme/colors';
+import { useAppTheme } from '@theme/useAppTheme';
 import { FontFamily, FontSize } from '@theme/fonts';
 import { Spacing } from '@theme/spacing';
 
@@ -11,9 +12,12 @@ interface SwipeableFavoriteItemProps {
   placeName: string;
   onPress: () => void;
   onDelete: (id: string) => void;
+  loading?: boolean;
+  disabled?: boolean;
 }
 
-export function SwipeableFavoriteItem({ id, placeName, onPress, onDelete }: SwipeableFavoriteItemProps) {
+export function SwipeableFavoriteItem({ id, placeName, onPress, onDelete, loading = false, disabled = false }: SwipeableFavoriteItemProps) {
+  const theme = useAppTheme();
   const swipeableRef = React.useRef<Swipeable | null>(null);
 
   const renderRightActions = (
@@ -49,11 +53,17 @@ export function SwipeableFavoriteItem({ id, placeName, onPress, onDelete }: Swip
       overshootRight={false}
       rightThreshold={40}
     >
-      <TouchableOpacity style={styles.item} onPress={onPress} activeOpacity={0.85}>
-        <View style={styles.dot} />
-        <Text style={styles.itemText} numberOfLines={1}>
+      <TouchableOpacity
+        style={[styles.item, { backgroundColor: theme.surfaceMuted }, disabled && styles.itemDisabled]}
+        onPress={onPress}
+        activeOpacity={0.85}
+        disabled={disabled}
+      >
+        <View style={[styles.dot, { backgroundColor: theme.accent }]} />
+        <Text style={[styles.itemText, { color: theme.text }]} numberOfLines={1}>
           {placeName}
         </Text>
+        {loading ? <ActivityIndicator size="small" color={theme.accent} /> : null}
       </TouchableOpacity>
     </Swipeable>
   );
@@ -67,6 +77,9 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     paddingHorizontal: Spacing.md,
     paddingVertical: 12,
+  },
+  itemDisabled: {
+    opacity: 0.72,
   },
   dot: {
     width: 8,

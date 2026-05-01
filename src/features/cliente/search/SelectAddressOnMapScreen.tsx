@@ -139,7 +139,7 @@ export function SelectAddressOnMapScreen({ route, navigation }: Props) {
 
       if (target === 'extra-stop') {
         addExtraStop(selectedLocation);
-        navigation.goBack();
+        navigation.pop(2);
         return;
       }
 

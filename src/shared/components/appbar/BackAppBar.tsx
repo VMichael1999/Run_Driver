@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { Colors } from '@theme/colors';
+import { useAppTheme } from '@theme/useAppTheme';
 import { FontFamily, FontSize } from '@theme/fonts';
 import { Spacing } from '@theme/spacing';
 
@@ -14,6 +15,7 @@ interface Props {
 export function BackAppBar({ title, onBack }: Props) {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
+  const theme = useAppTheme();
 
   const handleBack = () => {
     if (onBack) {
@@ -24,11 +26,11 @@ export function BackAppBar({ title, onBack }: Props) {
   };
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top + Spacing.sm }]}>
+    <View style={[styles.container, { paddingTop: insets.top + Spacing.sm, backgroundColor: theme.surface }]}>
       <TouchableOpacity onPress={handleBack} style={styles.backButton} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-        <Text style={styles.backArrow}>←</Text>
+        <Text style={[styles.backArrow, { color: theme.primary }]}>{'<'}</Text>
       </TouchableOpacity>
-      {title ? <Text style={styles.title}>{title}</Text> : null}
+      {title ? <Text style={[styles.title, { color: theme.text }]}>{title}</Text> : null}
       <View style={styles.spacer} />
     </View>
   );

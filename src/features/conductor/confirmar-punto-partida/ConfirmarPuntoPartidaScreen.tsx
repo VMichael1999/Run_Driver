@@ -14,6 +14,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { ConductorStackParamList } from '@navigation/types';
 import { getCurrentLocationMarker, getPlaceNameFromCoordinates } from '@shared/utils/locationUtils';
 import { Colors } from '@theme/colors';
+import { useAppTheme } from '@theme/useAppTheme';
 import { FontFamily, FontSize } from '@theme/fonts';
 import { BorderRadius, Shadow, Spacing } from '@theme/spacing';
 
@@ -30,6 +31,7 @@ export function ConfirmarPuntoPartidaScreen({ route, navigation }: Props) {
   const routePoints = route.params?.routePoints ?? [];
   const mapRef = React.useRef<MapView | null>(null);
   const insets = useSafeAreaInsets();
+  const theme = useAppTheme();
 
   const [selectedRegion, setSelectedRegion] = React.useState<Region>(LIMA_REGION);
   const [isResolving, setIsResolving] = React.useState(false);
@@ -100,7 +102,7 @@ export function ConfirmarPuntoPartidaScreen({ route, navigation }: Props) {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
       <View style={styles.mapWrap}>
         <MapView
           ref={mapRef}
@@ -114,7 +116,7 @@ export function ConfirmarPuntoPartidaScreen({ route, navigation }: Props) {
           {routePoints.length >= 2 && (
             <Polyline
               coordinates={routePoints}
-              strokeColor={Colors.primary}
+              strokeColor={theme.accent}
               strokeWidth={4}
             />
           )}
@@ -122,18 +124,18 @@ export function ConfirmarPuntoPartidaScreen({ route, navigation }: Props) {
 
         <View pointerEvents="none" style={styles.pinCenterWrap}>
           <Animated.View style={[styles.pinMarkerWrap, { transform: [{ translateY: pinLift }] }]}>
-            <View style={styles.pinHead} />
-            <View style={styles.pinStem} />
+            <View style={[styles.pinHead, { borderColor: theme.accent }]} />
+            <View style={[styles.pinStem, { backgroundColor: theme.accent }]} />
           </Animated.View>
           <View style={styles.pinShadowDot} />
         </View>
 
         <View style={[styles.fabColumn, { top: insets.top + Spacing.md }]}>
-          <TouchableOpacity style={styles.fabButton} onPress={() => void handleRecenter()}>
-            <Ionicons name="refresh" size={20} color={Colors.textPrimary} />
+          <TouchableOpacity style={[styles.fabButton, { backgroundColor: theme.surface }]} onPress={() => void handleRecenter()}>
+            <Ionicons name="refresh" size={20} color={theme.text} />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.fabButton}>
-            <Ionicons name="ellipsis-horizontal" size={20} color={Colors.textPrimary} />
+          <TouchableOpacity style={[styles.fabButton, { backgroundColor: theme.surface }]}>
+            <Ionicons name="ellipsis-horizontal" size={20} color={theme.text} />
           </TouchableOpacity>
         </View>
 
@@ -141,28 +143,28 @@ export function ConfirmarPuntoPartidaScreen({ route, navigation }: Props) {
           <ActivityIndicator
             style={styles.resolvingIndicator}
             size="small"
-            color={Colors.primary}
+            color={theme.accent}
           />
         )}
       </View>
 
-      <View style={[styles.panel, { paddingBottom: insets.bottom + Spacing.md }]}>
+      <View style={[styles.panel, { paddingBottom: insets.bottom + Spacing.md, backgroundColor: theme.surface }]}>
         <View style={styles.panelTopRow}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-            <Ionicons name="arrow-back" size={22} color={Colors.textPrimary} />
+            <Ionicons name="arrow-back" size={22} color={theme.text} />
           </TouchableOpacity>
           <TouchableOpacity style={styles.gpsButton} onPress={() => void handleRecenter()}>
-            <Ionicons name="locate-outline" size={22} color={Colors.primary} />
+            <Ionicons name="locate-outline" size={22} color={theme.accent} />
           </TouchableOpacity>
         </View>
 
-        <Text style={styles.title}>Confirmar punto de origen</Text>
-        <Text style={styles.subtitle}>
+        <Text style={[styles.title, { color: theme.text }]}>Confirmar punto de origen</Text>
+        <Text style={[styles.subtitle, { color: theme.textMuted }]}>
           Desplaza el mapa para establecer tu punto de origen.
         </Text>
 
         <TouchableOpacity
-          style={[styles.confirmButton, isConfirming && styles.confirmButtonDisabled]}
+          style={[styles.confirmButton, { backgroundColor: theme.accent }, isConfirming && styles.confirmButtonDisabled]}
           onPress={() => void handleConfirm()}
           activeOpacity={0.88}
           disabled={isConfirming}

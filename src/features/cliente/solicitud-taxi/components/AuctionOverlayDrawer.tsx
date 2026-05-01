@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react'
 import { View, Text, StyleSheet, Animated, Dimensions, ScrollView, TouchableOpacity } from 'react-native'
 import { DriverOfferCard } from './DriverOfferCard'
+import { useAppTheme } from '@theme/useAppTheme'
 
 // Lightweight auction overlay for showing driver offers on top of the map
 type AuctionOffer = any
@@ -16,6 +17,7 @@ const { height: SCREEN_HEIGHT } = Dimensions.get('window')
 const DRAWER_HEIGHT = Math.min(SCREEN_HEIGHT * 0.58, 420)
 
 export const AuctionOverlayDrawer: React.FC<Props> = ({ visible, offers, onAccept, onReject, onCancel }) => {
+  const theme = useAppTheme()
   const translateY = useRef(new Animated.Value(DRAWER_HEIGHT)).current
 
   useEffect(() => {
@@ -32,10 +34,10 @@ export const AuctionOverlayDrawer: React.FC<Props> = ({ visible, offers, onAccep
   }
 
   return (
-    <Animated.View style={[styles.drawer, { transform: [{ translateY }] }]}> 
-      <View style={styles.handle} />
+    <Animated.View style={[styles.drawer, { backgroundColor: theme.surface, transform: [{ translateY }] }]}> 
+      <View style={[styles.handle, { backgroundColor: theme.divider }]} />
       <View style={styles.header}> 
-        <Text style={styles.headerTitle}>Buscando conductores...</Text>
+        <Text style={[styles.headerTitle, { color: theme.text }]}>Buscando conductores...</Text>
       </View>
       <ScrollView contentContainerStyle={styles.listContent} style={styles.list} showsVerticalScrollIndicator={false}>
         {offers.map((offer) => (
@@ -44,6 +46,7 @@ export const AuctionOverlayDrawer: React.FC<Props> = ({ visible, offers, onAccep
               driver={offer.driver}
               startTime={offer.startTime}
               totalDurationSeconds={offer.totalDuration}
+              offeredFare={offer.offeredFare ?? offer.driver?.price ?? 0}
               onAccept={() => onAccept?.(offer)}
               onReject={() => onReject?.(offer)}
             />

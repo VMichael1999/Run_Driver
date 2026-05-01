@@ -17,7 +17,7 @@ interface UseClienteHomeReturn {
   setPaymentMethod: (method: PaymentMethod) => void;
   setComment: (text: string) => void;
   setSelectedHomeTab: (value: 'ride' | 'rental' | 'outstation') => void;
-  requestTaxi: (nextDestination?: LocationMarker) => Promise<boolean>;
+  requestTaxi: (nextDestination?: LocationMarker, nextOrigin?: LocationMarker) => Promise<boolean>;
   canRequest: boolean;
   recalculateRoute: () => Promise<void>;
 }
@@ -53,33 +53,40 @@ export function useClienteHome(): UseClienteHomeReturn {
     }
   }, [destination, origin, setRoutePoints]);
 
-  const requestTaxi = useCallback(async (nextDestination?: LocationMarker) => {
+  const requestTaxi = useCallback(async (nextDestination?: LocationMarker, nextOrigin?: LocationMarker) => {
+    const selectedOrigin = nextOrigin ?? origin;
     const selectedDestination = nextDestination ?? destination;
-    if (!origin || !selectedDestination) return false;
+    if (!selectedOrigin || !selectedDestination) return false;
+
+    const immediateRoute = [selectedOrigin.position, selectedDestination.position];
+    setRoutePoints(immediateRoute);
+    setRequest({
+      origin: selectedOrigin,
+      destination: selectedDestination,
+      routePoints: immediateRoute,
+      paymentMethod,
+      comment: comment.trim() || undefined,
+    });
+
     setIsRouting(true);
-    try {
-      const points = await getRoutePolyline(origin.position, selectedDestination.position);
-      setRoutePoints(points);
-      setRequest({
-        origin,
-        destination: selectedDestination,
-        routePoints: points,
-        paymentMethod,
-        comment: comment.trim() || undefined,
-      });
-    } catch {
-      setRequest({
-        origin,
-        destination: selectedDestination,
-        routePoints,
-        paymentMethod,
-        comment: comment.trim() || undefined,
-      });
-    } finally {
-      setIsRouting(false);
-    }
+    void (async () => {
+      try {
+        const points = await getRoutePolyline(selectedOrigin.position, selectedDestination.position);
+        setRoutePoints(points);
+        setRequest({
+          origin: selectedOrigin,
+          destination: selectedDestination,
+          routePoints: points,
+          paymentMethod,
+          comment: comment.trim() || undefined,
+        });
+      } finally {
+        setIsRouting(false);
+      }
+    })();
+
     return true;
-  }, [comment, destination, origin, paymentMethod, routePoints, setRequest, setRoutePoints]);
+  }, [comment, destination, origin, paymentMethod, setRequest, setRoutePoints]);
 
   return {
     origin,

@@ -1,53 +1,54 @@
 import React from 'react';
-import { View, Text, Switch, StyleSheet } from 'react-native';
+import { Switch, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { BackAppBar } from '@shared/components/appbar/BackAppBar';
+import { AppCard, AppHeader, AppListRow, AppScreen, AppSectionTitle } from '@shared/components/ui';
 import { useThemeStore } from '@store/useThemeStore';
 import { Colors } from '@theme/colors';
-import { FontFamily, FontSize } from '@theme/fonts';
-import { Spacing, BorderRadius, Shadow } from '@theme/spacing';
+import { useAppTheme } from '@theme/useAppTheme';
+import { FontSize } from '@theme/fonts';
+import { Spacing } from '@theme/spacing';
 
 export function ConfiguracionScreen() {
   const insets = useSafeAreaInsets();
   const { isDark, toggleTheme } = useThemeStore();
+  const theme = useAppTheme();
 
   return (
-    <View style={[styles.container, { paddingBottom: insets.bottom }]}>
-      <BackAppBar title="Configuración" />
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Apariencia</Text>
-        <View style={styles.row}>
-          <Text style={styles.rowLabel}>Modo oscuro</Text>
-          <Switch
-            value={isDark}
-            onValueChange={toggleTheme}
-            trackColor={{ false: Colors.divider, true: Colors.primary }}
-            thumbColor={Colors.white}
-          />
-        </View>
-      </View>
-    </View>
+    <AppScreen contentStyle={{ paddingBottom: insets.bottom }}>
+      <AppHeader title="Configuracion" />
+      <AppCard style={styles.section}>
+        <AppSectionTitle muted style={styles.sectionTitle}>Apariencia</AppSectionTitle>
+        <AppListRow
+          title="Modo oscuro"
+          titleStyle={styles.rowLabel}
+          right={(
+            <Switch
+              value={isDark}
+              onValueChange={toggleTheme}
+              trackColor={{ false: theme.divider, true: theme.primary }}
+              thumbColor={Colors.white}
+            />
+          )}
+          style={styles.row}
+        />
+      </AppCard>
+    </AppScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.backgroundLight },
-  section: { margin: Spacing.lg },
+  section: {
+    margin: Spacing.lg,
+  },
   sectionTitle: {
     fontSize: FontSize.xs,
-    fontFamily: FontFamily.bold,
-    color: Colors.textSecondary,
     textTransform: 'uppercase',
     letterSpacing: 1,
-    marginBottom: Spacing.sm,
   },
   row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.white,
-    borderRadius: BorderRadius.md,
-    padding: Spacing.lg,
-    ...Shadow.sm,
+    paddingVertical: 0,
   },
-  rowLabel: { flex: 1, fontSize: FontSize.md, fontFamily: FontFamily.regular, color: Colors.textPrimary },
+  rowLabel: {
+    fontSize: FontSize.md,
+  },
 });

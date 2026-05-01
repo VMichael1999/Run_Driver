@@ -1,5 +1,5 @@
 import React from 'react';
-import { Animated, View, Text, StyleSheet, TouchableOpacity, Image, Platform, ScrollView, useWindowDimensions } from 'react-native';
+import { ActivityIndicator, Animated, View, Text, StyleSheet, TouchableOpacity, Image, Platform, ScrollView, useWindowDimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MapView, { Marker, PROVIDER_GOOGLE, type Region } from 'react-native-maps';
@@ -12,8 +12,9 @@ import { SwipeableFavoriteItem } from './components/SwipeableFavoriteItem';
 import { AppDrawer } from '@shared/components/drawer/AppDrawer';
 import { useAuthStore } from '@store/useAuthStore';
 import { useFavoriteAddressesStore } from '@store/useFavoriteAddressesStore';
-import { getCurrentLocationMarker } from '@shared/utils/locationUtils';
+import { getCurrentLocationMarker, getQuickCurrentLocationMarker } from '@shared/utils/locationUtils';
 import { Colors } from '@theme/colors';
+import { useAppTheme } from '@theme/useAppTheme';
 import { FontFamily, FontSize } from '@theme/fonts';
 import { Spacing, BorderRadius, Shadow } from '@theme/spacing';
 
@@ -35,10 +36,13 @@ const homeActions: Array<{ id: 'ride' | 'rental' | 'outstation'; label: string; 
 export function ClienteHomeScreen() {
   const navigation = useNavigation<Nav>();
   const insets = useSafeAreaInsets();
+  const theme = useAppTheme();
   const { width } = useWindowDimensions();
   const mapRef = React.useRef<MapView | null>(null);
   const [homeScrollEnabled, setHomeScrollEnabled] = React.useState(true);
   const [isOriginSearched, setIsOriginSearched] = React.useState(false);
+  const [isCenteringMap, setIsCenteringMap] = React.useState(false);
+  const [selectedFavoriteId, setSelectedFavoriteId] = React.useState<string | null>(null);
   const {
     origin,
     selectedHomeTab,
@@ -144,25 +148,25 @@ export function ClienteHomeScreen() {
   }, [navigation]);
 
   return (
-    <View style={styles.root}>
-      <Animated.View style={[styles.scene, animatedSceneStyle]}>
+    <View style={[styles.root, { backgroundColor: theme.drawer }]}>
+      <Animated.View style={[styles.scene, { backgroundColor: theme.background }, animatedSceneStyle]}>
         <ScrollView
-          style={styles.container}
+          style={[styles.container, { backgroundColor: theme.background }]}
           contentContainerStyle={{ paddingTop: insets.top + Spacing.md, paddingBottom: insets.bottom + Spacing['2xl'] }}
           scrollEnabled={homeScrollEnabled}
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.header}>
             <TouchableOpacity
-              style={styles.headerIcon}
+              style={[styles.headerIcon, { backgroundColor: theme.iconButton }]}
               activeOpacity={0.8}
               onPress={() => setDrawerOpen(true)}
             >
-              <Ionicons name="menu" size={24} color={Colors.textPrimary} />
+              <Ionicons name="menu" size={24} color={theme.text} />
             </TouchableOpacity>
           </View>
 
-          <View style={styles.mapCard}>
+          <View style={[styles.mapCard, { backgroundColor: theme.surface }]}>
             <MapView
               ref={mapRef}
               style={styles.map}
@@ -187,54 +191,65 @@ export function ClienteHomeScreen() {
               ) : null}
             </MapView>
             <TouchableOpacity
-              style={styles.mapFab}
+              style={[styles.mapFab, { backgroundColor: theme.surface }]}
               onPress={async () => {
-                const current = await getCurrentLocationMarker();
-                if (!current) return;
-                mapRef.current?.animateToRegion(
-                  {
-                    latitude: current.position.latitude,
-                    longitude: current.position.longitude,
-                    latitudeDelta: 0.02,
-                    longitudeDelta: 0.02,
-                  },
-                  420,
-                );
+                if (isCenteringMap) return;
+                setIsCenteringMap(true);
+                try {
+                  const current = await getQuickCurrentLocationMarker();
+                  if (!current) return;
+                  mapRef.current?.animateToRegion(
+                    {
+                      latitude: current.position.latitude,
+                      longitude: current.position.longitude,
+                      latitudeDelta: 0.02,
+                      longitudeDelta: 0.02,
+                    },
+                    260,
+                  );
+                } finally {
+                  setIsCenteringMap(false);
+                }
               }}
               activeOpacity={0.85}
+              disabled={isCenteringMap}
             >
-              <Ionicons name="navigate" size={18} color={Colors.primary} />
+              {isCenteringMap ? (
+                <ActivityIndicator size="small" color={theme.primary} />
+              ) : (
+                <Ionicons name="navigate" size={18} color={theme.primary} />
+              )}
             </TouchableOpacity>
           </View>
 
           <View style={styles.searchRow}>
-            <TouchableOpacity style={styles.searchBox} onPress={() => navigation.navigate('SearchAddress', { target: 'destination' })} activeOpacity={0.85}>
-              <Text style={styles.searchPlaceholder}>
+            <TouchableOpacity style={[styles.searchBox, { backgroundColor: theme.surfaceMuted }]} onPress={() => navigation.navigate('SearchAddress', { target: 'destination' })} activeOpacity={0.85}>
+              <Text style={[styles.searchPlaceholder, { color: theme.textMuted }]}>
                 Buscar ruta
               </Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.nowPill} onPress={handleNowPress} activeOpacity={0.85}>
+            <TouchableOpacity style={[styles.nowPill, { backgroundColor: theme.accent }]} onPress={handleNowPress} activeOpacity={0.85}>
               <Ionicons name="person-outline" size={14} color={Colors.white} />
               <Text style={styles.nowText}>{isRouting ? '...' : 'Ahora'}</Text>
               <Ionicons name="chevron-down" size={14} color={Colors.white} />
             </TouchableOpacity>
           </View>
 
-          <View style={styles.addressList}>
+          <View style={[styles.addressList, { backgroundColor: theme.surface }]}>
             <View style={styles.favoriteHeader}>
               <View style={styles.favoriteNotice}>
-                <View style={styles.favoriteNoticeIcon}>
-                  <Ionicons name="bookmark-outline" size={18} color={Colors.primary} />
+                <View style={[styles.favoriteNoticeIcon, { backgroundColor: theme.surfaceSoft }]}>
+              <Ionicons name="bookmark-outline" size={18} color={theme.accent} />
                 </View>
                 <View style={styles.favoriteNoticeTextWrap}>
-                  <Text style={styles.favoriteNoticeTitle}>Direcciones favoritas</Text>
-                  <Text style={styles.favoriteNoticeText}>
+                  <Text style={[styles.favoriteNoticeTitle, { color: theme.text }]}>Direcciones favoritas</Text>
+                  <Text style={[styles.favoriteNoticeText, { color: theme.textMuted }]}>
                     {favorites.length > 0 ? 'Toca una direccion para usarla en tu ruta.' : 'Agrega tus direcciones mas usadas.'}
                   </Text>
                 </View>
               </View>
               <TouchableOpacity
-                style={styles.addFavoriteButton}
+                style={[styles.addFavoriteButton, { backgroundColor: theme.accent }]}
                 onPress={() => navigation.navigate('SearchAddress', { target: 'destination', saveFavorite: true })}
                 activeOpacity={0.85}
               >
@@ -249,11 +264,23 @@ export function ClienteHomeScreen() {
                     key={favorite.id}
                     id={favorite.id}
                     placeName={favorite.placeName}
+                    loading={selectedFavoriteId === favorite.id}
+                    disabled={selectedFavoriteId !== null || isRouting}
                     onPress={async () => {
-                      setDestination(favorite);
-                      const didCreateRequest = await requestTaxi(favorite);
-                      if (didCreateRequest) {
+                      if (selectedFavoriteId) return;
+                      setSelectedFavoriteId(favorite.id);
+                      try {
+                        const selectedOrigin = origin ?? await getQuickCurrentLocationMarker();
+                        if (!selectedOrigin) return;
+
+                        setOrigin(selectedOrigin);
+                        setDestination(favorite);
+                        const didCreateRequest = await requestTaxi(favorite, selectedOrigin);
+                        if (!didCreateRequest) return;
+
                         navigation.navigate('SolicitudTaxi');
+                      } finally {
+                        setSelectedFavoriteId(null);
                       }
                     }}
                     onDelete={removeFavorite}
@@ -263,13 +290,13 @@ export function ClienteHomeScreen() {
             ) : null}
           </View>
 
-          <View style={styles.actionRow}>
+          <View style={[styles.actionRow, { backgroundColor: theme.surface }]}>
             {homeActions.map((action) => {
               const active = selectedHomeTab === action.id;
               return (
                 <TouchableOpacity
                   key={action.id}
-                  style={[styles.actionCard, active && styles.actionCardActive]}
+                  style={[styles.actionCard, active && { backgroundColor: theme.accent }]}
                   onPress={() => setSelectedHomeTab(action.id)}
                   activeOpacity={0.85}
                 >
@@ -279,16 +306,16 @@ export function ClienteHomeScreen() {
                     </View>
                   ) : null}
                   <Image source={action.image} style={styles.actionImage} resizeMode="contain" />
-                  <Text style={[styles.actionTitle, active && styles.actionTitleActive]}>{action.label}</Text>
+                  <Text style={[styles.actionTitle, { color: theme.text }, active && styles.actionTitleActive]}>{action.label}</Text>
                 </TouchableOpacity>
               );
             })}
           </View>
 
-          <TouchableOpacity style={styles.banner} activeOpacity={0.9}>
+          <TouchableOpacity style={[styles.banner, { backgroundColor: theme.surface }]} activeOpacity={0.9}>
             <View style={styles.bannerTextWrap}>
-              <Text style={styles.bannerTitle}>Invierte hoy y asegura un mejor manana para ti cada dia.</Text>
-              <Text style={styles.bannerLink}>Invierte ahora</Text>
+              <Text style={[styles.bannerTitle, { color: theme.text }]}>Invierte hoy y asegura un mejor manana para ti cada dia.</Text>
+              <Text style={[styles.bannerLink, { color: theme.accent }]}>Invierte ahora</Text>
             </View>
             <Image source={require('../../../../app-icons/ic_launcher-web.png')} style={styles.bannerImage} resizeMode="contain" />
           </TouchableOpacity>

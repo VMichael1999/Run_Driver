@@ -15,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import type { ClienteStackParamList } from '@navigation/types';
 import { Colors } from '@theme/colors';
+import { useAppTheme } from '@theme/useAppTheme';
 import { FontFamily, FontSize } from '@theme/fonts';
 import { Spacing } from '@theme/spacing';
 import appJson from '../../../../app.json';
@@ -77,6 +78,7 @@ function groupBySection(options: DrawerOption[]): Array<[DrawerSection, DrawerOp
 }
 
 export function AppDrawer({ visible, onClose, onNavigate, onLogout, phoneLabel }: AppDrawerProps) {
+  const theme = useAppTheme();
   const translateX = React.useRef(new Animated.Value(-DRAWER_WIDTH)).current;
   const backdropOpacity = React.useRef(new Animated.Value(0)).current;
   const [internalVisible, setInternalVisible] = React.useState<boolean>(visible);
@@ -135,7 +137,7 @@ export function AppDrawer({ visible, onClose, onNavigate, onLogout, phoneLabel }
           <Pressable style={StyleSheet.absoluteFillObject} onPress={onClose} />
         </Animated.View>
 
-        <Animated.View style={[styles.panel, { transform: [{ translateX }] }]}>
+        <Animated.View style={[styles.panel, { backgroundColor: theme.drawer, transform: [{ translateX }] }]}>
           <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
             <TouchableOpacity
               style={styles.profileSection}

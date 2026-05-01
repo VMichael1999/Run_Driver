@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Image, Animated } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Image, Animated, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { DriverAlert } from '@shared/types';
 import { Colors } from '@theme/colors';
+import { useAppTheme } from '@theme/useAppTheme';
 import { FontFamily, FontSize } from '@theme/fonts';
 import { Spacing, BorderRadius, Shadow } from '@theme/spacing';
 
@@ -26,6 +27,7 @@ export function DriverOfferCard({
   onTimeUpdate,
   onExpired,
 }: DriverOfferCardProps) {
+  const theme = useAppTheme();
   const [isAcceptLoading, setIsAcceptLoading] = useState(false);
   const [isRejectLoading, setIsRejectLoading] = useState(false);
   const [remainingSeconds, setRemainingSeconds] = useState(totalDurationSeconds);
@@ -75,6 +77,7 @@ export function DriverOfferCard({
     if (isAcceptLoading || isRejectLoading) return;
     setIsAcceptLoading(true);
     try {
+      await new Promise((resolve) => setTimeout(resolve, 320));
       await onAccept();
     } finally {
       setIsAcceptLoading(false);
@@ -92,7 +95,7 @@ export function DriverOfferCard({
   }, [onReject, isAcceptLoading, isRejectLoading]);
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.surface }]}>
       <View style={styles.driverRow}>
         <View style={styles.avatarWrap}>
           <Image source={{ uri: driver.imageUrl }} style={styles.avatar} />
@@ -100,29 +103,29 @@ export function DriverOfferCard({
 
         <View style={styles.driverInfo}>
           <View style={styles.nameRow}>
-            <Text style={styles.driverName}>{driver.driverName}</Text>
+            <Text style={[styles.driverName, { color: theme.text }]}>{driver.driverName}</Text>
             <View style={styles.ratingWrap}>
               <Ionicons name="star" size={14} color="#f59e0b" />
-              <Text style={styles.ratingText}>{driver.rating.toFixed(1)}</Text>
+              <Text style={[styles.ratingText, { color: theme.textMuted }]}>{driver.rating.toFixed(1)}</Text>
             </View>
           </View>
 
           <View style={styles.vehicleRow}>
-            <Ionicons name="car" size={14} color="#64748b" />
-            <Text style={styles.vehicleText}>
+            <Ionicons name="car" size={14} color={theme.textMuted} />
+            <Text style={[styles.vehicleText, { color: theme.text }]}>
               {driver.vehicleModel} - {driver.vehiclePlate}
             </Text>
           </View>
         </View>
 
         <View style={styles.etaColumn}>
-          <Text style={styles.etaLabel}>LLega en</Text>
-          <Text style={styles.etaValue}>{driver.etaMinutes} min</Text>
+          <Text style={[styles.etaLabel, { color: theme.textMuted }]}>LLega en</Text>
+          <Text style={[styles.etaValue, { color: theme.text }]}>{driver.etaMinutes} min</Text>
         </View>
       </View>
 
       <View style={styles.priceSection}>
-        <Text style={styles.priceValue}>
+        <Text style={[styles.priceValue, { color: theme.text }]}>
           {driver.currency} 
           {driver.price.toFixed(2)}
         </Text>
@@ -135,7 +138,7 @@ export function DriverOfferCard({
 
       <View style={styles.buttonsRow}>
         <TouchableOpacity
-          style={[styles.rejectButton, (isAcceptLoading || isRejectLoading) && styles.buttonDisabled]}
+          style={[styles.rejectButton, { backgroundColor: theme.surface, borderColor: theme.divider }, (isAcceptLoading || isRejectLoading) && styles.buttonDisabled]}
           onPress={handleReject}
           disabled={isAcceptLoading || isRejectLoading}
           activeOpacity={0.8}
@@ -143,22 +146,26 @@ export function DriverOfferCard({
           {isRejectLoading ? (
             <Ionicons name="hourglass" size={20} color="#94a3b8" />
           ) : (
-            <Text style={styles.rejectButtonText}>Rechazar</Text>
+            <Text style={[styles.rejectButtonText, { color: theme.text }]}>Rechazar</Text>
           )}
         </TouchableOpacity>
 
         <TouchableOpacity
           style={[
             styles.acceptButton,
+            { backgroundColor: theme.accent },
             (isAcceptLoading || isRejectLoading) && styles.acceptButtonDisabled,
           ]}
           onPress={handleAccept}
           disabled={isAcceptLoading || isRejectLoading}
           activeOpacity={0.88}
         >
-          <Animated.View style={[styles.acceptProgressFill, { width: acceptProgressWidth }]} />
+          <Animated.View style={[styles.acceptProgressFill, { width: acceptProgressWidth, backgroundColor: 'rgba(255, 255, 255, 0.22)' }]} />
           {isAcceptLoading ? (
-            <Ionicons name="hourglass" size={20} color={Colors.white} />
+            <View style={styles.acceptLoadingContent}>
+              <ActivityIndicator size="small" color={Colors.white} />
+              <Text style={styles.acceptButtonText}>Aceptando</Text>
+            </View>
           ) : (
             <Text style={styles.acceptButtonText}>Aceptar</Text>
           )}
@@ -297,7 +304,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#60a5fa',
   },
   acceptButtonDisabled: {
-    opacity: 0.6,
+    opacity: 0.88,
+  },
+  acceptLoadingContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
   },
   acceptButtonText: {
     fontFamily: FontFamily.bold,

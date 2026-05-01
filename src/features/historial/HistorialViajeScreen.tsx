@@ -5,37 +5,42 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { TripHistoryCard } from './components/TripHistoryCard';
 import { MOCK_TRIP_HISTORY } from './data/mockHistory';
+import { useTripHistoryStore } from '@store/useTripHistoryStore';
 import { Colors } from '@theme/colors';
+import { useAppTheme } from '@theme/useAppTheme';
 import { FontFamily, FontSize } from '@theme/fonts';
 import { Spacing } from '@theme/spacing';
 
 export function HistorialViajeScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
+  const theme = useAppTheme();
+  const trips = useTripHistoryStore((state) => state.trips);
+  const historyItems = React.useMemo(() => [...trips, ...MOCK_TRIP_HISTORY], [trips]);
 
   return (
-    <View style={[styles.container, { paddingBottom: insets.bottom }]}>
-      <View style={[styles.header, { paddingTop: insets.top + Spacing.sm }]}>
+    <View style={[styles.container, { paddingBottom: insets.bottom, backgroundColor: theme.background }]}>
+      <View style={[styles.header, { paddingTop: insets.top + Spacing.sm, backgroundColor: theme.background }]}>
         <TouchableOpacity
           onPress={() => navigation.goBack()}
-          style={styles.backButton}
+          style={[styles.backButton, { backgroundColor: theme.iconButton }]}
           activeOpacity={0.85}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
-          <Ionicons name="chevron-back" size={22} color={Colors.textPrimary} />
+          <Ionicons name="chevron-back" size={22} color={theme.text} />
         </TouchableOpacity>
-        <Text style={styles.title}>Mis viajes</Text>
+        <Text style={[styles.title, { color: theme.text }]}>Mis viajes</Text>
       </View>
 
       <FlatList
-        data={MOCK_TRIP_HISTORY}
+        data={historyItems}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.list}
         renderItem={({ item }) => <TripHistoryCard trip={item} />}
         ItemSeparatorComponent={() => <View style={styles.separator} />}
         ListEmptyComponent={
           <View style={styles.empty}>
-            <Text style={styles.emptyText}>No tienes viajes registrados</Text>
+            <Text style={[styles.emptyText, { color: theme.textMuted }]}>No tienes viajes registrados</Text>
           </View>
         }
         showsVerticalScrollIndicator={false}

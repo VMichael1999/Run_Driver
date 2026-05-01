@@ -1,6 +1,5 @@
 import { create } from 'zustand';
 import type { Coordinates, LocationMarker, PaymentMethod } from '@shared/types';
-import { allRoutes, lugaresDummy } from '@data/rutasDummy';
 
 type HomeTab = 'ride' | 'rental' | 'outstation';
 
@@ -21,26 +20,17 @@ interface RideDraftState {
   setComment: (comment: string) => void;
   setSelectedHomeTab: (selectedHomeTab: HomeTab) => void;
   setRoutePoints: (routePoints: Coordinates[]) => void;
+  resetDraft: () => void;
 }
 
-const defaultOrigin: LocationMarker = {
-  position: lugaresDummy.origenes[1].coords,
-  placeName: 'Fairfax Drive Newark, NJ 07...',
-};
-
-const defaultDestination: LocationMarker = {
-  position: lugaresDummy.destinos[0].coords,
-  placeName: '3963 Mattson Street Portland...',
-};
-
 export const useRideDraftStore = create<RideDraftState>((set) => ({
-  origin: defaultOrigin,
-  destination: defaultDestination,
+  origin: null,
+  destination: null,
   extraStops: [],
   paymentMethod: { amount: 25.5, currency: 'S/', mode: 'Efectivo' },
-  comment: 'Pickup near the main entrance',
+  comment: '',
   selectedHomeTab: 'ride',
-  routePoints: allRoutes[0],
+  routePoints: [],
   setOrigin: (origin) => set({ origin }),
   setDestination: (destination) => set({ destination }),
   addExtraStop: (stop) => set((state) => ({ extraStops: [...state.extraStops, stop] })),
@@ -50,4 +40,10 @@ export const useRideDraftStore = create<RideDraftState>((set) => ({
   setComment: (comment) => set({ comment }),
   setSelectedHomeTab: (selectedHomeTab) => set({ selectedHomeTab }),
   setRoutePoints: (routePoints) => set({ routePoints }),
+  resetDraft: () => set({
+    destination: null,
+    extraStops: [],
+    comment: '',
+    routePoints: [],
+  }),
 }));

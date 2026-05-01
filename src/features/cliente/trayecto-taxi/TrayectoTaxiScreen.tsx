@@ -18,11 +18,14 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MapView, { Marker, Polyline, PROVIDER_GOOGLE, type LatLng } from 'react-native-maps';
 import type { ClienteStackParamList } from '@navigation/types';
+import { useRideDraftStore } from '@store/useRideDraftStore';
 import { useTaxiStore } from '@store/useTaxiStore';
+import { useTripHistoryStore } from '@store/useTripHistoryStore';
 import { CalificacionModal } from '@shared/components/card/CalificacionModal';
 import { UserNetworkAvatar } from '@shared/components/avatar/UserNetworkAvatar';
 import { LegacyImages } from '@shared/assets/legacyAssets';
 import { Colors } from '@theme/colors';
+import { useAppTheme } from '@theme/useAppTheme';
 import { FontFamily, FontSize } from '@theme/fonts';
 import { Spacing, BorderRadius, Shadow } from '@theme/spacing';
 
@@ -51,14 +54,32 @@ function getPaymentMethodImage(mode: string) {
 export function TrayectoTaxiScreen() {
   const navigation = useNavigation<Nav>();
   const insets = useSafeAreaInsets();
+  const theme = useAppTheme();
   const { activeTrip, endTrip } = useTaxiStore();
+  const resetDraft = useRideDraftStore((state) => state.resetDraft);
+  const addCompletedTrip = useTripHistoryStore((state) => state.addCompletedTrip);
   const [ratingVisible, setRatingVisible] = React.useState(false);
   const driver = activeTrip?.driver;
   const request = activeTrip?.request;
   const mapRef = React.useRef<MapView | null>(null);
+  const allowTripExitRef = React.useRef(false);
   const sheetHeight = React.useRef(new Animated.Value(COLLAPSED_HEIGHT)).current;
   const currentHeightRef = React.useRef(COLLAPSED_HEIGHT);
   const dragStartHeightRef = React.useRef(COLLAPSED_HEIGHT);
+
+  React.useEffect(() => {
+    if (!activeTrip) {
+      allowTripExitRef.current = false;
+      return undefined;
+    }
+
+    const unsubscribe = navigation.addListener('beforeRemove', (event) => {
+      if (allowTripExitRef.current) return;
+      event.preventDefault();
+    });
+
+    return unsubscribe;
+  }, [activeTrip, navigation]);
 
   if (!activeTrip || !driver || !request) return null;
 
@@ -143,7 +164,7 @@ export function TrayectoTaxiScreen() {
   );
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
       <MapView
         ref={mapRef}
         style={StyleSheet.absoluteFillObject}
@@ -177,15 +198,15 @@ export function TrayectoTaxiScreen() {
 
       <View pointerEvents="box-none" style={styles.floatingLayer}>
         <TouchableOpacity
-          style={[styles.locateButton, { bottom: currentHeightRef.current + 24 }]}
+          style={[styles.locateButton, { bottom: currentHeightRef.current + 24, backgroundColor: theme.surface }]}
           onPress={() => fitRouteToMap()}
           activeOpacity={0.85}
         >
-          <Ionicons name="locate-outline" size={18} color="#42526b" />
+          <Ionicons name="locate-outline" size={18} color={theme.text} />
         </TouchableOpacity>
       </View>
 
-      <Animated.View style={[styles.panel, { height: sheetHeight, paddingBottom: insets.bottom + Spacing.lg }]}>
+      <Animated.View style={[styles.panel, { height: sheetHeight, paddingBottom: insets.bottom + Spacing.lg, backgroundColor: theme.surface }]}>
         <View style={styles.etaBar}>
           <View style={styles.etaLeft}>
             <Ionicons name="hourglass-outline" size={16} color={Colors.white} />
@@ -197,7 +218,7 @@ export function TrayectoTaxiScreen() {
         </View>
 
         <View {...panResponder.panHandlers} style={styles.dragArea}>
-          <View style={styles.handle} />
+          <View style={[styles.handle, { backgroundColor: theme.divider }]} />
         </View>
 
         <ScrollView
@@ -206,16 +227,16 @@ export function TrayectoTaxiScreen() {
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.contentInset}>
-            <View style={styles.vehicleCard}>
+            <View style={[styles.vehicleCard, { borderBottomColor: theme.divider }]}>
               <View style={styles.vehicleCopy}>
-                <Text style={styles.plateNumber}>{driver.vehiclePlate}</Text>
-                <Text style={styles.vehicleMeta}>
+                <Text style={[styles.plateNumber, { color: theme.text }]}>{driver.vehiclePlate}</Text>
+                <Text style={[styles.vehicleMeta, { color: theme.textMuted }]}>
                   {driver.vehicleModel} • {driver.vehicleColor}
                 </Text>
               </View>
               <View style={styles.vehicleRight}>
                 <Image source={LegacyImages.carEstandar} style={styles.vehicleImage} resizeMode="contain" />
-                <View style={styles.vehicleSizePill}>
+                <View style={[styles.vehicleSizePill, { backgroundColor: theme.accent }]}>
                   <Text style={styles.vehicleSizeText}>Tamano medio</Text>
                 </View>
               </View>
@@ -231,8 +252,8 @@ export function TrayectoTaxiScreen() {
                   </View>
                 </View>
                 <View style={styles.driverTextWrap}>
-                  <Text style={styles.driverName}>{driver.driverName}</Text>
-                  <Text style={styles.driverBadge}>Conductor mejor valorado</Text>
+                  <Text style={[styles.driverName, { color: theme.text }]}>{driver.driverName}</Text>
+                  <Text style={[styles.driverBadge, { color: theme.textMuted }]}>Conductor mejor valorado</Text>
                 </View>
               </View>
               <View style={styles.driverActions}>
@@ -246,32 +267,32 @@ export function TrayectoTaxiScreen() {
               </View>
             </View>
 
-            <View style={styles.sectionDivider} />
+            <View style={[styles.sectionDivider, { backgroundColor: theme.divider }]} />
 
           <View style={styles.routeDetailRow}>
             <View style={styles.routeIconColumn}>
-              <View style={styles.routePinOutline} />
-              <View style={styles.routeDashedLine} />
-              <View style={styles.routePinSolid} />
+              <View style={[styles.routePinOutline, { backgroundColor: theme.surface, borderColor: theme.text }]} />
+              <View style={[styles.routeDashedLine, { borderColor: theme.divider }]} />
+              <View style={[styles.routePinSolid, { backgroundColor: theme.text }]} />
             </View>
             <View style={styles.routeTextColumn}>
               <View style={styles.routeLineItem}>
-                <Text style={styles.routeLabel}>Punto de inicio</Text>
-                <Text style={styles.routeValue}>{request.origin.placeName}</Text>
+                <Text style={[styles.routeLabel, { color: theme.textMuted }]}>Punto de inicio</Text>
+                <Text style={[styles.routeValue, { color: theme.text }]}>{request.origin.placeName}</Text>
               </View>
               <View style={styles.routeLineItem}>
-                <Text style={styles.routeLabel}>Tu destino</Text>
-                <Text style={styles.routeValue}>{request.destination.placeName}</Text>
+                <Text style={[styles.routeLabel, { color: theme.textMuted }]}>Tu destino</Text>
+                <Text style={[styles.routeValue, { color: theme.text }]}>{request.destination.placeName}</Text>
               </View>
               <View style={styles.routeLineItem}>
-                <Text style={styles.routeLabel}>Metodo de pago</Text>
+                <Text style={[styles.routeLabel, { color: theme.textMuted }]}>Metodo de pago</Text>
                 <View style={styles.paymentMethodRow}>
                   <Image
                     source={getPaymentMethodImage(request.paymentMethod.mode)}
                     style={styles.paymentMethodImage}
                     resizeMode="contain"
                   />
-                  <Text style={styles.routeValue}>{request.paymentMethod.mode}</Text>
+                  <Text style={[styles.routeValue, { color: theme.text }]}>{request.paymentMethod.mode}</Text>
                 </View>
               </View>
             </View>
@@ -304,8 +325,13 @@ export function TrayectoTaxiScreen() {
         vehicleImageSource={LegacyImages.carEstandar}
         onClose={() => setRatingVisible(false)}
         onSend={() => {
+          if (activeTrip) {
+            addCompletedTrip(activeTrip);
+          }
+          allowTripExitRef.current = true;
           setRatingVisible(false);
           endTrip();
+          resetDraft();
           navigation.replace('ClienteHome');
         }}
       />
