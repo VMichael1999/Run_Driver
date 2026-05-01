@@ -11,6 +11,7 @@
 | chat | `useChat` | — | ⬜ Pendiente | sendMessage, draft |
 | conductor | `useSolicitudes` | — | ⬜ Pendiente | fetch, selectedId |
 | cliente | `useClienteHome` | — | ⬜ Pendiente | requestTaxi, canRequest |
+| cliente/perfil | `usePerfil` | `features/cliente/perfil/hooks/__tests__/usePerfil.test.ts` | ✅ Escrito | carga inicial, update OK, error de carga, error de update |
 
 ## Convención de estados
 - ✅ Escrito y pasando

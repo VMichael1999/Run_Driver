@@ -9,6 +9,8 @@ import type { ClienteStackParamList } from '@navigation/types';
 import { useFocusEffect } from '@react-navigation/native';
 import { useClienteHome } from './hooks/useClienteHome';
 import { SwipeableFavoriteItem } from './components/SwipeableFavoriteItem';
+import { AppDrawer } from '@shared/components/drawer/AppDrawer';
+import { useAuthStore } from '@store/useAuthStore';
 import { useFavoriteAddressesStore } from '@store/useFavoriteAddressesStore';
 import { getCurrentLocationMarker } from '@shared/utils/locationUtils';
 import { Colors } from '@theme/colors';
@@ -48,6 +50,12 @@ export function ClienteHomeScreen() {
   } = useClienteHome();
   const favorites = useFavoriteAddressesStore((s) => s.favorites);
   const removeFavorite = useFavoriteAddressesStore((s) => s.removeFavorite);
+  const logout = useAuthStore((s) => s.logout);
+  const phone = useAuthStore((s) => s.phone);
+  const countryCode = useAuthStore((s) => s.countryCode);
+  const [drawerOpen, setDrawerOpen] = React.useState<boolean>(false);
+
+  const phoneLabel = phone ? `${countryCode} ${phone}` : '+51 000 000 000';
 
   React.useEffect(() => {
     let active = true;
@@ -105,7 +113,11 @@ export function ClienteHomeScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.header}>
-          <TouchableOpacity style={styles.headerIcon} activeOpacity={0.8}>
+          <TouchableOpacity
+            style={styles.headerIcon}
+            activeOpacity={0.8}
+            onPress={() => setDrawerOpen(true)}
+          >
             <Ionicons name="menu" size={24} color={Colors.textPrimary} />
           </TouchableOpacity>
         </View>
@@ -241,6 +253,14 @@ export function ClienteHomeScreen() {
           <Image source={require('../../../../app-icons/ic_launcher-web.png')} style={styles.bannerImage} resizeMode="contain" />
         </TouchableOpacity>
       </ScrollView>
+
+      <AppDrawer
+        visible={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        onNavigate={(route) => navigation.navigate(route as never)}
+        onLogout={logout}
+        phoneLabel={phoneLabel}
+      />
     </View>
   );
 }

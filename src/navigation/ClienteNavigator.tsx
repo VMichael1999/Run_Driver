@@ -9,6 +9,7 @@ import { TrayectoTaxiScreen } from '@features/cliente/trayecto-taxi/TrayectoTaxi
 import { ChatScreen } from '@features/chat/ChatScreen';
 import { HistorialViajeScreen } from '@features/historial/HistorialViajeScreen';
 import { ConfiguracionScreen } from '@features/configuracion/ConfiguracionScreen';
+import { PerfilScreen } from '@features/cliente/perfil';
 
 const Stack = createNativeStackNavigator<ClienteStackParamList>();
 
@@ -23,6 +24,7 @@ export function ClienteNavigator() {
       <Stack.Screen name="Chat" component={ChatScreen} />
       <Stack.Screen name="HistorialViaje" component={HistorialViajeScreen} />
       <Stack.Screen name="Configuracion" component={ConfiguracionScreen} />
+      <Stack.Screen name="Perfil" component={PerfilScreen} />
     </Stack.Navigator>
   );
 }

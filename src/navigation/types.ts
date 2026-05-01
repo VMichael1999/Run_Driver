@@ -26,6 +26,7 @@ export type ClienteStackParamList = {
   Chat: { userId: string; userName: string };
   HistorialViaje: undefined;
   Configuracion: undefined;
+  Perfil: undefined;
 };
 
 // Conductor bottom tabs
