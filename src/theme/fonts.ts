@@ -11,6 +11,13 @@ export const FontSize = {
   // Mínimo para etiquetas y badges; nada por debajo de 11 para que se lea en la calle
   '2xs': 11,
   xs: 12,
+  // Tamaños intermedios del diseño (docs/rediseno-runsubasta.html)
+  caption: 12.5,
+  meta: 13,
+  label: 13.5,
+  body: 14.5,
+  bodyLg: 15,
+  lead: 17,
   sm: 14,
   md: 16,
   lg: 18,

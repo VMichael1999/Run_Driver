@@ -59,6 +59,10 @@ export const Colors = {
   onDarkLine: 'rgba(255, 255, 255, 0.15)',
   dangerOnDark: '#FF7A6E',
   originHalo: 'rgba(21, 122, 69, 0.25)',
+  // Colores de los pines de mapa (location_origen / location_destino)
+  pinOrigin: '#43C6F0',
+  pinDestination: '#5FE3A1',
+  pinRing: '#0B0F3A',
 
   // Peripherals & UI Elements
   divider: '#D5DADF',
