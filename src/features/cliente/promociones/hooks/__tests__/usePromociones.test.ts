@@ -45,7 +45,7 @@ describe('usePromociones', () => {
 
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
-    let outcome: { ok: boolean } | null = null;
+    let outcome: { ok: boolean } | undefined;
     await act(async () => {
       outcome = await result.current.applyCoupon('OK10');
     });

@@ -1,6 +1,8 @@
 export const FontFamily = {
   regular: 'GeneralSans-Regular',
   italic: 'GeneralSans-Italic',
+  medium: 'GeneralSans-Medium',
+  semibold: 'GeneralSans-Semibold',
   bold: 'GeneralSans-Bold',
   boldItalic: 'GeneralSans-BoldItalic',
 } as const;
@@ -14,6 +16,8 @@ export const FontSize = {
   '2xl': 24,
   '3xl': 30,
   '4xl': 36,
+  '5xl': 44,
+  '6xl': 46,
 } as const;
 
 export const FontWeight = {

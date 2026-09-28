@@ -1,7 +1,16 @@
 export { AppButton } from './AppButton';
+export type { AppButtonProps } from './AppButton';
 export { AppCard } from './AppCard';
 export { AppHeader } from './AppHeader';
 export { AppListRow } from './AppListRow';
 export { AppScreen } from './AppScreen';
 export { AppSectionTitle } from './AppSectionTitle';
 export { AppTextInput } from './AppTextInput';
+export { PlacaVehiculo } from './PlacaVehiculo';
+export type { PlacaVehiculoProps } from './PlacaVehiculo';
+export { StatusPill } from './StatusPill';
+export type { StatusPillProps } from './StatusPill';
+export { PriceStepper } from './PriceStepper';
+export type { PriceStepperProps } from './PriceStepper';
+export { AuctionProgressBar } from './AuctionProgressBar';
+export type { AuctionProgressBarProps } from './AuctionProgressBar';

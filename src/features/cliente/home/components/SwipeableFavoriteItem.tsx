@@ -5,20 +5,38 @@ import { Swipeable } from 'react-native-gesture-handler';
 import { Colors } from '@theme/colors';
 import { useAppTheme } from '@theme/useAppTheme';
 import { FontFamily, FontSize } from '@theme/fonts';
-import { Spacing } from '@theme/spacing';
+import { Spacing, BorderRadius } from '@theme/spacing';
 
 interface SwipeableFavoriteItemProps {
   id: string;
   placeName: string;
+  address?: string;
   onPress: () => void;
   onDelete: (id: string) => void;
   loading?: boolean;
   disabled?: boolean;
 }
 
-export function SwipeableFavoriteItem({ id, placeName, onPress, onDelete, loading = false, disabled = false }: SwipeableFavoriteItemProps) {
+export function SwipeableFavoriteItem({
+  id,
+  placeName,
+  address,
+  onPress,
+  onDelete,
+  loading = false,
+  disabled = false,
+}: SwipeableFavoriteItemProps) {
   const theme = useAppTheme();
   const swipeableRef = React.useRef<Swipeable | null>(null);
+
+  const getIconName = (): keyof typeof Ionicons.glyphMap => {
+    const lower = placeName.toLowerCase();
+    if (lower.includes('casa') || lower.includes('hogar')) return 'home-outline';
+    if (lower.includes('trabajo') || lower.includes('oficina')) return 'briefcase-outline';
+    if (lower.includes('aeropuerto')) return 'airplane-outline';
+    if (lower.includes('gym') || lower.includes('gimnasio')) return 'barbell-outline';
+    return 'location-outline';
+  };
 
   const renderRightActions = (
     _progress: Animated.AnimatedInterpolation<number>,
@@ -38,8 +56,11 @@ export function SwipeableFavoriteItem({ id, placeName, onPress, onDelete, loadin
           onDelete(id);
         }}
         activeOpacity={0.85}
+        accessible
+        accessibilityRole="button"
+        accessibilityLabel={`Eliminar ${placeName} de favoritos`}
       >
-        <Animated.View style={[styles.deleteContent, { transform: [{ scale }] }]}>
+        <Animated.View style={[styles.deleteContent, { backgroundColor: theme.danger, transform: [{ scale }] }]}>
           <Ionicons name="trash-outline" size={20} color={Colors.white} />
         </Animated.View>
       </TouchableOpacity>
@@ -54,16 +75,34 @@ export function SwipeableFavoriteItem({ id, placeName, onPress, onDelete, loadin
       rightThreshold={40}
     >
       <TouchableOpacity
-        style={[styles.item, { backgroundColor: theme.surfaceMuted }, disabled && styles.itemDisabled]}
+        style={[
+          styles.item,
+          { backgroundColor: theme.surfaceMuted, borderColor: theme.line },
+          disabled && styles.itemDisabled,
+        ]}
         onPress={onPress}
-        activeOpacity={0.85}
+        activeOpacity={0.8}
         disabled={disabled}
+        accessible
+        accessibilityRole="button"
+        accessibilityLabel={`Seleccionar destino favorito ${placeName}`}
       >
-        <View style={[styles.dot, { backgroundColor: theme.accent }]} />
-        <Text style={[styles.itemText, { color: theme.text }]} numberOfLines={1}>
-          {placeName}
-        </Text>
-        {loading ? <ActivityIndicator size="small" color={theme.accent} /> : null}
+        <View style={[styles.iconWrap, { backgroundColor: theme.surface }]}>
+          <Ionicons name={getIconName()} size={18} color={theme.text} />
+        </View>
+
+        <View style={styles.textWrap}>
+          <Text style={[styles.title, { color: theme.text }]} numberOfLines={1}>
+            {placeName}
+          </Text>
+          {address ? (
+            <Text style={[styles.subtitle, { color: theme.textMuted }]} numberOfLines={1}>
+              {address}
+            </Text>
+          ) : null}
+        </View>
+
+        {loading ? <ActivityIndicator size="small" color={theme.primary} /> : null}
       </TouchableOpacity>
     </Swipeable>
   );
@@ -73,26 +112,34 @@ const styles = StyleSheet.create({
   item: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f8fbff',
-    borderRadius: 14,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
     paddingHorizontal: Spacing.md,
     paddingVertical: 12,
+    gap: Spacing.md,
+    marginBottom: Spacing.sm,
   },
   itemDisabled: {
-    opacity: 0.72,
+    opacity: 0.6,
   },
-  dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#1d5fa8',
-    marginRight: Spacing.sm,
+  iconWrap: {
+    width: 38,
+    height: 38,
+    borderRadius: BorderRadius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  itemText: {
+  textWrap: {
     flex: 1,
-    color: '#334155',
-    fontFamily: FontFamily.bold,
+    gap: 2,
+  },
+  title: {
+    fontFamily: FontFamily.semibold,
     fontSize: FontSize.sm,
+  },
+  subtitle: {
+    fontFamily: FontFamily.regular,
+    fontSize: FontSize.xs,
   },
   deleteAction: {
     width: 70,
@@ -101,10 +148,9 @@ const styles = StyleSheet.create({
     paddingRight: Spacing.xs,
   },
   deleteContent: {
-    width: 56,
+    width: 52,
     height: '85%',
-    borderRadius: 14,
-    backgroundColor: '#e53e3e',
+    borderRadius: BorderRadius.md,
     alignItems: 'center',
     justifyContent: 'center',
   },

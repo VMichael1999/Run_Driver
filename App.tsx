@@ -15,6 +15,8 @@ export default function App() {
   const [fontsLoaded] = useFonts({
     'GeneralSans-Regular': require('./assets/legacy/fonts/GeneralSans-Regular.ttf'),
     'GeneralSans-Italic': require('./assets/legacy/fonts/GeneralSans-Italic.ttf'),
+    'GeneralSans-Medium': require('./assets/legacy/fonts/GeneralSans-Medium.ttf'),
+    'GeneralSans-Semibold': require('./assets/legacy/fonts/GeneralSans-Semibold.ttf'),
     'GeneralSans-Bold': require('./assets/legacy/fonts/GeneralSans-Bold.ttf'),
     'GeneralSans-BoldItalic': require('./assets/legacy/fonts/GeneralSans-BoldItalic.ttf'),
   });

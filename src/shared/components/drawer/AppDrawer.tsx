@@ -41,7 +41,7 @@ interface AppDrawerProps {
 }
 
 const SECTION_LABELS: Record<DrawerSection, string> = {
-  main: 'Navegacion',
+  main: 'Navegación',
   wallet: 'Pagos y promociones',
   personal: 'Personales',
   preferences: 'Preferencias',
@@ -53,10 +53,10 @@ const DRAWER_OPTIONS: DrawerOption[] = [
   { id: 'home', icon: 'home-outline', label: 'Mapa', route: 'ClienteHome', section: 'main' },
   { id: 'trips', icon: 'time-outline', label: 'Mis viajes', route: 'HistorialViaje', section: 'main' },
   { id: 'schedule', icon: 'alarm-outline', label: 'Programar viaje', route: 'ProgramarViaje', section: 'main' },
-  { id: 'payment', icon: 'card-outline', label: 'Metodos de pago', route: 'MetodosPago', section: 'wallet' },
+  { id: 'payment', icon: 'card-outline', label: 'Métodos de pago', route: 'MetodosPago', section: 'wallet' },
   { id: 'promos', icon: 'pricetag-outline', label: 'Promociones', route: 'Promociones', section: 'wallet' },
   { id: 'favorites', icon: 'bookmark-outline', label: 'Direcciones favoritas', route: 'Favoritas', section: 'personal' },
-  { id: 'settings', icon: 'settings-outline', label: 'Configuracion', route: 'Configuracion', section: 'preferences' },
+  { id: 'settings', icon: 'settings-outline', label: 'Configuración', route: 'Configuracion', section: 'preferences' },
 ];
 
 const APP_VERSION: string = (appJson as { expo: { version: string } }).expo.version;
