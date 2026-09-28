@@ -13,7 +13,7 @@ export function VerificacionFotoConductorScreen() {
 
   return (
     <View style={styles.container}>
-      <BackAppBar title="Confirmacion foto conductor" />
+      <BackAppBar title="Confirmación foto conductor" />
       <ScrollView contentContainerStyle={styles.content}>
         <ImagePickerCard
           title="Foto del conductor"
