@@ -8,6 +8,7 @@ import {
 } from 'react-native';
 import MapView, { PROVIDER_GOOGLE, type Region } from 'react-native-maps';
 import { Ionicons } from '@expo/vector-icons';
+import { CommonActions } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { ClienteStackParamList } from '@navigation/types';
 import { BackAppBar } from '@shared/components/appbar/BackAppBar';
@@ -15,6 +16,7 @@ import { buildTaxiRequest } from '@features/cliente/solicitud-taxi/utils/routeRe
 import { useRideDraftStore } from '@store/useRideDraftStore';
 import { useFavoriteAddressesStore } from '@store/useFavoriteAddressesStore';
 import { useTaxiStore } from '@store/useTaxiStore';
+import { useScheduledTripsStore } from '@store/useScheduledTripsStore';
 import { getCurrentLocationMarker, getPlaceNameFromCoordinates } from '@shared/utils/locationUtils';
 import { Colors } from '@theme/colors';
 import { useAppTheme } from '@theme/useAppTheme';
@@ -39,6 +41,8 @@ export function SelectAddressOnMapScreen({ route, navigation }: Props) {
   const target = route.params.target;
   const saveFavorite = route.params.saveFavorite === true;
   const editing = route.params.editing === true;
+  const scheduledTripId = route.params.scheduledTripId;
+  const addScheduledStop = useScheduledTripsStore((s) => s.addStop);
 
   const origin = useRideDraftStore((s) => s.origin);
   const extraStops = useRideDraftStore((s) => s.extraStops);
@@ -130,6 +134,11 @@ export function SelectAddressOnMapScreen({ route, navigation }: Props) {
       },
     };
 
+    // Vuelve a la pantalla que abrió la búsqueda: si se llegó desde "Buscar dirección", también la cierra.
+    const routes = navigation.getState().routes;
+    const cameFromSearch = routes[routes.length - 2]?.name === 'SearchAddress';
+    const returnToOpener = () => navigation.pop(cameFromSearch ? 2 : 1);
+
     setIsConfirming(true);
     try {
       if (saveFavorite) {
@@ -142,20 +151,21 @@ export function SelectAddressOnMapScreen({ route, navigation }: Props) {
         setOrigin(selectedLocation);
         setRoutePoints([]);
         // Desde la solicitud se vuelve directo a ella (se salta la búsqueda de dirección).
-        if (editing) navigation.pop(2);
+        if (editing) returnToOpener();
         else navigation.goBack();
         return;
       }
 
       if (target === 'extra-stop') {
-        addExtraStop(selectedLocation);
-        navigation.pop(2);
+        if (scheduledTripId) addScheduledStop(scheduledTripId, selectedLocation);
+        else addExtraStop(selectedLocation);
+        returnToOpener();
         return;
       }
 
       setDestination(selectedLocation);
       if (editing) {
-        navigation.pop(2);
+        returnToOpener();
         return;
       }
 
@@ -175,7 +185,15 @@ export function SelectAddressOnMapScreen({ route, navigation }: Props) {
         });
         setRoutePoints(request.routePoints);
         setRequest(request);
-        navigation.replace('SolicitudTaxi');
+        // Se cierran el mapa y la búsqueda de dirección: al volver desde los servicios se llega al inicio.
+        navigation.dispatch((state) => {
+          const kept = state.routes.slice(0, cameFromSearch ? -2 : -1);
+          return CommonActions.reset({
+            ...state,
+            routes: [...kept, { key: `SolicitudTaxi-${Date.now()}`, name: 'SolicitudTaxi' }],
+            index: kept.length,
+          });
+        });
         return;
       }
 

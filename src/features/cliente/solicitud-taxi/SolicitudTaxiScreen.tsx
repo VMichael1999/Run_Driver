@@ -84,6 +84,7 @@ export function SolicitudTaxiScreen() {
   const draftDestination = useRideDraftStore((s) => s.destination);
   const extraStops = useRideDraftStore((s) => s.extraStops);
   const removeExtraStop = useRideDraftStore((s) => s.removeExtraStop);
+  const addExtraStop = useRideDraftStore((s) => s.addExtraStop);
   const setRequest = useTaxiStore((s) => s.setRequest);
   const scheduleTrip = useScheduledTripsStore((s) => s.scheduleTrip);
 
@@ -170,10 +171,6 @@ export function SolicitudTaxiScreen() {
 
   const editOrigin = () => navigation.navigate('SearchAddress', { target: 'origin', editing: true });
   const editDestination = () => navigation.navigate('SearchAddress', { target: 'destination', editing: true });
-  const addStop =
-    extraStops.length < MAX_EXTRA_STOPS
-      ? () => navigation.navigate('SearchAddress', { target: 'extra-stop', editing: true })
-      : undefined;
   const renderRouteCard = (variant: 'floating' | 'inline') => (
     <RouteStopsCard
       origin={draftOrigin ?? request?.origin}
@@ -182,8 +179,11 @@ export function SolicitudTaxiScreen() {
       durationMin={durationMin}
       onEditOrigin={editOrigin}
       onEditDestination={editDestination}
-      onAddStop={addStop}
+      canAddStop={extraStops.length < MAX_EXTRA_STOPS}
+      onAddStop={addExtraStop}
+      onPickStopOnMap={() => navigation.navigate('SelectAddressOnMap', { target: 'extra-stop', editing: true })}
       onRemoveStop={removeExtraStop}
+      searchBias={(draftDestination ?? request?.destination)?.position}
       variant={variant}
     />
   );
@@ -196,6 +196,20 @@ export function SolicitudTaxiScreen() {
       useNativeDriver: true,
     }).start();
   }, [pinLift]);
+
+  // Al fijar el punto de partida, el mapa se acerca al origen para ajustarlo con precisión.
+  useEffect(() => {
+    const start = request?.origin;
+    if (!isAuctionPickupMode || !start) return;
+    setPickupPoint(start.position);
+    setPickupAddress(start.placeName);
+    mapRef.current?.animateToRegion(
+      { ...start.position, latitudeDelta: 0.004, longitudeDelta: 0.004 },
+      450,
+    );
+    // Solo al entrar en el modo; luego el pasajero mueve el mapa a su gusto.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuctionPickupMode]);
 
   // Al salir de la solicitud, lo que se configuró para este viaje (nota) se descarta:
   // la próxima búsqueda empieza de cero.
