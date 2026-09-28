@@ -19,6 +19,15 @@ import { useAppTheme } from '@theme/useAppTheme';
 import { FontFamily, FontSize } from '@theme/fonts';
 import { BorderRadius, Spacing, Shadow } from '@theme/spacing';
 import { usePromociones } from './hooks/usePromociones';
+import { isPromotionActiveOn } from './utils/descuentos';
+import type { Promotion } from './types';
+
+/** Cuándo se aplica cada promoción, dicho para el pasajero. */
+function promotionStatus(promo: Promotion, today: Date): { text: string; active: boolean } {
+  if (isPromotionActiveOn(promo, today)) return { text: 'Hoy aplica al pedir', active: true };
+  if (promo.rule === 'weekend') return { text: 'Aplica sábados y domingos', active: false };
+  return { text: 'Todavía no se aplica desde la app', active: false };
+}
 
 export function PromocionesScreen() {
   const insets = useSafeAreaInsets();
@@ -26,6 +35,7 @@ export function PromocionesScreen() {
   const { promotions, isLoading, error, appliedCoupon, applyCoupon, removeCoupon } =
     usePromociones();
 
+  const today = new Date();
   const [code, setCode] = React.useState<string>('');
   const [isApplying, setIsApplying] = React.useState<boolean>(false);
 
@@ -138,7 +148,8 @@ export function PromocionesScreen() {
                     {appliedCoupon.code} aplicado
                   </Text>
                   <Text style={[styles.appliedDesc, { color: theme.textMuted }]}>
-                    {appliedCoupon.description} ({appliedCoupon.discountPercent} % menos)
+                    {appliedCoupon.description} ({appliedCoupon.discountPercent} % menos). No se suma a
+                    otras promociones: al pedir se usa el mayor descuento.
                   </Text>
                 </View>
                 <TouchableOpacity
@@ -186,39 +197,42 @@ export function PromocionesScreen() {
               </View>
             ) : (
               <View style={styles.promotionsList}>
-                {promotions.map((promo) => (
-                  <View
-                    key={promo.id}
-                    style={[
-                      styles.promoCard,
-                      { backgroundColor: theme.surface, borderColor: theme.divider },
-                    ]}
-                  >
-                    {/* Badge de porcentaje */}
+                {promotions.map((promo) => {
+                  const status = promotionStatus(promo, today);
+                  return (
                     <View
+                      key={promo.id}
                       style={[
-                        styles.percentBadge,
-                        { backgroundColor: Colors.accentLime },
+                        styles.promoCard,
+                        { backgroundColor: theme.surface, borderColor: theme.divider },
                       ]}
                     >
-                      <Text style={styles.percentText}>{promo.discountPercent} %</Text>
-                    </View>
+                      {/* Badge de porcentaje */}
+                      <View
+                        style={[
+                          styles.percentBadge,
+                          { backgroundColor: Colors.accentLime },
+                        ]}
+                      >
+                        <Text style={styles.percentText}>{promo.discountPercent} %</Text>
+                      </View>
 
-                    <View style={styles.promoContent}>
-                      <Text style={[styles.promoTitle, { color: theme.text }]}>
-                        {promo.title}
-                      </Text>
-                      <Text style={[styles.promoDescription, { color: theme.textMuted }]}>
-                        {promo.description}
-                      </Text>
-                      <Text style={[styles.promoValidity, { color: Colors.online }]}>
-                        {promo.id === 'p-001'
-                          ? 'Se aplica solo al pedir'
-                          : 'Hoy aplica en Lima'}
-                      </Text>
+                      <View style={styles.promoContent}>
+                        <Text style={[styles.promoTitle, { color: theme.text }]}>
+                          {promo.title}
+                        </Text>
+                        <Text style={[styles.promoDescription, { color: theme.textMuted }]}>
+                          {promo.description}
+                        </Text>
+                        <Text
+                          style={[styles.promoValidity, { color: status.active ? theme.online : theme.textMuted }]}
+                        >
+                          {status.text}
+                        </Text>
+                      </View>
                     </View>
-                  </View>
-                ))}
+                  );
+                })}
               </View>
             )}
           </View>
