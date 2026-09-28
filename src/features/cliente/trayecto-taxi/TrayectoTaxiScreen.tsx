@@ -75,6 +75,9 @@ export function TrayectoTaxiScreen() {
 
   const [tripPhase, setTripPhase] = React.useState<TripPhase>('arriving');
   const [ratingVisible, setRatingVisible] = React.useState(false);
+  // Desde "Ya estoy en el auto" hasta "Finalizar viaje": lo que duró el trayecto.
+  const tripStartedAtRef = React.useRef<number | null>(null);
+  const [tripMinutes, setTripMinutes] = React.useState(1);
 
   const driver = activeTrip?.driver;
   const request = activeTrip?.request;
@@ -307,12 +310,15 @@ export function TrayectoTaxiScreen() {
   // Switch Phase to In Trip
   const handleStartRide = () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    tripStartedAtRef.current = Date.now();
     setTripPhase('on_trip');
   };
 
   // End Trip & Open Rating
   const handleFinishRide = () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    const startedAt = tripStartedAtRef.current;
+    setTripMinutes(startedAt ? Math.max(1, Math.round((Date.now() - startedAt) / 60000)) : 1);
     setRatingVisible(true);
   };
 
@@ -669,7 +675,7 @@ export function TrayectoTaxiScreen() {
         paymentMethod={request.paymentMethod.mode}
         fareAmount={applyDiscount(driver.price, discount)}
         currency={request.paymentMethod.currency}
-        durationMinutes={Math.round(driver.etaMinutes || 19)}
+        durationMinutes={tripMinutes}
         vehicleImageSource={LegacyImages.carEstandar}
         onClose={() => handleRatingComplete()}
         onSend={(calificacion) => handleRatingComplete(calificacion)}
