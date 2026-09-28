@@ -21,6 +21,8 @@ import { useAppTheme } from '@theme/useAppTheme';
 import { FontFamily, FontSize } from '@theme/fonts';
 import { BorderRadius, Shadow, Spacing } from '@theme/spacing';
 import { AppButton } from '@shared/components/ui/AppButton';
+import { useThemeStore } from '@store/useThemeStore';
+import { getMapStyle } from '@theme/mapStyles';
 
 type Props = NativeStackScreenProps<ClienteStackParamList, 'SelectAddressOnMap'>;
 
@@ -33,6 +35,7 @@ const LIMA_REGION: Region = {
 
 export function SelectAddressOnMapScreen({ route, navigation }: Props) {
   const theme = useAppTheme();
+  const isDark = useThemeStore((s) => s.isDark);
   const target = route.params.target;
   const saveFavorite = route.params.saveFavorite === true;
 
@@ -194,6 +197,8 @@ export function SelectAddressOnMapScreen({ route, navigation }: Props) {
           ref={mapRef}
           style={StyleSheet.absoluteFillObject}
           provider={PROVIDER_GOOGLE}
+          customMapStyle={getMapStyle(isDark)}
+          userInterfaceStyle={isDark ? 'dark' : 'light'}
           initialRegion={initialRegion}
           onRegionChange={() => {
             animatePin(-16);
@@ -211,7 +216,7 @@ export function SelectAddressOnMapScreen({ route, navigation }: Props) {
         <View pointerEvents="none" style={styles.pinCenterWrap}>
           <Animated.View style={[styles.pinMarkerWrap, { transform: [{ translateY: pinLift }] }]}>
             <View style={[styles.pinHead, { backgroundColor: theme.primary, borderColor: theme.surface }]}>
-              <View style={[styles.pinDot, { backgroundColor: theme.sig }]} />
+              <View style={[styles.pinDot, { backgroundColor: isDark ? theme.onPrimary : theme.sig }]} />
             </View>
             <View style={[styles.pinStem, { backgroundColor: theme.primary }]} />
           </Animated.View>
