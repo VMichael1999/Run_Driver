@@ -90,6 +90,8 @@ export interface TaxiRequest {
   origin: LocationMarker;
   destination: LocationMarker;
   routePoints: Coordinates[];
+  /** Paradas intermedias, en el orden en que se visitan. */
+  stops?: LocationMarker[];
   paymentMethod: PaymentMethod;
   comment?: string;
 }

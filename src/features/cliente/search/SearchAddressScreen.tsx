@@ -17,7 +17,7 @@ import {
   getPlaceDetails,
   type PlaceSuggestion,
 } from '@shared/services/googleMapsService';
-import { getRoutePolyline } from '@shared/services/googleMapsService';
+import { buildTaxiRequest, MAX_EXTRA_STOPS } from '@features/cliente/solicitud-taxi/utils/routeRequest';
 import { AppIcon } from '@shared/components/ui/AppIcon';
 import { formatDistance } from '@shared/utils/mapUtils';
 import { useRideDraftStore } from '@store/useRideDraftStore';
@@ -56,6 +56,7 @@ export function SearchAddressScreen({ route, navigation }: Props) {
   const insets = useSafeAreaInsets();
   const target = route.params.target;
   const saveFavorite = route.params.saveFavorite === true;
+  const editing = route.params.editing === true;
 
   const origin = useRideDraftStore((s) => s.origin);
   const destination = useRideDraftStore((s) => s.destination);
@@ -123,16 +124,15 @@ export function SearchAddressScreen({ route, navigation }: Props) {
         navigation.goBack();
       } else {
         setDestination(place);
+        // Desde la solicitud solo se cambia el punto; ella recalcula la ruta.
+        if (editing) {
+          navigation.goBack();
+          return;
+        }
         if (origin) {
-          const points = await getRoutePolyline(origin.position, place.position);
-          setRoutePoints(points);
-          setRequest({
-            origin,
-            destination: place,
-            routePoints: points,
-            paymentMethod,
-            comment: comment.trim() || undefined,
-          });
+          const request = await buildTaxiRequest({ origin, destination: place, stops: extraStops, paymentMethod, comment });
+          setRoutePoints(request.routePoints);
+          setRequest(request);
           navigation.replace('SolicitudTaxi');
           return;
         }
@@ -255,7 +255,7 @@ export function SearchAddressScreen({ route, navigation }: Props) {
         </View>
       )}
 
-      {!saveFavorite && target !== 'extra-stop' && extraStops.length < 2 ? (
+      {!saveFavorite && !editing && target !== 'extra-stop' && extraStops.length < MAX_EXTRA_STOPS ? (
         <TouchableOpacity
           style={styles.linkRow}
           onPress={() => navigation.push('SearchAddress', { target: 'extra-stop' })}
@@ -313,7 +313,7 @@ export function SearchAddressScreen({ route, navigation }: Props) {
         ListFooterComponent={
           <TouchableOpacity
             style={[styles.linkRow, items.length > 0 && styles.mapLink]}
-            onPress={() => navigation.navigate('SelectAddressOnMap', { target, saveFavorite })}
+            onPress={() => navigation.navigate('SelectAddressOnMap', { target, saveFavorite, editing })}
             activeOpacity={0.75}
             accessibilityRole="button"
             accessibilityLabel="Elegir en el mapa"

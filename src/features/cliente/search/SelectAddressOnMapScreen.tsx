@@ -11,7 +11,7 @@ import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { ClienteStackParamList } from '@navigation/types';
 import { BackAppBar } from '@shared/components/appbar/BackAppBar';
-import { getRoutePolyline } from '@shared/services/googleMapsService';
+import { buildTaxiRequest } from '@features/cliente/solicitud-taxi/utils/routeRequest';
 import { useRideDraftStore } from '@store/useRideDraftStore';
 import { useFavoriteAddressesStore } from '@store/useFavoriteAddressesStore';
 import { useTaxiStore } from '@store/useTaxiStore';
@@ -38,8 +38,10 @@ export function SelectAddressOnMapScreen({ route, navigation }: Props) {
   const isDark = useThemeStore((s) => s.isDark);
   const target = route.params.target;
   const saveFavorite = route.params.saveFavorite === true;
+  const editing = route.params.editing === true;
 
   const origin = useRideDraftStore((s) => s.origin);
+  const extraStops = useRideDraftStore((s) => s.extraStops);
   const setOrigin = useRideDraftStore((s) => s.setOrigin);
   const setDestination = useRideDraftStore((s) => s.setDestination);
   const addExtraStop = useRideDraftStore((s) => s.addExtraStop);
@@ -139,7 +141,9 @@ export function SelectAddressOnMapScreen({ route, navigation }: Props) {
       if (target === 'origin') {
         setOrigin(selectedLocation);
         setRoutePoints([]);
-        navigation.goBack();
+        // Desde la solicitud se vuelve directo a ella (se salta la búsqueda de dirección).
+        if (editing) navigation.pop(2);
+        else navigation.goBack();
         return;
       }
 
@@ -150,6 +154,10 @@ export function SelectAddressOnMapScreen({ route, navigation }: Props) {
       }
 
       setDestination(selectedLocation);
+      if (editing) {
+        navigation.pop(2);
+        return;
+      }
 
       const effectiveOrigin = origin ?? (await getCurrentLocationMarker());
 
@@ -158,15 +166,15 @@ export function SelectAddressOnMapScreen({ route, navigation }: Props) {
           setOrigin(effectiveOrigin);
         }
 
-        const points = await getRoutePolyline(effectiveOrigin.position, selectedLocation.position);
-        setRoutePoints(points);
-        setRequest({
+        const request = await buildTaxiRequest({
           origin: effectiveOrigin,
           destination: selectedLocation,
-          routePoints: points,
+          stops: extraStops,
           paymentMethod,
-          comment: comment.trim() || undefined,
+          comment,
         });
+        setRoutePoints(request.routePoints);
+        setRequest(request);
         navigation.replace('SolicitudTaxi');
         return;
       }

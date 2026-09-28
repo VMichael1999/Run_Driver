@@ -19,9 +19,11 @@ export type AuthStackParamList = {
 // Cliente stack (inside drawer/tabs)
 export type ClienteStackParamList = {
   ClienteHome: undefined;
-  SearchAddress: { target: SearchTarget; saveFavorite?: boolean };
-  SelectAddressOnMap: { target: SearchTarget; saveFavorite?: boolean };
-  SolicitudTaxi: undefined;
+  /** editing: se abrió desde la solicitud para cambiar un punto; al elegir, vuelve a ella. */
+  SearchAddress: { target: SearchTarget; saveFavorite?: boolean; editing?: boolean };
+  SelectAddressOnMap: { target: SearchTarget; saveFavorite?: boolean; editing?: boolean };
+  /** autoSearchServiceId: viaje programado que llegó a su hora; busca conductor de inmediato. */
+  SolicitudTaxi: { autoSearchServiceId?: string } | undefined;
   TrayectoTaxi: undefined;
   Chat: { userId: string; userName: string };
   HistorialViaje: undefined;
