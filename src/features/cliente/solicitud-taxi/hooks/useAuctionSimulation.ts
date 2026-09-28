@@ -21,6 +21,8 @@ interface AuctionSimulationActions {
   stopSimulation: () => void;
   acceptOffer: (offerId: string) => void;
   rejectOffer: (offerId: string) => void;
+  /** Quita una oferta cuyo tiempo se agotó. */
+  expireOffer: (offerId: string) => void;
   reset: () => void;
 }
 
@@ -29,7 +31,7 @@ const SIMULATED_DRIVERS = [
     driverName: 'Carlos M.',
     phone: '+51 949 568 228',
     rating: 4.9,
-    vehiclePlate: 'ABC-1234',
+    vehiclePlate: 'ABC-123',
     vehicleModel: 'Toyota Corolla',
     vehicleColor: 'Plata',
     imageUrl: 'https://i.pravatar.cc/100?img=11',
@@ -40,7 +42,7 @@ const SIMULATED_DRIVERS = [
     driverName: 'Maria L.',
     phone: '+51 987 654 321',
     rating: 4.8,
-    vehiclePlate: 'XYZ-5678',
+    vehiclePlate: 'XYZ-567',
     vehicleModel: 'Honda Civic',
     vehicleColor: 'Blanco',
     imageUrl: 'https://i.pravatar.cc/100?img=5',
@@ -51,7 +53,7 @@ const SIMULATED_DRIVERS = [
     driverName: 'Jorge R.',
     phone: '+51 912 345 678',
     rating: 5.0,
-    vehiclePlate: 'DEF-9012',
+    vehiclePlate: 'DEF-901',
     vehicleModel: 'Kia Forte',
     vehicleColor: 'Negro',
     imageUrl: 'https://i.pravatar.cc/100?img=33',
@@ -62,7 +64,7 @@ const SIMULATED_DRIVERS = [
     driverName: 'Ana G.',
     phone: '+51 956 789 123',
     rating: 4.7,
-    vehiclePlate: 'GHI-3456',
+    vehiclePlate: 'GHI-345',
     vehicleModel: 'Nissan Sentra',
     vehicleColor: 'Azul',
     imageUrl: 'https://i.pravatar.cc/100?img=9',
@@ -73,7 +75,7 @@ const SIMULATED_DRIVERS = [
     driverName: 'Luis K.',
     phone: '+51 934 567 890',
     rating: 4.6,
-    vehiclePlate: 'JKL-7890',
+    vehiclePlate: 'JKL-789',
     vehicleModel: 'Hyundai Elantra',
     vehicleColor: 'Gris',
     imageUrl: 'https://i.pravatar.cc/100?img=53',
@@ -82,15 +84,17 @@ const SIMULATED_DRIVERS = [
   },
 ];
 
-const DELAY_ARRIVALS = [2000, 4000, 6000, 8000, 10000];
-const OFFER_DURATION_SECONDS = 10;
+// Las ofertas llegan dentro de la ventana de búsqueda de 30 s.
+export const SEARCH_WINDOW_SECONDS = 30;
+const DELAY_ARRIVALS = [2000, 5000, 9000, 14000, 20000];
+const OFFER_DURATION_SECONDS = 25;
 
 function generateOfferId(): string {
   return Math.random().toString(36).substring(2, 15);
 }
 
 function generatePriceVariation(basePrice: number, index: number): number {
-  const increments = [0, 3, 5, 8, 10];
+  const increments = [0, 2.5, 4, 6, 8];
   const increment = increments[index % increments.length];
   return Number((Math.max(0, basePrice) + increment).toFixed(2));
 }
@@ -156,7 +160,7 @@ export function useAuctionSimulation(): AuctionSimulationState & AuctionSimulati
 
       const completionTimer = setTimeout(() => {
         setStatus('completed');
-      }, DELAY_ARRIVALS[SIMULATED_DRIVERS.length - 1] + 2000);
+      }, SEARCH_WINDOW_SECONDS * 1000);
 
       timersRef.current.push(completionTimer);
     },
@@ -170,10 +174,11 @@ export function useAuctionSimulation(): AuctionSimulationState & AuctionSimulati
 
   const rejectOffer = useCallback((offerId: string) => {
     setOffers((prev) => prev.filter((offer) => offer.id !== offerId));
-    if (offers.length === 1) {
-      setStatus('completed');
-    }
-  }, [offers.length]);
+  }, []);
+
+  const expireOffer = useCallback((offerId: string) => {
+    setOffers((prev) => prev.filter((offer) => offer.id !== offerId));
+  }, []);
 
   useEffect(() => {
     return () => clearAllTimers();
@@ -187,6 +192,7 @@ export function useAuctionSimulation(): AuctionSimulationState & AuctionSimulati
     stopSimulation,
     acceptOffer,
     rejectOffer,
+    expireOffer,
     reset,
   };
 }

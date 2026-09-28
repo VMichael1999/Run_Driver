@@ -33,6 +33,8 @@ export function AppHeader({ title, onBack, right, style, titleStyle, buttonStyle
     <View style={[styles.header, { paddingTop: insets.top + Spacing.sm, backgroundColor: theme.background }, style]}>
       <TouchableOpacity
         onPress={handleBack}
+        accessibilityRole="button"
+        accessibilityLabel="Volver"
         style={[styles.iconButton, { backgroundColor: theme.iconButton }, buttonStyle]}
         activeOpacity={0.85}
         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}

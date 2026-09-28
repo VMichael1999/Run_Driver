@@ -17,15 +17,15 @@ export function VerificacionVehiculoScreen() {
 
   return (
     <View style={styles.container}>
-      <BackAppBar title="Informacion acerca del vehiculo" />
+      <BackAppBar title="Información acerca del vehículo" />
       <ScrollView contentContainerStyle={styles.content}>
-        <ImagePickerCard title="Foto del vehiculo" uri={vehicleUri} icon="car-outline" onPress={async () => setVehicleUri(await pickImageAsync())} />
-        <ImagePickerCard title="Foto tarjeta propiedad" uri={cardUri} icon="card-outline" onPress={async () => setCardUri(await pickImageAsync())} />
+        <ImagePickerCard title="Foto del vehículo" uri={vehicleUri} icon="car-outline" onPress={async () => setVehicleUri(await pickImageAsync())} />
+        <ImagePickerCard title="Foto tarjeta de propiedad" uri={cardUri} icon="card-outline" onPress={async () => setCardUri(await pickImageAsync())} />
         <TextFormFieldCustom labelText="Marca" placeholder="Toyota" />
         <TextFormFieldCustom labelText="Modelo" placeholder="Corolla" />
         <TextFormFieldCustom labelText="Color" placeholder="Negro" />
         <SimpleYearPicker
-          labelText="Anio de fabricacion"
+          labelText="Año de fabricación"
           text={year ? String(year.getFullYear()) : ''}
           currentDate={year}
           minDate={new Date(1990, 0, 1)}

@@ -33,6 +33,8 @@ export function TripHistoryCard({ trip, onPressMenu }: Props) {
         <Text style={[styles.dateLabel, { color: theme.text }]}>{formatTripDate(trip.date)}</Text>
         <TouchableOpacity
           onPress={() => onPressMenu?.(trip)}
+          accessibilityRole="button"
+          accessibilityLabel="Más opciones del viaje"
           activeOpacity={0.85}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
@@ -44,7 +46,9 @@ export function TripHistoryCard({ trip, onPressMenu }: Props) {
         <UserNetworkAvatar imageUrl={trip.driver.avatarUrl} radius={22} />
         <View style={styles.driverInfo}>
           <Text style={[styles.driverName, { color: theme.text }]}>{trip.driver.name}</Text>
-          <Text style={[styles.driverMeta, { color: theme.textMuted }]}>Antiguedad: {trip.driver.yearsAtCompany} ano</Text>
+          <Text style={[styles.driverMeta, { color: theme.textMuted }]}>
+            Antigüedad: {trip.driver.yearsAtCompany} {trip.driver.yearsAtCompany === 1 ? 'año' : 'años'}
+          </Text>
           <Text style={[styles.driverMeta, { color: theme.textMuted }]}>Viajes: {trip.driver.rideCount}</Text>
         </View>
       </View>
@@ -91,7 +95,7 @@ const styles = StyleSheet.create({
   driverMeta: { fontFamily: FontFamily.regular, fontSize: FontSize.xs, color: Colors.textSecondary },
   divider: {
     height: 1,
-    backgroundColor: '#eef2f7',
+    backgroundColor: Colors.divider,
   },
   footerRow: {
     flexDirection: 'row',

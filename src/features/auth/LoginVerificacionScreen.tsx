@@ -9,10 +9,14 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as Haptics from 'expo-haptics';
 import type { LoginVerificacionProps } from '@navigation/types';
 import { useOtpVerification } from './hooks/useOtpVerification';
+import { AppButton } from '@shared/components/ui/AppButton';
 import { Colors } from '@theme/colors';
+import { useAppTheme } from '@theme/useAppTheme';
 import { FontFamily, FontSize } from '@theme/fonts';
+import { BorderRadius, Spacing, Shadow } from '@theme/spacing';
 
 const RESEND_SECONDS = 30;
 
@@ -25,6 +29,7 @@ const keypadRows = [
 
 export function LoginVerificacionScreen({ route, navigation }: LoginVerificacionProps) {
   const insets = useSafeAreaInsets();
+  const theme = useAppTheme();
   const { phone, countryCode } = route.params;
   const { code, isLoading, error, setCode, submitCode } = useOtpVerification();
 
@@ -41,6 +46,7 @@ export function LoginVerificacionScreen({ route, navigation }: LoginVerificacion
   // Auto-submit al completar los 4 dígitos
   React.useEffect(() => {
     if (code.length === 4) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       void submitCode();
     }
   }, [code]);
@@ -48,6 +54,7 @@ export function LoginVerificacionScreen({ route, navigation }: LoginVerificacion
   // Shake animation cuando hay error
   React.useEffect(() => {
     if (!error) return;
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     Animated.sequence([
       Animated.timing(shakeAnim, { toValue: 10, duration: 60, useNativeDriver: true }),
       Animated.timing(shakeAnim, { toValue: -10, duration: 60, useNativeDriver: true }),
@@ -59,40 +66,64 @@ export function LoginVerificacionScreen({ route, navigation }: LoginVerificacion
 
   const handleDigitPress = (digit: string) => {
     if (isLoading || code.length >= 4) return;
+    Haptics.selectionAsync();
     setCode(`${code}${digit}`);
   };
 
   const handleBackspace = () => {
     if (isLoading || code.length === 0) return;
+    Haptics.selectionAsync();
     setCode(code.slice(0, -1));
   };
 
   const handleResend = () => {
     if (resendSeconds > 0) return;
+    Haptics.selectionAsync();
     setResendSeconds(RESEND_SECONDS);
     setCode('');
   };
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom + 16 }]}>
+    <View
+      style={[
+        styles.container,
+        {
+          paddingTop: insets.top,
+          paddingBottom: insets.bottom + Spacing.md,
+          backgroundColor: theme.background,
+        },
+      ]}
+    >
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()} activeOpacity={0.7}>
-          <Ionicons name="arrow-back" size={22} color={Colors.textPrimary} />
+        <TouchableOpacity
+          style={[styles.backBtn, { backgroundColor: theme.surfaceMuted }]}
+          onPress={() => navigation.goBack()}
+          activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel="Volver a la pantalla anterior"
+        >
+          <Ionicons name="arrow-back" size={20} color={theme.text} />
         </TouchableOpacity>
       </View>
 
-      {/* Logo */}
+      {/* Logo oficial de RunSubasta (negro y lima) */}
       <View style={styles.logoWrap}>
-        <Image source={require('../../../app-icons/playstore-icon.png')} style={styles.logo} resizeMode="contain" />
+        <Image
+          source={require('../../../assets/icon.png')}
+          style={styles.logo}
+          resizeMode="contain"
+        />
       </View>
 
       {/* Textos */}
       <View style={styles.textBlock}>
-        <Text style={styles.title}>Verificación</Text>
-        <Text style={styles.subtitle}>
+        <Text style={[styles.title, { color: theme.text }]}>Verificación</Text>
+        <Text style={[styles.subtitle, { color: theme.textMuted }]}>
           Ingresa el código enviado a{' '}
-          <Text style={styles.phone}>{countryCode} {phone}</Text>
+          <Text style={[styles.phone, { color: theme.text }]}>
+            {countryCode} {phone}
+          </Text>
         </Text>
       </View>
 
@@ -107,15 +138,23 @@ export function LoginVerificacionScreen({ route, navigation }: LoginVerificacion
               key={index}
               style={[
                 styles.otpBox,
-                digit && styles.otpBoxFilled,
+                {
+                  backgroundColor: theme.surface,
+                  borderColor: hasError
+                    ? Colors.danger
+                    : isActive
+                    ? Colors.accentLime
+                    : digit
+                    ? theme.text
+                    : theme.divider,
+                },
                 isActive && styles.otpBoxActive,
-                hasError && styles.otpBoxError,
               ]}
             >
               {digit ? (
-                <View style={styles.otpDot} />
+                <View style={[styles.otpDot, { backgroundColor: theme.text }]} />
               ) : isActive ? (
-                <View style={styles.otpCursor} />
+                <View style={[styles.otpCursor, { backgroundColor: Colors.accentLime }]} />
               ) : null}
             </View>
           );
@@ -125,19 +164,34 @@ export function LoginVerificacionScreen({ route, navigation }: LoginVerificacion
       {/* Error / Reenviar */}
       <View style={styles.feedbackRow}>
         {error ? (
-          <Text style={styles.error}>{error}</Text>
+          <Text style={styles.errorText}>{error}</Text>
         ) : (
-          <TouchableOpacity onPress={handleResend} disabled={resendSeconds > 0} activeOpacity={0.7}>
-            <Text style={[styles.resend, resendSeconds > 0 && styles.resendDisabled]}>
+          <TouchableOpacity
+            onPress={handleResend}
+            disabled={resendSeconds > 0}
+            activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel={
+              resendSeconds > 0
+                ? `Reenviar código disponible en ${resendSeconds} segundos`
+                : 'Reenviar código de verificación'
+            }
+          >
+            <Text
+              style={[
+                styles.resendText,
+                { color: resendSeconds > 0 ? theme.textDisabled : theme.text },
+              ]}
+            >
               {resendSeconds > 0
                 ? `Reenviar código en ${resendSeconds}s`
-                : '¿No lo recibiste? Reenviar'}
+                : '¿No recibiste el código? Reenviar'}
             </Text>
           </TouchableOpacity>
         )}
       </View>
 
-      {/* Teclado */}
+      {/* Teclado numérico */}
       <View style={styles.keypad}>
         {keypadRows.map((row, rowIndex) => (
           <View key={rowIndex} style={styles.keypadRow}>
@@ -153,8 +207,10 @@ export function LoginVerificacionScreen({ route, navigation }: LoginVerificacion
                     style={styles.keyBtn}
                     onPress={handleBackspace}
                     activeOpacity={0.6}
+                    accessibilityRole="button"
+                    accessibilityLabel="Borrar dígito"
                   >
-                    <Ionicons name="backspace-outline" size={24} color={Colors.textPrimary} />
+                    <Ionicons name="backspace-outline" size={24} color={theme.text} />
                   </TouchableOpacity>
                 );
               }
@@ -162,12 +218,18 @@ export function LoginVerificacionScreen({ route, navigation }: LoginVerificacion
               return (
                 <TouchableOpacity
                   key={key}
-                  style={[styles.keyBtn, styles.digitBtn]}
+                  style={[
+                    styles.keyBtn,
+                    styles.digitBtn,
+                    { backgroundColor: theme.surface },
+                  ]}
                   onPress={() => handleDigitPress(key)}
                   activeOpacity={0.7}
                   disabled={isLoading}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Dígito ${key}`}
                 >
-                  <Text style={styles.digitText}>{key}</Text>
+                  <Text style={[styles.digitText, { color: theme.text }]}>{key}</Text>
                 </TouchableOpacity>
               );
             })}
@@ -176,21 +238,17 @@ export function LoginVerificacionScreen({ route, navigation }: LoginVerificacion
       </View>
 
       {/* Botón verificar */}
-      <TouchableOpacity
-        style={[styles.verifyBtn, (code.length !== 4 || isLoading) && styles.verifyBtnDisabled]}
-        onPress={submitCode}
-        activeOpacity={0.85}
-        disabled={code.length !== 4 || isLoading}
-      >
-        {isLoading ? (
-          <View style={styles.loadingRow}>
-            <Ionicons name="sync" size={18} color={Colors.white} style={styles.spinIcon} />
-            <Text style={styles.verifyBtnText}>Verificando...</Text>
-          </View>
-        ) : (
-          <Text style={styles.verifyBtnText}>Verificar</Text>
-        )}
-      </TouchableOpacity>
+      <View style={styles.verifyWrap}>
+        <AppButton
+          label="Verificar"
+          variant="sig"
+          size="md"
+          onPress={submitCode}
+          disabled={code.length !== 4}
+          loading={isLoading}
+          accessibilityLabel="Verificar código OTP"
+        />
+      </View>
     </View>
   );
 }
@@ -198,188 +256,117 @@ export function LoginVerificacionScreen({ route, navigation }: LoginVerificacion
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8fafc',
-    paddingHorizontal: 28,
+    paddingHorizontal: Spacing.xl,
   },
   header: {
-    paddingTop: 8,
-    paddingBottom: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: Spacing.sm,
   },
   backBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: Colors.white,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.07,
-    shadowRadius: 6,
-    elevation: 3,
   },
   logoWrap: {
     alignItems: 'center',
-    marginTop: 12,
-    marginBottom: 20,
+    marginVertical: Spacing.sm,
   },
   logo: {
-    width: 100,
-    height: 100,
-    borderRadius: 20,
+    width: 64,
+    height: 64,
+    borderRadius: BorderRadius.xl,
   },
   textBlock: {
     alignItems: 'center',
-    marginBottom: 28,
+    marginBottom: Spacing.xl,
+    gap: 4,
   },
   title: {
-    fontSize: 26,
+    fontSize: FontSize['2xl'],
     fontFamily: FontFamily.bold,
-    color: Colors.textPrimary,
-    marginBottom: 8,
   },
   subtitle: {
     fontSize: FontSize.sm,
     fontFamily: FontFamily.regular,
-    color: Colors.textSecondary,
     textAlign: 'center',
-    lineHeight: 22,
   },
   phone: {
     fontFamily: FontFamily.bold,
-    color: Colors.textPrimary,
   },
   otpRow: {
     flexDirection: 'row',
     justifyContent: 'center',
-    gap: 14,
-    marginBottom: 16,
+    gap: Spacing.md,
+    marginBottom: Spacing.md,
   },
   otpBox: {
-    width: 60,
-    height: 68,
-    borderRadius: 14,
-    borderWidth: 2,
-    borderColor: '#e2e8f0',
-    backgroundColor: Colors.white,
+    width: 54,
+    height: 58,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1.5,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    ...Shadow.sm,
   },
   otpBoxActive: {
-    borderColor: Colors.primary,
-    shadowColor: Colors.primary,
-    shadowOpacity: 0.18,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  otpBoxFilled: {
-    borderColor: Colors.primary,
-    backgroundColor: '#f0f4ff',
-  },
-  otpBoxError: {
-    borderColor: Colors.error,
-    backgroundColor: '#fff5f5',
+    borderWidth: 2,
   },
   otpDot: {
-    width: 14,
-    height: 14,
-    borderRadius: 7,
-    backgroundColor: Colors.primary,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
   },
   otpCursor: {
     width: 2,
-    height: 28,
+    height: 20,
     borderRadius: 1,
-    backgroundColor: Colors.primary,
-    opacity: 0.7,
   },
   feedbackRow: {
-    height: 24,
     alignItems: 'center',
+    minHeight: 28,
     justifyContent: 'center',
-    marginBottom: 20,
+    marginBottom: Spacing.md,
   },
-  error: {
-    fontSize: FontSize.sm,
-    fontFamily: FontFamily.regular,
+  errorText: {
     color: Colors.error,
-    textAlign: 'center',
-  },
-  resend: {
-    fontSize: FontSize.sm,
     fontFamily: FontFamily.regular,
-    color: Colors.primary,
-    textDecorationLine: 'underline',
+    fontSize: FontSize.xs,
   },
-  resendDisabled: {
-    color: Colors.textSecondary,
-    textDecorationLine: 'none',
+  resendText: {
+    fontFamily: FontFamily.semibold,
+    fontSize: FontSize.xs,
   },
   keypad: {
-    gap: 10,
-    marginBottom: 20,
+    gap: Spacing.sm,
+    marginBottom: Spacing.md,
   },
   keypadRow: {
     flexDirection: 'row',
     justifyContent: 'center',
-    gap: 20,
+    gap: Spacing.lg,
   },
   keyBtn: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
+    width: 68,
+    height: 52,
+    borderRadius: BorderRadius.lg,
     alignItems: 'center',
     justifyContent: 'center',
   },
   digitBtn: {
-    backgroundColor: Colors.white,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  keypadSpacer: {
-    width: 72,
-    height: 72,
+    ...Shadow.sm,
   },
   digitText: {
-    fontSize: 26,
+    fontSize: FontSize.xl,
     fontFamily: FontFamily.bold,
-    color: Colors.textPrimary,
   },
-  loadingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+  keypadSpacer: {
+    width: 68,
+    height: 52,
   },
-  spinIcon: {
-    opacity: 0.85,
-  },
-  verifyBtn: {
-    minHeight: 56,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.primary,
-    shadowColor: Colors.primary,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.25,
-    shadowRadius: 20,
-    elevation: 8,
-  },
-  verifyBtnDisabled: {
-    opacity: 0.4,
-  },
-  verifyBtnText: {
-    color: Colors.white,
-    fontSize: FontSize.md,
-    fontFamily: FontFamily.bold,
-    letterSpacing: 0.5,
+  verifyWrap: {
+    paddingHorizontal: Spacing.sm,
   },
 });

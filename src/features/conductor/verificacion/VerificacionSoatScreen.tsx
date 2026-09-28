@@ -17,7 +17,7 @@ export function VerificacionSoatScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         <ImagePickerCard
           title="Seguro Obligatorio de Accidentes de Transito"
-          subtitle="La imagen debe ser lo mas nitida posible."
+          subtitle="La imagen debe ser lo más nítida posible."
           uri={imageUri}
           icon="shield-checkmark-outline"
           onPress={async () => setImageUri(await pickImageAsync())}

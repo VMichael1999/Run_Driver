@@ -37,8 +37,8 @@ export function ImagePickerCard({
           <Ionicons name={icon} size={48} color={Colors.textSecondary} />
         )}
       </View>
-      <TouchableOpacity style={styles.button} onPress={onPress} activeOpacity={0.85}>
-        <Text style={styles.buttonText}>Anadir imagen</Text>
+      <TouchableOpacity style={styles.button} onPress={onPress} activeOpacity={0.85} accessibilityRole="button" accessibilityLabel={`Añadir imagen: ${title}`}>
+        <Text style={styles.buttonText}>Añadir imagen</Text>
       </TouchableOpacity>
       {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
     </ExpandedCard>

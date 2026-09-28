@@ -9,31 +9,41 @@ import {
   Animated,
   Dimensions,
   PanResponder,
-  Platform,
   ScrollView,
+  Share,
+  Linking,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import MapView, { Marker, Polyline, PROVIDER_GOOGLE, type LatLng } from 'react-native-maps';
+import MapView, { Marker, PROVIDER_GOOGLE, type LatLng } from 'react-native-maps';
+import { RoutePolyline } from '@shared/components/map/RoutePolyline';
+import * as Haptics from 'expo-haptics';
 import type { ClienteStackParamList } from '@navigation/types';
 import { useRideDraftStore } from '@store/useRideDraftStore';
 import { useTaxiStore } from '@store/useTaxiStore';
 import { useTripHistoryStore } from '@store/useTripHistoryStore';
-import { CalificacionModal } from '@shared/components/card/CalificacionModal';
+import { useThemeStore } from '@store/useThemeStore';
+import { CalificacionModal, type Calificacion } from '@shared/components/card/CalificacionModal';
 import { UserNetworkAvatar } from '@shared/components/avatar/UserNetworkAvatar';
+import { PlacaVehiculo } from '@shared/components/ui/PlacaVehiculo';
+import { AppButton } from '@shared/components/ui/AppButton';
 import { LegacyImages } from '@shared/assets/legacyAssets';
+import { calculateBearing } from '@shared/utils/mapUtils';
 import { Colors } from '@theme/colors';
 import { useAppTheme } from '@theme/useAppTheme';
+import { getMapStyle } from '@theme/mapStyles';
 import { FontFamily, FontSize } from '@theme/fonts';
 import { Spacing, BorderRadius, Shadow } from '@theme/spacing';
 
+
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
-const COLLAPSED_HEIGHT = 428;
-const EXPANDED_HEIGHT = SCREEN_HEIGHT * 0.56;
+const COLLAPSED_HEIGHT = 440;
+const EXPANDED_HEIGHT = SCREEN_HEIGHT * 0.62;
 
 type Nav = NativeStackNavigationProp<ClienteStackParamList, 'TrayectoTaxi'>;
+type TripPhase = 'arriving' | 'on_trip';
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
@@ -55,14 +65,19 @@ export function TrayectoTaxiScreen() {
   const navigation = useNavigation<Nav>();
   const insets = useSafeAreaInsets();
   const theme = useAppTheme();
+  const isDark = useThemeStore((state) => state.isDark);
   const { activeTrip, endTrip } = useTaxiStore();
   const resetDraft = useRideDraftStore((state) => state.resetDraft);
   const addCompletedTrip = useTripHistoryStore((state) => state.addCompletedTrip);
+
+  const [tripPhase, setTripPhase] = React.useState<TripPhase>('arriving');
   const [ratingVisible, setRatingVisible] = React.useState(false);
+
   const driver = activeTrip?.driver;
   const request = activeTrip?.request;
   const mapRef = React.useRef<MapView | null>(null);
   const allowTripExitRef = React.useRef(false);
+
   const sheetHeight = React.useRef(new Animated.Value(COLLAPSED_HEIGHT)).current;
   const currentHeightRef = React.useRef(COLLAPSED_HEIGHT);
   const dragStartHeightRef = React.useRef(COLLAPSED_HEIGHT);
@@ -81,51 +96,51 @@ export function TrayectoTaxiScreen() {
     return unsubscribe;
   }, [activeTrip, navigation]);
 
-  if (!activeTrip || !driver || !request) return null;
+  const routeCoords: LatLng[] = React.useMemo(() => {
+    if (!request) return [];
+    return [
+      request.origin.position,
+      ...request.routePoints,
+      request.destination.position,
+    ];
+  }, [request]);
 
-  const region = {
-    latitude: request.origin.position.latitude,
-    longitude: request.origin.position.longitude,
-    latitudeDelta: 0.012,
-    longitudeDelta: 0.012,
-  };
+  const fitRouteToMap = React.useCallback(
+    (activeSheetHeight?: number) => {
+      if (!mapRef.current || routeCoords.length < 2) return;
 
-  const routeCoords: LatLng[] = [
-    request.origin.position,
-    ...request.routePoints,
-    request.destination.position,
-  ];
+      mapRef.current.fitToCoordinates(routeCoords, {
+        edgePadding: {
+          top: insets.top + (tripPhase === 'on_trip' ? 120 : 64),
+          right: 32,
+          bottom: Math.round((activeSheetHeight ?? currentHeightRef.current) + 36),
+          left: 32,
+        },
+        animated: true,
+      });
+    },
+    [insets.top, routeCoords, tripPhase]
+  );
 
-  const fitRouteToMap = React.useCallback((activeSheetHeight?: number) => {
-    if (!mapRef.current || routeCoords.length < 2) return;
-
-    mapRef.current.fitToCoordinates(routeCoords, {
-      edgePadding: {
-        top: insets.top + 48,
-        right: 28,
-        bottom: Math.round((activeSheetHeight ?? currentHeightRef.current) + 36),
-        left: 28,
-      },
-      animated: true,
-    });
-  }, [insets.top, routeCoords]);
-
-  const animateSheet = React.useCallback((toValue: number) => {
-    currentHeightRef.current = toValue;
-    Animated.spring(sheetHeight, {
-      toValue,
-      useNativeDriver: false,
-      tension: 90,
-      friction: 14,
-    }).start(() => {
-      fitRouteToMap(toValue);
-    });
-  }, [fitRouteToMap, sheetHeight]);
+  const animateSheet = React.useCallback(
+    (toValue: number) => {
+      currentHeightRef.current = toValue;
+      Animated.spring(sheetHeight, {
+        toValue,
+        useNativeDriver: false,
+        tension: 90,
+        friction: 14,
+      }).start(() => {
+        fitRouteToMap(toValue);
+      });
+    },
+    [fitRouteToMap, sheetHeight]
+  );
 
   React.useEffect(() => {
     const timeout = setTimeout(() => {
       fitRouteToMap(COLLAPSED_HEIGHT);
-    }, 250);
+    }, 300);
 
     return () => clearTimeout(timeout);
   }, [fitRouteToMap]);
@@ -142,7 +157,7 @@ export function TrayectoTaxiScreen() {
           const nextHeight = clamp(
             dragStartHeightRef.current - gestureState.dy,
             COLLAPSED_HEIGHT,
-            EXPANDED_HEIGHT,
+            EXPANDED_HEIGHT
           );
           sheetHeight.setValue(nextHeight);
         },
@@ -150,71 +165,316 @@ export function TrayectoTaxiScreen() {
           const projected = clamp(
             dragStartHeightRef.current - gestureState.dy,
             COLLAPSED_HEIGHT,
-            EXPANDED_HEIGHT,
+            EXPANDED_HEIGHT
           );
           const middle = (COLLAPSED_HEIGHT + EXPANDED_HEIGHT) / 2;
           const shouldExpand = gestureState.vy < -0.2 || projected > middle;
           animateSheet(shouldExpand ? EXPANDED_HEIGHT : COLLAPSED_HEIGHT);
         },
         onPanResponderTerminate: () => {
-          animateSheet(currentHeightRef.current > (COLLAPSED_HEIGHT + EXPANDED_HEIGHT) / 2 ? EXPANDED_HEIGHT : COLLAPSED_HEIGHT);
+          animateSheet(
+            currentHeightRef.current > (COLLAPSED_HEIGHT + EXPANDED_HEIGHT) / 2
+              ? EXPANDED_HEIGHT
+              : COLLAPSED_HEIGHT
+          );
         },
       }),
-    [animateSheet, sheetHeight],
+    [animateSheet, sheetHeight]
   );
+
+  if (!activeTrip || !driver || !request) return null;
+
+  const region = {
+    latitude: request.origin.position.latitude,
+    longitude: request.origin.position.longitude,
+    latitudeDelta: 0.012,
+    longitudeDelta: 0.012,
+  };
+
+  // Driver car position & bearing calculation
+  const carPosition =
+    tripPhase === 'arriving'
+      ? request.routePoints[0] || {
+          latitude: request.origin.position.latitude - 0.003,
+          longitude: request.origin.position.longitude - 0.002,
+        }
+      : request.routePoints[Math.min(1, request.routePoints.length - 1)] ||
+        request.destination.position;
+
+  const targetCoord =
+    tripPhase === 'arriving' ? request.origin.position : request.destination.position;
+  const carBearing = calculateBearing(carPosition, targetCoord);
+
+  // Safety SOS Handler
+  const handleSOS = () => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+    Alert.alert(
+      'Asistencia y Emergencia',
+      'Elige una opción de ayuda. Tu seguridad es nuestra prioridad.',
+      [
+        {
+          text: 'Llamar al 105 (Policía)',
+          style: 'destructive',
+          onPress: () => Linking.openURL('tel:105'),
+        },
+        {
+          text: 'Llamar al 116 (Bomberos)',
+          onPress: () => Linking.openURL('tel:116'),
+        },
+        {
+          text: 'Compartir viaje con un contacto',
+          onPress: handleShareTrip,
+        },
+        {
+          text: 'Cancelar',
+          style: 'cancel',
+        },
+      ]
+    );
+  };
+
+  // Share Trip Handler
+  const handleShareTrip = async () => {
+    Haptics.selectionAsync();
+    try {
+      await Share.share({
+        message: `Sigue mi viaje en RunSubasta: Conductor ${driver.driverName}, auto ${driver.vehicleModel} (${driver.vehicleColor}), placa ${driver.vehiclePlate}. Destino: ${request.destination.placeName}.`,
+      });
+    } catch {
+      // Ignorar si el usuario descarta compartir
+    }
+  };
+
+  // Call Driver Handler
+  const handleCallDriver = () => {
+    Haptics.selectionAsync();
+    if (driver.phone) {
+      Linking.openURL(`tel:${driver.phone}`);
+    } else {
+      Alert.alert('Contacto', `Llamando al conductor ${driver.driverName}...`);
+    }
+  };
+
+  // Chat with Driver Handler
+  const handleChatDriver = () => {
+    Haptics.selectionAsync();
+    Alert.alert(
+      'Mensaje al conductor',
+      `Enviar mensaje rápido a ${driver.driverName}:`,
+      [
+        {
+          text: 'Estoy en la puerta',
+          onPress: () => Alert.alert('Mensaje enviado', 'El conductor fue notificado.'),
+        },
+        {
+          text: 'Esperando en la esquina',
+          onPress: () => Alert.alert('Mensaje enviado', 'El conductor fue notificado.'),
+        },
+        {
+          text: 'Cancelar',
+          style: 'cancel',
+        },
+      ]
+    );
+  };
+
+  // Cancel Trip Handler
+  const handleCancelTrip = () => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+    Alert.alert(
+      'Cancelar viaje',
+      '¿Estás seguro de que deseas cancelar este viaje?',
+      [
+        { text: 'No, continuar', style: 'cancel' },
+        {
+          text: 'Sí, cancelar',
+          style: 'destructive',
+          onPress: () => {
+            allowTripExitRef.current = true;
+            endTrip();
+            resetDraft();
+            navigation.replace('ClienteHome');
+          },
+        },
+      ]
+    );
+  };
+
+  // Switch Phase to In Trip
+  const handleStartRide = () => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    setTripPhase('on_trip');
+  };
+
+  // End Trip & Open Rating
+  const handleFinishRide = () => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    setRatingVisible(true);
+  };
+
+  // Complete Rating
+  const handleRatingComplete = (_calificacion?: Calificacion) => {
+    if (activeTrip) {
+      addCompletedTrip(activeTrip);
+    }
+    allowTripExitRef.current = true;
+    setRatingVisible(false);
+    endTrip();
+    resetDraft();
+    navigation.replace('ClienteHome');
+  };
+
+  // Polyline color: lime in dark/night mode, black/dark in day mode
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <MapView
         ref={mapRef}
         style={StyleSheet.absoluteFillObject}
-        provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
+        provider={PROVIDER_GOOGLE}
         initialRegion={region}
         showsUserLocation={false}
         showsMyLocationButton={false}
+        customMapStyle={getMapStyle(isDark)}
       >
+        {/* Marcador de Origen */}
         <Marker coordinate={request.origin.position} anchor={{ x: 0.5, y: 0.5 }}>
-          <View style={styles.originMarker}>
+          <View style={[styles.originMarker, { backgroundColor: Colors.origin }]}>
             <View style={styles.markerInnerDot} />
           </View>
         </Marker>
+
+        {/* Marcador de Destino */}
         <Marker coordinate={request.destination.position} anchor={{ x: 0.5, y: 0.5 }}>
-          <View style={styles.destinationMarker}>
+          <View style={[styles.destinationMarker, { backgroundColor: Colors.destination }]}>
             <View style={styles.markerInnerDot} />
           </View>
         </Marker>
+
+        {/* Auto del conductor con car_north.png rotado según el bearing */}
+        <Marker
+          coordinate={carPosition}
+          anchor={{ x: 0.5, y: 0.5 }}
+          rotation={carBearing}
+          flat
+        >
+          <Image
+            source={LegacyImages.carNorth}
+            style={styles.carMarkerImage}
+            resizeMode="contain"
+          />
+        </Marker>
+
+        {/* Ruta trazada */}
         {routeCoords.length > 1 ? (
-          <Polyline coordinates={routeCoords} strokeColor="#000000" strokeWidth={5} lineCap="round" lineJoin="round" />
+          <RoutePolyline coordinates={routeCoords} />
         ) : null}
       </MapView>
 
-      <TouchableOpacity
-        style={[styles.sosButton, { top: insets.top + Spacing.md }]}
-        onPress={() => Alert.alert('SOS', 'Opciones de ayuda pendientes de conectar.')}
-        activeOpacity={0.85}
+      {/* Barra superior flotante: SOS y Botón centrar */}
+      <View
+        pointerEvents="box-none"
+        style={[styles.topHeader, { top: insets.top + Spacing.sm }]}
       >
-        <Text style={styles.sosText}>SOS</Text>
-      </TouchableOpacity>
-
-      <View pointerEvents="box-none" style={styles.floatingLayer}>
         <TouchableOpacity
-          style={[styles.locateButton, { bottom: currentHeightRef.current + 24, backgroundColor: theme.surface }]}
+          style={[styles.iconButton, { backgroundColor: theme.surface, ...Shadow.raise }]}
           onPress={() => fitRouteToMap()}
-          activeOpacity={0.85}
+          activeOpacity={0.8}
+          accessibilityRole="button"
+          accessibilityLabel="Centrar mapa en la ruta"
         >
-          <Ionicons name="locate-outline" size={18} color={theme.text} />
+          <Ionicons name="locate-outline" size={20} color={theme.text} />
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.sosButton, { backgroundColor: Colors.danger, ...Shadow.raise }]}
+          onPress={handleSOS}
+          activeOpacity={0.85}
+          accessibilityRole="button"
+          accessibilityLabel="Emergencia SOS, presiona para opciones de ayuda"
+        >
+          <Ionicons name="shield-checkmark" size={18} color={Colors.white} />
+          <Text style={styles.sosButtonText}>SOS</Text>
         </TouchableOpacity>
       </View>
 
-      <Animated.View style={[styles.panel, { height: sheetHeight, paddingBottom: insets.bottom + Spacing.lg, backgroundColor: theme.surface }]}>
-        <View style={styles.etaBar}>
-          <View style={styles.etaLeft}>
-            <Ionicons name="hourglass-outline" size={16} color={Colors.white} />
-            <Text style={styles.etaText}>El conductor llegara en</Text>
+      {/* Pantalla 9 (En viaje): Banner flotante de destino y tiempo */}
+      {tripPhase === 'on_trip' && (
+        <View
+          style={[
+            styles.destinationBanner,
+            {
+              top: insets.top + 64,
+              backgroundColor: theme.surface,
+              borderColor: theme.divider,
+              ...Shadow.sheet,
+            },
+          ]}
+        >
+          <View style={styles.bannerRow}>
+            <View style={styles.bannerEtaWrap}>
+              <Text style={[styles.bannerEtaTime, { color: theme.text }]}>
+                Llegas en ~{driver.etaMinutes ? Math.round(driver.etaMinutes) : 15} min
+              </Text>
+              <Text style={[styles.bannerEtaDist, { color: theme.textMuted }]}>
+                {driver.distanceKm ? `${driver.distanceKm.toFixed(1)} km` : '4.2 km'}
+              </Text>
+            </View>
+            <View style={styles.bannerStatusPill}>
+              <View style={[styles.liveDot, { backgroundColor: Colors.online }]} />
+              <Text style={styles.bannerStatusText}>En viaje</Text>
+            </View>
           </View>
-          <View style={styles.etaChip}>
-            <Text style={styles.etaChipText}>{driver.etaMinutes.toFixed(2)} min</Text>
+          <Text style={[styles.bannerDestinationText, { color: theme.text }]} numberOfLines={1}>
+            {request.destination.placeName}
+          </Text>
+        </View>
+      )}
+
+      {/* Panel Inferior Flotante (BottomSheet) */}
+      <Animated.View
+        style={[
+          styles.panel,
+          {
+            height: sheetHeight,
+            paddingBottom: insets.bottom + Spacing.md,
+            backgroundColor: theme.surface,
+            ...Shadow.sheet,
+          },
+        ]}
+      >
+        {/* Barra de estado / ETA superior */}
+        <View
+          style={[
+            styles.statusHeaderBar,
+            {
+              backgroundColor: tripPhase === 'arriving' ? Colors.primary : Colors.secondary,
+            },
+          ]}
+        >
+          <View style={styles.statusHeaderLeft}>
+            <Ionicons
+              name={tripPhase === 'arriving' ? 'time-outline' : 'navigate-outline'}
+              size={18}
+              color={Colors.accentLime}
+            />
+            <Text style={styles.statusHeaderText}>
+              {tripPhase === 'arriving'
+                ? `Conductor en camino · Llega en ~${Math.round(driver.etaMinutes || 3)} min`
+                : 'Trayecto en curso hacia destino'}
+            </Text>
           </View>
+          {tripPhase === 'arriving' && (
+            <TouchableOpacity
+              onPress={handleStartRide}
+              style={styles.advancePill}
+              activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityLabel="Iniciar recorrido, ya subí al auto"
+            >
+              <Text style={styles.advancePillText}>Subí al auto</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         <View {...panResponder.panHandlers} style={styles.dragArea}>
@@ -226,89 +486,157 @@ export function TrayectoTaxiScreen() {
           contentContainerStyle={styles.panelScrollContent}
           showsVerticalScrollIndicator={false}
         >
-          <View style={styles.contentInset}>
-            <View style={[styles.vehicleCard, { borderBottomColor: theme.divider }]}>
-              <View style={styles.vehicleCopy}>
-                <Text style={[styles.plateNumber, { color: theme.text }]}>{driver.vehiclePlate}</Text>
-                <Text style={[styles.vehicleMeta, { color: theme.textMuted }]}>
-                  {driver.vehicleModel} • {driver.vehicleColor}
+          {/* Identificación del auto: PLACA GRANDE (ABC-123) */}
+          <View style={[styles.vehicleSection, { borderBottomColor: theme.divider }]}>
+            <PlacaVehiculo plate={driver.vehiclePlate} size="lg" />
+            <View style={styles.vehicleInfoWrap}>
+              <Text style={[styles.vehicleModelText, { color: theme.text }]} numberOfLines={1}>
+                {driver.vehicleModel}
+              </Text>
+              <Text style={[styles.vehicleColorText, { color: theme.textMuted }]}>
+                Color {driver.vehicleColor.toLowerCase()}
+              </Text>
+              <View style={styles.driverRatingInline}>
+                <Ionicons name="star" size={13} color={Colors.star} />
+                <Text style={[styles.driverRatingText, { color: theme.text }]}>
+                  {driver.rating.toFixed(1)}
                 </Text>
-              </View>
-              <View style={styles.vehicleRight}>
-                <Image source={LegacyImages.carEstandar} style={styles.vehicleImage} resizeMode="contain" />
-                <View style={[styles.vehicleSizePill, { backgroundColor: theme.accent }]}>
-                  <Text style={styles.vehicleSizeText}>Tamano medio</Text>
-                </View>
-              </View>
-            </View>
-
-            <View style={styles.driverRow}>
-              <View style={styles.driverInfo}>
-                <View style={styles.driverAvatarColumn}>
-                  <UserNetworkAvatar imageUrl={driver.imageUrl} radius={20} />
-                  <View style={styles.ratingTag}>
-                    <Ionicons name="star" size={11} color="#f5b301" />
-                    <Text style={styles.ratingTagText}>{driver.rating.toFixed(1)}</Text>
-                  </View>
-                </View>
-                <View style={styles.driverTextWrap}>
-                  <Text style={[styles.driverName, { color: theme.text }]}>{driver.driverName}</Text>
-                  <Text style={[styles.driverBadge, { color: theme.textMuted }]}>Conductor mejor valorado</Text>
-                </View>
-              </View>
-              <View style={styles.driverActions}>
-                <TouchableOpacity style={styles.actionButton} activeOpacity={0.85}>
-                  <Ionicons name="call-outline" size={18} color={Colors.white} />
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.actionButton} activeOpacity={0.85}>
-                  <Ionicons name="chatbubble-ellipses-outline" size={18} color={Colors.white} />
-                  <View style={styles.notificationDot} />
-                </TouchableOpacity>
-              </View>
-            </View>
-
-            <View style={[styles.sectionDivider, { backgroundColor: theme.divider }]} />
-
-          <View style={styles.routeDetailRow}>
-            <View style={styles.routeIconColumn}>
-              <View style={[styles.routePinOutline, { backgroundColor: theme.surface, borderColor: theme.text }]} />
-              <View style={[styles.routeDashedLine, { borderColor: theme.divider }]} />
-              <View style={[styles.routePinSolid, { backgroundColor: theme.text }]} />
-            </View>
-            <View style={styles.routeTextColumn}>
-              <View style={styles.routeLineItem}>
-                <Text style={[styles.routeLabel, { color: theme.textMuted }]}>Punto de inicio</Text>
-                <Text style={[styles.routeValue, { color: theme.text }]}>{request.origin.placeName}</Text>
-              </View>
-              <View style={styles.routeLineItem}>
-                <Text style={[styles.routeLabel, { color: theme.textMuted }]}>Tu destino</Text>
-                <Text style={[styles.routeValue, { color: theme.text }]}>{request.destination.placeName}</Text>
-              </View>
-              <View style={styles.routeLineItem}>
-                <Text style={[styles.routeLabel, { color: theme.textMuted }]}>Metodo de pago</Text>
-                <View style={styles.paymentMethodRow}>
-                  <Image
-                    source={getPaymentMethodImage(request.paymentMethod.mode)}
-                    style={styles.paymentMethodImage}
-                    resizeMode="contain"
-                  />
-                  <Text style={[styles.routeValue, { color: theme.text }]}>{request.paymentMethod.mode}</Text>
-                </View>
+                <Text style={[styles.driverTripsText, { color: theme.textMuted }]}>
+                  · 1,274 viajes
+                </Text>
               </View>
             </View>
           </View>
 
-          <TouchableOpacity
-            style={styles.endButton}
-              onPress={() => setRatingVisible(true)}
-              activeOpacity={0.85}
+          {/* Fila del Conductor */}
+          <View style={styles.driverRow}>
+            <View style={styles.driverInfoLeft}>
+              <UserNetworkAvatar imageUrl={driver.imageUrl} radius={22} />
+              <View style={styles.driverNameWrap}>
+                <Text style={[styles.driverNameText, { color: theme.text }]}>
+                  {driver.driverName}
+                </Text>
+                <Text style={[styles.driverSubtitle, { color: theme.textMuted }]}>
+                  Conductor verificado
+                </Text>
+              </View>
+            </View>
+
+            {/* Acciones directas: Escribir / Llamar */}
+            <View style={styles.driverActionsRight}>
+              <TouchableOpacity
+                style={[styles.circleActionBtn, { backgroundColor: theme.surfaceMuted }]}
+                onPress={handleCallDriver}
+                activeOpacity={0.8}
+                accessibilityRole="button"
+                accessibilityLabel="Llamar al conductor"
+              >
+                <Ionicons name="call-outline" size={18} color={theme.text} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.circleActionBtn, { backgroundColor: theme.surfaceMuted }]}
+                onPress={handleChatDriver}
+                activeOpacity={0.8}
+                accessibilityRole="button"
+                accessibilityLabel="Enviar mensaje al conductor"
+              >
+                <Ionicons name="chatbubble-ellipses-outline" size={18} color={theme.text} />
+              </TouchableOpacity>
+            </View>
+          </View>
+
+
+          {/* 3 Botones de acción (Escribir, Compartir viaje, SOS) */}
+          <View style={styles.actionPillsRow}>
+            <TouchableOpacity
+              style={[styles.actionPill, { backgroundColor: theme.surfaceMuted }]}
+              onPress={handleChatDriver}
+              activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityLabel="Escribir al conductor"
             >
-              <Text style={styles.endButtonText}>Finalizar viaje</Text>
+              <Ionicons name="chatbubble-outline" size={16} color={theme.text} />
+              <Text style={[styles.actionPillText, { color: theme.text }]}>Escribir</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.actionPill, { backgroundColor: theme.surfaceMuted }]}
+              onPress={handleShareTrip}
+              activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityLabel="Compartir viaje en tiempo real"
+            >
+              <Ionicons name="share-social-outline" size={16} color={theme.text} />
+              <Text style={[styles.actionPillText, { color: theme.text }]}>Compartir viaje</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.actionPill, { backgroundColor: Colors.dangerSoft }]}
+              onPress={handleSOS}
+              activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityLabel="Emergencia SOS"
+            >
+              <Ionicons name="shield-outline" size={16} color={Colors.danger} />
+              <Text style={[styles.actionPillText, { color: Colors.danger }]}>SOS</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Detalles de la tarifa y método de pago */}
+          <View style={[styles.fareCard, { backgroundColor: theme.surfaceMuted }]}>
+            <View style={styles.fareRow}>
+              <View style={styles.fareLeft}>
+                <Image
+                  source={getPaymentMethodImage(request.paymentMethod.mode)}
+                  style={styles.paymentIcon}
+                  resizeMode="contain"
+                />
+                <Text style={[styles.paymentMethodName, { color: theme.text }]}>
+                  {request.paymentMethod.mode}
+                </Text>
+              </View>
+              <Text style={[styles.farePriceText, { color: theme.text }]}>
+                {request.paymentMethod.currency} {driver.price.toFixed(2)}
+              </Text>
+            </View>
+          </View>
+
+          {/* Botones de acción principales */}
+          <View style={styles.footerButtons}>
+            {tripPhase === 'on_trip' ? (
+              <AppButton
+                label="Finalizar viaje"
+                variant="sig"
+                size="md"
+                onPress={handleFinishRide}
+                accessibilityLabel="Finalizar viaje y calificar conductor"
+              />
+            ) : (
+              <AppButton
+                label="Ya estoy en el auto"
+                variant="sig"
+                size="md"
+                onPress={handleStartRide}
+                accessibilityLabel="Confirmar inicio del viaje"
+              />
+            )}
+
+            <TouchableOpacity
+              onPress={handleCancelTrip}
+              style={styles.cancelTripButton}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel="Cancelar viaje"
+            >
+              <Text style={[styles.cancelTripText, { color: theme.textMuted }]}>
+                Cancelar viaje
+              </Text>
             </TouchableOpacity>
           </View>
         </ScrollView>
       </Animated.View>
 
+      {/* Pantalla 10: Modal de Calificación */}
       <CalificacionModal
         visible={ratingVisible}
         user={{
@@ -322,18 +650,12 @@ export function TrayectoTaxiScreen() {
         origin={request.origin.placeName}
         destination={request.destination.placeName}
         paymentMethod={request.paymentMethod.mode}
+        fareAmount={driver.price}
+        currency={request.paymentMethod.currency}
+        durationMinutes={Math.round(driver.etaMinutes || 19)}
         vehicleImageSource={LegacyImages.carEstandar}
-        onClose={() => setRatingVisible(false)}
-        onSend={() => {
-          if (activeTrip) {
-            addCompletedTrip(activeTrip);
-          }
-          allowTripExitRef.current = true;
-          setRatingVisible(false);
-          endTrip();
-          resetDraft();
-          navigation.replace('ClienteHome');
-        }}
+        onClose={() => handleRatingComplete()}
+        onSend={(calificacion) => handleRatingComplete(calificacion)}
       />
     </View>
   );
@@ -342,315 +664,296 @@ export function TrayectoTaxiScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#dfe7f3',
-  },
-  sosButton: {
-    position: 'absolute',
-    right: Spacing.lg,
-    width: 60,
-    height: 60,
-    borderRadius: BorderRadius.full,
-    backgroundColor: '#ff4d46',
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...Shadow.md,
-  },
-  sosText: {
-    fontSize: FontSize.md,
-    fontFamily: FontFamily.bold,
-    color: Colors.white,
-  },
-  floatingLayer: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  locateButton: {
-    position: 'absolute',
-    right: Spacing.lg,
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: Colors.white,
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...Shadow.sm,
-  },
-  etaBar: {
-    backgroundColor: '#07090d',
-    borderTopLeftRadius: 18,
-    borderTopRightRadius: 18,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 0,
-    marginBottom: 0,
-    ...Shadow.md,
-  },
-  etaLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  etaText: {
-    color: Colors.white,
-    fontFamily: FontFamily.regular,
-    fontSize: FontSize.sm,
-  },
-  etaChip: {
-    backgroundColor: '#23272f',
-    borderRadius: 14,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-  },
-  etaChipText: {
-    color: Colors.white,
-    fontFamily: FontFamily.bold,
-    fontSize: 12,
   },
   originMarker: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: '#111111',
+    width: 22,
+    height: 22,
+    borderRadius: 11,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
     borderColor: Colors.white,
+    ...Shadow.sm,
   },
   destinationMarker: {
-    width: 20,
-    height: 20,
-    borderRadius: 5,
-    backgroundColor: '#111111',
+    width: 22,
+    height: 22,
+    borderRadius: 11,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
     borderColor: Colors.white,
+    ...Shadow.sm,
   },
   markerInnerDot: {
-    width: 7,
-    height: 7,
+    width: 8,
+    height: 8,
     borderRadius: 4,
     backgroundColor: Colors.white,
+  },
+  carMarkerImage: {
+    width: 38,
+    height: 38,
+  },
+  topHeader: {
+    position: 'absolute',
+    left: Spacing.lg,
+    right: Spacing.lg,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    zIndex: 10,
+  },
+  iconButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sosButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.md,
+    height: 44,
+    borderRadius: 22,
+    gap: 6,
+  },
+  sosButtonText: {
+    color: Colors.white,
+    fontFamily: FontFamily.bold,
+    fontSize: FontSize.sm,
+  },
+  destinationBanner: {
+    position: 'absolute',
+    left: Spacing.lg,
+    right: Spacing.lg,
+    borderRadius: BorderRadius.xl,
+    borderWidth: 1,
+    padding: Spacing.md,
+    zIndex: 9,
+  },
+  bannerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  bannerEtaWrap: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 6,
+  },
+  bannerEtaTime: {
+    fontFamily: FontFamily.bold,
+    fontSize: FontSize.lg,
+  },
+  bannerEtaDist: {
+    fontFamily: FontFamily.regular,
+    fontSize: FontSize.xs,
+  },
+  bannerStatusPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.onlineSoft,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: BorderRadius.full,
+    gap: 5,
+  },
+  liveDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  bannerStatusText: {
+    fontFamily: FontFamily.semibold,
+    fontSize: FontSize['2xs'],
+    color: Colors.online,
+  },
+  bannerDestinationText: {
+    fontFamily: FontFamily.medium,
+    fontSize: FontSize.sm,
   },
   panel: {
     position: 'absolute',
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: Colors.white,
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    paddingHorizontal: 0,
-    paddingTop: 2,
-    ...Shadow.lg,
+    borderTopLeftRadius: BorderRadius['2xl'],
+    borderTopRightRadius: BorderRadius['2xl'],
+    overflow: 'hidden',
+  },
+  statusHeaderBar: {
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  statusHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flex: 1,
+  },
+  statusHeaderText: {
+    color: Colors.white,
+    fontFamily: FontFamily.medium,
+    fontSize: FontSize.xs,
+  },
+  advancePill: {
+    backgroundColor: Colors.accentLime,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 4,
+    borderRadius: BorderRadius.full,
+  },
+  advancePillText: {
+    color: Colors.onAccentLime,
+    fontFamily: FontFamily.bold,
+    fontSize: FontSize['2xs'],
   },
   dragArea: {
+    height: 24,
     alignItems: 'center',
-    paddingTop: 4,
-    paddingBottom: 6,
+    justifyContent: 'center',
   },
   handle: {
-    width: 58,
+    width: 44,
     height: 4,
-    borderRadius: 4,
-    backgroundColor: '#d8deea',
+    borderRadius: 2,
   },
   panelScroll: {
     flex: 1,
   },
   panelScrollContent: {
-    paddingBottom: 0,
-  },
-  contentInset: {
     paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.md,
-    gap: 10,
+    paddingBottom: Spacing.xl,
   },
-  vehicleCard: {
-    borderRadius: 0,
-    borderBottomWidth: 1,
-    borderBottomColor: '#edf0f6',
-    paddingBottom: 14,
+  vehicleSection: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: 'transparent',
+    paddingVertical: Spacing.md,
+    borderBottomWidth: 1,
+    gap: Spacing.lg,
   },
-  vehicleCopy: {
+  vehicleInfoWrap: {
     flex: 1,
   },
-  plateNumber: {
-    color: '#09101d',
+  vehicleModelText: {
     fontFamily: FontFamily.bold,
-    fontSize: 18,
-    marginBottom: 2,
+    fontSize: FontSize.lg,
   },
-  vehicleMeta: {
-    color: '#4f5e77',
+  vehicleColorText: {
     fontFamily: FontFamily.regular,
-    fontSize: 12,
+    fontSize: FontSize.sm,
+    marginTop: 1,
   },
-  vehicleRight: {
-    alignItems: 'flex-end',
-    justifyContent: 'center',
-    marginLeft: 12,
+  driverRatingInline: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+    gap: 3,
   },
-  vehicleImage: {
-    width: 88,
-    height: 40,
-    marginBottom: 4,
+  driverRatingText: {
+    fontFamily: FontFamily.semibold,
+    fontSize: FontSize.xs,
   },
-  vehicleSizePill: {
-    backgroundColor: '#3146ff',
-    borderRadius: 12,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-  },
-  vehicleSizeText: {
-    color: Colors.white,
-    fontFamily: FontFamily.bold,
-    fontSize: 9,
+  driverTripsText: {
+    fontFamily: FontFamily.regular,
+    fontSize: FontSize.xs,
   },
   driverRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-  },
-  driverInfo: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    flex: 1,
-  },
-  driverAvatarColumn: {
     alignItems: 'center',
-    marginRight: Spacing.sm,
+    justifyContent: 'space-between',
+    paddingVertical: Spacing.md,
   },
-  driverTextWrap: {
-    flex: 1,
-    paddingTop: 2,
-  },
-  driverName: {
-    color: '#09101d',
-    fontFamily: FontFamily.bold,
-    fontSize: 16,
-  },
-  driverBadge: {
-    marginTop: 2,
-    color: '#6b7a90',
-    fontFamily: FontFamily.regular,
-    fontSize: 12,
-  },
-  driverActions: {
+  driverInfoLeft: {
     flexDirection: 'row',
-    gap: 8,
-    marginLeft: 12,
-    paddingTop: 4,
+    alignItems: 'center',
+    gap: Spacing.md,
+    flex: 1,
   },
-  actionButton: {
+  driverNameWrap: {
+    flex: 1,
+  },
+  driverNameText: {
+    fontFamily: FontFamily.semibold,
+    fontSize: FontSize.md,
+  },
+  driverSubtitle: {
+    fontFamily: FontFamily.regular,
+    fontSize: FontSize.xs,
+    marginTop: 2,
+  },
+  driverActionsRight: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+  },
+  circleActionBtn: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#0a0c10',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  notificationDot: {
-    position: 'absolute',
-    right: 4,
-    top: 4,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#ff3b30',
-  },
-  ratingTag: {
+  actionPillsRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#fff6cf',
-    borderRadius: 9,
-    paddingHorizontal: 6,
-    paddingVertical: 3,
-    marginTop: 6,
+    gap: Spacing.sm,
+    marginVertical: Spacing.md,
   },
-  ratingTagText: {
-    color: '#775400',
-    fontFamily: FontFamily.bold,
-    fontSize: 11,
-  },
-  sectionDivider: {
-    height: 1,
-    backgroundColor: '#eef2f7',
-  },
-  routeDetailRow: {
-    flexDirection: 'row',
-  },
-  routeIconColumn: {
-    alignItems: 'center',
-    paddingTop: 6,
-    marginRight: Spacing.sm,
-  },
-  routePinOutline: {
-    width: 9,
-    height: 9,
-    borderRadius: 4.5,
-    borderWidth: 2,
-    borderColor: '#111111',
-    backgroundColor: Colors.white,
-  },
-  routeDashedLine: {
-    width: 1,
-    height: 34,
-    borderStyle: 'dashed',
-    borderWidth: 1,
-    borderColor: '#c5ccd8',
-    marginVertical: 4,
-  },
-  routePinSolid: {
-    width: 9,
-    height: 9,
-    borderRadius: 4.5,
-    backgroundColor: '#111111',
-  },
-  routeTextColumn: {
+  actionPill: {
     flex: 1,
-    gap: 8,
-  },
-  routeLineItem: {
-    paddingBottom: 0,
-  },
-  routeLabel: {
-    color: '#8b98aa',
-    fontFamily: FontFamily.regular,
-    fontSize: 11,
-    marginBottom: 1,
-  },
-  routeValue: {
-    color: '#09101d',
-    fontFamily: FontFamily.bold,
-    fontSize: 13,
-  },
-  paymentMethodRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    justifyContent: 'center',
+    paddingVertical: 10,
+    borderRadius: BorderRadius.lg,
+    gap: 6,
   },
-  paymentMethodImage: {
-    width: 22,
-    height: 22,
+  actionPillText: {
+    fontFamily: FontFamily.medium,
+    fontSize: FontSize.xs,
   },
-  endButton: {
-    backgroundColor: '#ff4747',
-    borderRadius: BorderRadius.full,
-    paddingVertical: 14,
+  fareCard: {
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.md,
+    marginVertical: Spacing.sm,
+  },
+  fareRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 12,
+    justifyContent: 'space-between',
   },
-  endButtonText: {
-    fontSize: FontSize.lg,
+  fareLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  paymentIcon: {
+    width: 24,
+    height: 24,
+  },
+  paymentMethodName: {
+    fontFamily: FontFamily.medium,
+    fontSize: FontSize.sm,
+  },
+  farePriceText: {
     fontFamily: FontFamily.bold,
-    color: Colors.white,
+    fontSize: FontSize.lg,
+  },
+  footerButtons: {
+    marginTop: Spacing.md,
+    gap: Spacing.sm,
+    alignItems: 'center',
+  },
+  cancelTripButton: {
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.lg,
+  },
+  cancelTripText: {
+    fontFamily: FontFamily.medium,
+    fontSize: FontSize.sm,
   },
 });

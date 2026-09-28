@@ -11,6 +11,8 @@ export interface PlaceSuggestion {
   placeId: string;
   title: string;
   subtitle: string;
+  /** Distancia en línea recta desde `distanceFrom`, si se pidió. */
+  distanceMeters?: number;
 }
 
 function normalizePlaceName(title: string, subtitle: string): string {
@@ -25,6 +27,7 @@ export async function autocompletePlaces(
   query: string,
   sessionToken: string,
   location?: Coordinates,
+  distanceFrom?: Coordinates,
 ): Promise<PlaceSuggestion[]> {
   const response = await axios.get(PLACES_AUTOCOMPLETE_URL, {
     params: {
@@ -39,6 +42,7 @@ export async function autocompletePlaces(
             radius: 10000,
           }
         : {}),
+      ...(distanceFrom ? { origin: `${distanceFrom.latitude},${distanceFrom.longitude}` } : {}),
     },
   });
 
@@ -50,6 +54,7 @@ export async function autocompletePlaces(
     placeId: prediction.place_id,
     title: prediction.structured_formatting?.main_text || prediction.description,
     subtitle: prediction.structured_formatting?.secondary_text || '',
+    distanceMeters: typeof prediction.distance_meters === 'number' ? prediction.distance_meters : undefined,
   }));
 }
 
@@ -69,7 +74,7 @@ export async function getPlaceDetails(placeId: string, sessionToken: string): Pr
   }
 
   const result = response.data.result;
-  const name = result.name || result.formatted_address || 'Ubicacion seleccionada';
+  const name = result.name || result.formatted_address || 'Ubicación seleccionada';
   const formatted = result.formatted_address || '';
 
   return {

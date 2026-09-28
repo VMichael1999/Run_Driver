@@ -21,7 +21,7 @@ export function SimpleDatePicker({ labelText, text, currentTime, minTime, maxTim
         label={labelText}
         value={text}
         placeholder="Seleccionar fecha"
-        onPress={() => Alert.alert('No disponible', 'El selector nativo de fecha no esta disponible en web.')}
+        onPress={() => Alert.alert('No disponible', 'El selector nativo de fecha no está disponible en web.')}
       />
     );
   }

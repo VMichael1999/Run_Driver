@@ -45,7 +45,7 @@ describe('usePromociones', () => {
 
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
-    let outcome: { ok: boolean } | null = null;
+    let outcome: { ok: boolean } | undefined;
     await act(async () => {
       outcome = await result.current.applyCoupon('OK10');
     });
@@ -71,7 +71,7 @@ describe('usePromociones', () => {
     });
 
     expect(result.current.appliedCoupon).toBeNull();
-    expect(result.current.error).toBe('El codigo no es valido.');
+    expect(result.current.error).toBe('El código no es válido.');
   });
 
   it('limpia el cupon aplicado con removeCoupon', async () => {

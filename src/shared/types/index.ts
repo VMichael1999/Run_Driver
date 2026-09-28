@@ -1,6 +1,6 @@
 export type UserRole = 'cliente' | 'conductor';
 
-export type PaymentMode = 'Efectivo' | 'Yape' | 'Plin' | 'Tunki';
+export type PaymentMode = 'Efectivo' | 'Yape' | 'Plin';
 
 export interface Coordinates {
   latitude: number;

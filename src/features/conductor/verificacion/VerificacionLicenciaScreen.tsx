@@ -19,7 +19,7 @@ export function VerificacionLicenciaScreen() {
     <View style={styles.container}>
       <BackAppBar title="Licencia de conducir" />
       <ScrollView contentContainerStyle={styles.content}>
-        <TextFormFieldCustom labelText="Numero licencia" placeholder="A123456789" maxLength={10} />
+        <TextFormFieldCustom labelText="Número de licencia" placeholder="A123456789" maxLength={10} />
         <SimpleDatePicker
           labelText="Fecha de expiracion"
           text={expiryDate ? expiryDate.toLocaleDateString('es-PE') : ''}

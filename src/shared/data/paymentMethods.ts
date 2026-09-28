@@ -13,19 +13,19 @@ export const PAYMENT_METHODS: readonly PaymentMethodOption[] = [
   {
     id: 'efectivo',
     label: 'Efectivo',
-    description: 'Paga directamente al conductor.',
+    description: 'Le pagas al conductor al llegar',
     image: require('../../../assets/payment/Efectivo.png'),
   },
   {
     id: 'yape',
     label: 'Yape',
-    description: 'Transferencia con tu numero o QR.',
+    description: 'Pago desde tu celular',
     image: require('../../../assets/payment/Yape.png'),
   },
   {
     id: 'plin',
     label: 'Plin',
-    description: 'Pago con Plin via numero o QR.',
+    description: 'Pago desde tu celular',
     image: require('../../../assets/payment/Plin.png'),
   },
 ];

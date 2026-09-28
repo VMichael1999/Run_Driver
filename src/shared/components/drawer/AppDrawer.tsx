@@ -11,7 +11,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import type { ClienteStackParamList } from '@navigation/types';
 import { Colors } from '@theme/colors';
@@ -41,7 +41,7 @@ interface AppDrawerProps {
 }
 
 const SECTION_LABELS: Record<DrawerSection, string> = {
-  main: 'Navegacion',
+  main: 'Navegación',
   wallet: 'Pagos y promociones',
   personal: 'Personales',
   preferences: 'Preferencias',
@@ -53,10 +53,10 @@ const DRAWER_OPTIONS: DrawerOption[] = [
   { id: 'home', icon: 'home-outline', label: 'Mapa', route: 'ClienteHome', section: 'main' },
   { id: 'trips', icon: 'time-outline', label: 'Mis viajes', route: 'HistorialViaje', section: 'main' },
   { id: 'schedule', icon: 'alarm-outline', label: 'Programar viaje', route: 'ProgramarViaje', section: 'main' },
-  { id: 'payment', icon: 'card-outline', label: 'Metodos de pago', route: 'MetodosPago', section: 'wallet' },
+  { id: 'payment', icon: 'card-outline', label: 'Métodos de pago', route: 'MetodosPago', section: 'wallet' },
   { id: 'promos', icon: 'pricetag-outline', label: 'Promociones', route: 'Promociones', section: 'wallet' },
   { id: 'favorites', icon: 'bookmark-outline', label: 'Direcciones favoritas', route: 'Favoritas', section: 'personal' },
-  { id: 'settings', icon: 'settings-outline', label: 'Configuracion', route: 'Configuracion', section: 'preferences' },
+  { id: 'settings', icon: 'settings-outline', label: 'Configuración', route: 'Configuracion', section: 'preferences' },
 ];
 
 const APP_VERSION: string = (appJson as { expo: { version: string } }).expo.version;
@@ -79,6 +79,8 @@ function groupBySection(options: DrawerOption[]): Array<[DrawerSection, DrawerOp
 
 export function AppDrawer({ visible, onClose, onNavigate, onLogout, phoneLabel }: AppDrawerProps) {
   const theme = useAppTheme();
+  // Dentro de un Modal, SafeAreaView de iOS no recibe los márgenes: se toman del proveedor de la app.
+  const insets = useSafeAreaInsets();
   const translateX = React.useRef(new Animated.Value(-DRAWER_WIDTH)).current;
   const backdropOpacity = React.useRef(new Animated.Value(0)).current;
   const [internalVisible, setInternalVisible] = React.useState<boolean>(visible);
@@ -134,14 +136,16 @@ export function AppDrawer({ visible, onClose, onNavigate, onLogout, phoneLabel }
     <Modal visible={internalVisible} transparent animationType="none" onRequestClose={onClose}>
       <View style={styles.root}>
         <Animated.View style={[styles.backdrop, { opacity: backdropOpacity }]}>
-          <Pressable style={StyleSheet.absoluteFillObject} onPress={onClose} />
+          <Pressable style={StyleSheet.absoluteFillObject} onPress={onClose} accessibilityRole="button" accessibilityLabel="Cerrar menú" />
         </Animated.View>
 
         <Animated.View style={[styles.panel, { backgroundColor: theme.drawer, transform: [{ translateX }] }]}>
-          <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
+          <View style={[styles.safeArea, { paddingTop: insets.top + 8, paddingBottom: insets.bottom + 8 }]}>
             <TouchableOpacity
               style={styles.profileSection}
               onPress={() => handleSelect('Perfil')}
+              accessibilityRole="button"
+              accessibilityLabel="Ver perfil"
               activeOpacity={0.85}
             >
               <View style={styles.avatarWrap}>
@@ -169,6 +173,8 @@ export function AppDrawer({ visible, onClose, onNavigate, onLogout, phoneLabel }
                       key={option.id}
                       style={styles.menuItem}
                       onPress={() => handleSelect(option.route)}
+                  accessibilityRole="button"
+                  accessibilityLabel={option.label}
                       activeOpacity={0.75}
                     >
                       <Ionicons name={option.icon} size={22} color={Colors.white} />
@@ -180,12 +186,12 @@ export function AppDrawer({ visible, onClose, onNavigate, onLogout, phoneLabel }
             </ScrollView>
 
             <View style={styles.divider} />
-            <TouchableOpacity style={styles.logoutButton} onPress={handleLogout} activeOpacity={0.8}>
-              <Ionicons name="log-out-outline" size={22} color="#ff6b6b" />
-              <Text style={styles.logoutText}>Cerrar sesion</Text>
+            <TouchableOpacity style={styles.logoutButton} onPress={handleLogout} activeOpacity={0.8} accessibilityRole="button">
+              <Ionicons name="log-out-outline" size={22} color={Colors.dangerOnDark} />
+              <Text style={styles.logoutText}>Cerrar sesión</Text>
             </TouchableOpacity>
             <Text style={styles.versionLabel}>Version {APP_VERSION}</Text>
-          </SafeAreaView>
+          </View>
         </Animated.View>
       </View>
     </Modal>
@@ -198,7 +204,7 @@ const styles = StyleSheet.create({
   },
   backdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.08)',
+    backgroundColor: Colors.scrimSoft,
   },
   panel: {
     position: 'absolute',
@@ -206,7 +212,6 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     width: DRAWER_WIDTH,
-    backgroundColor: '#1a2f4e',
   },
   safeArea: {
     flex: 1,
@@ -222,7 +227,7 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: Colors.onDarkLine,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -236,13 +241,13 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   profilePhone: {
-    color: 'rgba(255,255,255,0.7)',
+    color: Colors.onDarkHigh,
     fontFamily: FontFamily.regular,
     fontSize: FontSize.sm,
   },
   divider: {
     height: 1,
-    backgroundColor: 'rgba(255,255,255,0.15)',
+    backgroundColor: Colors.onDarkLine,
     marginVertical: Spacing.sm,
   },
   sectionsWrap: {
@@ -256,11 +261,9 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.md,
   },
   sectionLabel: {
-    color: 'rgba(255,255,255,0.5)',
+    color: Colors.onDarkMuted,
     fontFamily: FontFamily.bold,
     fontSize: FontSize.xs,
-    textTransform: 'uppercase',
-    letterSpacing: 0.6,
     paddingHorizontal: Spacing.md,
     marginBottom: Spacing.xs,
   },
@@ -286,12 +289,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
   },
   logoutText: {
-    color: '#ff6b6b',
+    color: Colors.dangerOnDark,
     fontFamily: FontFamily.bold,
     fontSize: FontSize.md,
   },
   versionLabel: {
-    color: 'rgba(255,255,255,0.5)',
+    color: Colors.onDarkMuted,
     fontFamily: FontFamily.regular,
     fontSize: FontSize.xs,
     textAlign: 'center',

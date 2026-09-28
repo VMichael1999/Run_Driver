@@ -30,7 +30,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   link: {
-    color: '#2563eb',
+    color: Colors.pickup,
     textDecorationLine: 'underline',
     fontFamily: FontFamily.bold,
   },

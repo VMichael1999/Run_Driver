@@ -3,6 +3,7 @@ import { View, Image, StyleSheet } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '@navigation/types';
+import { Colors } from '@theme/colors';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'Splash'>;
 
@@ -28,7 +29,7 @@ export function SplashScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0b0d12',
+    backgroundColor: Colors.splash,
     alignItems: 'center',
     justifyContent: 'center',
   },

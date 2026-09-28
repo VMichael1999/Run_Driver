@@ -1,3 +1,11 @@
 export { DriverOfferCard } from './DriverOfferCard';
 export { SearchingDriversUI } from './SearchingDriversUI';
-export { useAuctionSimulation } from '../hooks/useAuctionSimulation';
+export { TripNotesModal } from './TripNotesModal';
+export { TripScheduleModal } from './TripScheduleModal';
+export { AuctionFareSheet, getAuctionRange } from './AuctionFareSheet';
+export { AuctionPickupSheet } from './AuctionPickupSheet';
+export { ServiceSelectionSheet, useServiceSheetHeights } from './ServiceSelectionSheet';
+export type { VehicleServiceOption } from './ServiceSelectionSheet';
+export { AuctionOffersView } from './AuctionOffersView';
+export type { AuctionOfferItem } from './AuctionOffersView';
+export { useAuctionSimulation, SEARCH_WINDOW_SECONDS } from '../hooks/useAuctionSimulation';

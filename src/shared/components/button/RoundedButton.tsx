@@ -21,6 +21,9 @@ export function RoundedButton({ label, onPress, disabled, loading, variant = 'pr
     <TouchableOpacity
       onPress={onPress}
       disabled={isDisabled}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ disabled: isDisabled, busy: loading }}
       activeOpacity={0.75}
       style={[styles.base, styles[variant], isDisabled && styles.disabled, style]}
     >

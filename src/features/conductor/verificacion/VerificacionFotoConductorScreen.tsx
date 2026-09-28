@@ -13,11 +13,11 @@ export function VerificacionFotoConductorScreen() {
 
   return (
     <View style={styles.container}>
-      <BackAppBar title="Confirmacion foto conductor" />
+      <BackAppBar title="Confirmación foto conductor" />
       <ScrollView contentContainerStyle={styles.content}>
         <ImagePickerCard
           title="Foto del conductor"
-          subtitle="Muestre la licencia de conducir delante de usted y tome una foto nitida, con buena luz y sin accesorios que cubran el rostro."
+          subtitle="Muestre la licencia de conducir delante de usted y tome una foto nítida, con buena luz y sin accesorios que cubran el rostro."
           uri={imageUri}
           icon="camera-outline"
           onPress={async () => setImageUri(await pickImageAsync())}

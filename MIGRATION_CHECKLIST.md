@@ -5,9 +5,35 @@
 
 ---
 
-## Progreso general: ~40% migrado
+## Progreso general: ~90% migrado (Capa visual y flujo pasajero rediseñado al 100% en `feat/redesign-ui`)
 
 ---
+
+## 🎨 Rediseño UI/UX RunSubasta (Completado en `feat/redesign-ui`)
+- [x] **Fase 0 (Preparación):** Auditoría de dependencias, splash screen `#0B0B0C`, fuentes GeneralSans (Regular, Medium, Semibold, Bold).
+- [x] **Fase 1 (Design System & Tokens):** Paleta negro marca (`#111519`) y lima (`#D4E838`), tokens semánticos de dominio, `PlacaVehiculo` (`ABC-123`), `StatusPill`, `PriceStepper`, `AuctionProgressBar`, `AppButton`, `ComponentCatalogScreen`.
+- [x] **Fase 2 (Pantallas Pasajero):**
+  - [x] Pantalla 1 & 2: Splash y Onboarding (`SplashScreen.tsx`).
+  - [x] Pantalla 3: Inicio (`ClienteHomeScreen.tsx`) con baldosas diferenciadas (Viaje, Subasta, Programar), "¿A dónde vas?".
+  - [x] Pantalla 4: Búsqueda de dirección y mapa (`SearchAddressScreen.tsx`, `SelectAddressOnMapScreen.tsx`) con riel de paradas.
+  - [x] Pantalla 5, 6 y 7: Solicitud taxi y Subasta modular (`SolicitudTaxiScreen.tsx`, `ServiceSelectionSheet.tsx`, `AuctionFareSheet.tsx`, `AuctionOffersView.tsx`, `DriverOfferCard.tsx`).
+  - [x] Pantalla 8 & 9: Conductor en camino y En viaje noche (`TrayectoTaxiScreen.tsx`) con placa grande, auto rotado (`car_north.png` con bearing), mapa nocturno, SOS seguro y compartir viaje.
+  - [x] Pantalla 10: Calificar conductor (`CalificacionModal.tsx`) con confirmación de llegada, precio, 5 estrellas y chips de aspectos.
+  - [x] Pantalla 11 & 12: Métodos de pago (`MetodosPagoScreen.tsx`) y Promociones (`PromocionesScreen.tsx`) con porcentajes en lima y sin Tunki.
+  - [x] Favoritas (`FavoritasScreen.tsx`), Programar Viaje (`ProgramarViajeScreen.tsx`), Perfil (`PerfilScreen.tsx`).
+  - [x] Login (`LoginScreen.tsx`) y Verificación OTP (`LoginVerificacionScreen.tsx`).
+  - [x] Chat (`ChatScreen.tsx`), Historial (`HistorialViajeScreen.tsx`), Configuración (`ConfiguracionScreen.tsx`).
+- [x] **Limpieza post-rediseño:**
+  - [x] Sin `textTransform: 'uppercase'` ni letter-spacing en etiquetas.
+  - [x] Tunki eliminado de datos y del tipo `PaymentMode`.
+  - [x] Tildes corregidas en toda la UI (verificación, cupones, país, drawer).
+  - [x] 0 colores literales fuera de `src/theme`; tokens `scrim`, `onDark*`, `warning` propio.
+  - [x] 0 `fontSize` numéricos fuera de `src/theme` (excepto `PlacaVehiculo`, que replica la placa real); mínimo `FontSize['2xs']` = 11.
+  - [x] `accessibilityRole` en todos los elementos tocables.
+  - [x] `expo-splash-screen` mientras cargan las fuentes.
+  - [ ] Migrar `Animated`/`LayoutAnimation` a Reanimated y respetar `useReducedMotion()`.
+  - [ ] Alinear dependencias al SDK 54 (`npx expo install --check`).
+  - [ ] Registrar `ComponentCatalogScreen` en navegación solo en `__DEV__`.
 
 ## ✅ Ya migrado
 

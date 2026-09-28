@@ -17,7 +17,7 @@ export function VerificacionDocumentoScreen() {
     <View style={styles.container}>
       <BackAppBar title="Documento de identificacion" />
       <ScrollView contentContainerStyle={styles.content}>
-        <TextFormFieldCustom labelText="Numero documento" placeholder="12345678" keyboardType="number-pad" maxLength={11} />
+        <TextFormFieldCustom labelText="Número de documento" placeholder="12345678" keyboardType="number-pad" maxLength={11} />
         <ImagePickerCard title="Documento de identificacion (anverso)" uri={frontUri} icon="document-text-outline" onPress={async () => setFrontUri(await pickImageAsync())} />
         <ImagePickerCard title="Documento de identificacion (reverso)" uri={backUri} icon="document-outline" onPress={async () => setBackUri(await pickImageAsync())} />
         <RoundedButton label="Siguiente" onPress={() => Alert.alert('Listo', 'Paso completado en modo demo.')} />

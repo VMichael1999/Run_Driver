@@ -18,7 +18,7 @@ export function SimpleYearPicker({ labelText, text, currentDate, minDate, maxDat
     const fallbackYear = currentDate?.getFullYear() ?? maxYear;
     Alert.alert(
       'Anio de fabricacion',
-      `Rango disponible: ${minYear} - ${maxYear}. Se seleccionara ${fallbackYear} como valor demo.`,
+      `Rango disponible: ${minYear} - ${maxYear}. Se seleccionará ${fallbackYear} como valor demo.`,
       [{ text: 'Aceptar', onPress: () => onConfirm(new Date(fallbackYear, 0, 1)) }],
     );
   };

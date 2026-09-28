@@ -1,27 +1,74 @@
 export const Colors = {
-  primary: '#001f3f',
-  secondary: '#000289',
-  tertiary: '#0003c7',
+  // Brand & Action
+  primary: '#111519',
+  secondary: '#15191D',
+  tertiary: '#262D34',
+  accent: '#5A6900',
+  accentLime: '#D4E838',
+  onAccentLime: '#111519',
 
-  backgroundLight: '#eeeeee',
-  backgroundItemLight: '#fefefe',
-  backgroundDark: '#000000',
-  backgroundItemDark: '#2a2e32',
+  // Surfaces & Backgrounds
+  backgroundLight: '#EDF0F2',
+  backgroundItemLight: '#FFFFFF',
+  backgroundDark: '#0E1114',
+  backgroundItemDark: '#171C21',
 
+  // Monochromes
   white: '#ffffff',
   black: '#000000',
   transparent: 'transparent',
 
-  textPrimary: '#1a1a1a',
-  textSecondary: '#6b7280',
-  textDisabled: '#9ca3af',
+  // Typography
+  textPrimary: '#111519',
+  textSecondary: '#555E66',
+  textDisabled: '#A0A9B1',
 
-  error: '#ef4444',
-  success: '#22c55e',
-  warning: '#f59e0b',
+  // Semantics & Status
+  online: '#157A45',
+  onlineSoft: '#DCEFE3',
+  pickup: '#2458C6',
+  pickupSoft: '#E1E9F9',
+  danger: '#C8261B',
+  dangerSoft: '#FBE3E0',
+  cash: '#157A45',
+  cashSoft: '#DCEFE3',
 
-  divider: '#e5e7eb',
-  shadow: 'rgba(0, 0, 0, 0.1)',
+  // Colores semánticos del dominio (RunSubasta)
+  origin: '#157A45',
+  destination: '#2458C6',
+  auction: '#D4E838',
+  onAuction: '#111519',
+  offer: '#D4E838',
+  driverArriving: '#2458C6',
+  onTrip: '#157A45',
+  promo: '#D4E838',
+  sos: '#C8261B',
+
+  // Backward-compatibility aliases
+  error: '#C8261B',
+  success: '#157A45',
+  warning: '#B7791F',
+  warningSoft: '#FBEFD9',
+
+  // Superficies superpuestas
+  splash: '#0B0B0C',
+  scrim: 'rgba(5, 8, 10, 0.55)',
+  scrimSoft: 'rgba(5, 8, 10, 0.25)',
+  onDarkHigh: 'rgba(255, 255, 255, 0.7)',
+  onDarkMuted: 'rgba(255, 255, 255, 0.5)',
+  onDarkLine: 'rgba(255, 255, 255, 0.15)',
+  dangerOnDark: '#FF7A6E',
+  originHalo: 'rgba(21, 122, 69, 0.25)',
+  // Colores de los pines de mapa (location_origen / location_destino)
+  pinOrigin: '#43C6F0',
+  pinDestination: '#5FE3A1',
+  pinRing: '#0B0F3A',
+
+  // Peripherals & UI Elements
+  divider: '#D5DADF',
+  shadow: 'rgba(17, 21, 25, 0.14)',
+  star: '#E8A317',
+  plateBlue: '#1C4FA0',
 } as const;
 
 export type ColorKey = keyof typeof Colors;
@@ -29,35 +76,97 @@ export type ColorKey = keyof typeof Colors;
 export const ThemeColors = {
   light: {
     primary: Colors.primary,
-    accent: '#1d5fa8',
-    background: '#f4f7fb',
+    onPrimary: Colors.white,
+    sig: Colors.accentLime,
+    onSig: Colors.primary,
+    accent: '#1C4FA0',
+    background: '#EDF0F2',
     surface: Colors.white,
-    surfaceMuted: '#eef2f7',
-    surfaceSoft: '#eaf2ff',
-    drawer: '#1a2f4e',
+    surfaceMuted: '#F4F6F8',
+    surfaceSoft: '#E1E9F9',
+    drawer: '#111519',
     text: Colors.textPrimary,
     textMuted: Colors.textSecondary,
     textDisabled: Colors.textDisabled,
-    divider: '#edf2f7',
+    divider: '#D5DADF',
+    line: '#D5DADF',
     iconButton: Colors.white,
     shadow: Colors.shadow,
     statusBar: 'dark' as const,
+
+    // Status
+    online: Colors.online,
+    onlineSoft: Colors.onlineSoft,
+    pickup: Colors.pickup,
+    pickupSoft: Colors.pickupSoft,
+    danger: Colors.danger,
+    dangerSoft: Colors.dangerSoft,
+    cash: Colors.cash,
+    cashSoft: Colors.cashSoft,
+    warning: Colors.warning,
+    warningSoft: Colors.warningSoft,
+
+    // Colores semánticos del dominio
+    origin: '#157A45',
+    destination: '#2458C6',
+    auction: '#D4E838',
+    onAuction: '#111519',
+    offer: '#D4E838',
+    driverArriving: '#2458C6',
+    onTrip: '#157A45',
+    promo: '#D4E838',
+    sos: '#C8261B',
+
+    // Map & Route
+    route: '#111519',
+    routeCase: '#FFFFFF',
   },
   dark: {
-    primary: '#7DB7FF',
-    accent: '#5EA8FF',
-    background: '#121212',
-    surface: '#1E1E1E',
-    surfaceMuted: '#262626',
-    surfaceSoft: '#242424',
-    drawer: '#121212',
-    text: '#ffffff',
-    textMuted: 'rgba(255,255,255,0.7)',
-    textDisabled: 'rgba(255,255,255,0.38)',
-    divider: 'rgba(255,255,255,0.12)',
-    iconButton: '#1E1E1E',
-    shadow: 'rgba(0, 0, 0, 0.35)',
+    primary: Colors.accentLime,
+    onPrimary: Colors.primary,
+    sig: Colors.accentLime,
+    onSig: Colors.primary,
+    accent: Colors.accentLime,
+    background: '#0E1114',
+    surface: '#171C21',
+    surfaceMuted: '#20262D',
+    surfaceSoft: '#1A2640',
+    drawer: '#101418',
+    text: '#ECEFF1',
+    textMuted: '#A0A9B1',
+    textDisabled: 'rgba(236, 239, 241, 0.38)',
+    divider: '#29313A',
+    line: '#29313A',
+    iconButton: '#171C21',
+    shadow: 'rgba(0, 0, 0, 0.5)',
     statusBar: 'light' as const,
+
+    // Status
+    online: '#3DCB7E',
+    onlineSoft: '#15301F',
+    pickup: '#8DB1F5',
+    pickupSoft: '#1A2640',
+    danger: '#FF7A6E',
+    dangerSoft: '#3A1916',
+    cash: '#3DCB7E',
+    cashSoft: '#15301F',
+    warning: '#F2C14E',
+    warningSoft: '#3A2E10',
+
+    // Colores semánticos del dominio
+    origin: '#3DCB7E',
+    destination: '#8DB1F5',
+    auction: '#D4E838',
+    onAuction: '#111519',
+    offer: '#D4E838',
+    driverArriving: '#8DB1F5',
+    onTrip: '#3DCB7E',
+    promo: '#D4E838',
+    sos: '#FF7A6E',
+
+    // Map & Route
+    route: '#D4E838',
+    routeCase: '#101519',
   },
 } as const;
 

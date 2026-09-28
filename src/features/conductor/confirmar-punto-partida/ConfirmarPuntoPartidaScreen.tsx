@@ -7,7 +7,8 @@ import {
   Animated,
   ActivityIndicator,
 } from 'react-native';
-import MapView, { Polyline, PROVIDER_GOOGLE, type Region } from 'react-native-maps';
+import MapView, { PROVIDER_GOOGLE, type Region } from 'react-native-maps';
+import { RoutePolyline } from '@shared/components/map/RoutePolyline';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -114,11 +115,7 @@ export function ConfirmarPuntoPartidaScreen({ route, navigation }: Props) {
           showsMyLocationButton={false}
         >
           {routePoints.length >= 2 && (
-            <Polyline
-              coordinates={routePoints}
-              strokeColor={theme.accent}
-              strokeWidth={4}
-            />
+            <RoutePolyline coordinates={routePoints} />
           )}
         </MapView>
 
@@ -131,10 +128,10 @@ export function ConfirmarPuntoPartidaScreen({ route, navigation }: Props) {
         </View>
 
         <View style={[styles.fabColumn, { top: insets.top + Spacing.md }]}>
-          <TouchableOpacity style={[styles.fabButton, { backgroundColor: theme.surface }]} onPress={() => void handleRecenter()}>
+          <TouchableOpacity style={[styles.fabButton, { backgroundColor: theme.surface }]} onPress={() => void handleRecenter()} accessibilityRole="button" accessibilityLabel="Actualizar ubicación">
             <Ionicons name="refresh" size={20} color={theme.text} />
           </TouchableOpacity>
-          <TouchableOpacity style={[styles.fabButton, { backgroundColor: theme.surface }]}>
+          <TouchableOpacity style={[styles.fabButton, { backgroundColor: theme.surface }]} accessibilityRole="button" accessibilityLabel="Más opciones">
             <Ionicons name="ellipsis-horizontal" size={20} color={theme.text} />
           </TouchableOpacity>
         </View>
@@ -150,10 +147,10 @@ export function ConfirmarPuntoPartidaScreen({ route, navigation }: Props) {
 
       <View style={[styles.panel, { paddingBottom: insets.bottom + Spacing.md, backgroundColor: theme.surface }]}>
         <View style={styles.panelTopRow}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton} accessibilityRole="button" accessibilityLabel="Volver">
             <Ionicons name="arrow-back" size={22} color={theme.text} />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.gpsButton} onPress={() => void handleRecenter()}>
+          <TouchableOpacity style={styles.gpsButton} onPress={() => void handleRecenter()} accessibilityRole="button" accessibilityLabel="Centrar en mi ubicación">
             <Ionicons name="locate-outline" size={22} color={theme.accent} />
           </TouchableOpacity>
         </View>
@@ -168,9 +165,11 @@ export function ConfirmarPuntoPartidaScreen({ route, navigation }: Props) {
           onPress={() => void handleConfirm()}
           activeOpacity={0.88}
           disabled={isConfirming}
+          accessibilityRole="button"
+          accessibilityLabel="Confirmar punto de origen"
         >
           <Text style={styles.confirmButtonText}>
-            {isConfirming ? 'CONFIRMANDO...' : 'CONFIRMAR'}
+            {isConfirming ? 'Confirmando...' : 'Confirmar origen'}
           </Text>
         </TouchableOpacity>
       </View>
@@ -202,7 +201,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    shadowColor: '#000',
+    shadowColor: Colors.black,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.12,
     shadowRadius: 4,
@@ -284,7 +283,6 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.lg,
   },
   confirmButton: {
-    backgroundColor: '#1d5fa8',
     borderRadius: BorderRadius.full,
     paddingVertical: 16,
     alignItems: 'center',
@@ -298,6 +296,5 @@ const styles = StyleSheet.create({
     color: Colors.white,
     fontFamily: FontFamily.bold,
     fontSize: FontSize.md,
-    letterSpacing: 0.5,
   },
 });

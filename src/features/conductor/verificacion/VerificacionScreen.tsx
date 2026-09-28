@@ -23,7 +23,7 @@ export function VerificacionScreen() {
 
   return (
     <View style={[styles.container, { paddingBottom: insets.bottom }]}>
-      <BackAppBar title="Verificacion" />
+      <BackAppBar title="Verificación" />
 
       <View style={styles.progress}>
         <Text style={styles.progressText}>
@@ -42,6 +42,9 @@ export function VerificacionScreen() {
           <TouchableOpacity
             style={styles.stepCard}
             activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel={item.value}
+            accessibilityState={{ checked: completedRoutes.includes(item.route) }}
             onPress={() => {
               navigation.navigate(item.route);
               setCompletedRoutes((prev) => (prev.includes(item.route) ? prev : [...prev, item.route]));
