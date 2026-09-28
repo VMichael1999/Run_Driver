@@ -4,8 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { TripHistoryCard } from './components/TripHistoryCard';
-import { MOCK_TRIP_HISTORY } from './data/mockHistory';
-import { useTripHistoryStore } from '@store/useTripHistoryStore';
+import { useTripHistory } from './hooks/useTripHistory';
 import { Colors } from '@theme/colors';
 import { useAppTheme } from '@theme/useAppTheme';
 import { FontFamily, FontSize } from '@theme/fonts';
@@ -15,8 +14,7 @@ export function HistorialViajeScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
   const theme = useAppTheme();
-  const trips = useTripHistoryStore((state) => state.trips);
-  const historyItems = React.useMemo(() => [...trips, ...MOCK_TRIP_HISTORY], [trips]);
+  const historyItems = useTripHistory();
 
   return (
     <View style={[styles.container, { paddingBottom: insets.bottom, backgroundColor: theme.background }]}>

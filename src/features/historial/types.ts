@@ -1,4 +1,4 @@
-import type { TripDiscount } from '@shared/types';
+import type { Coordinates, PaymentMode, TripDiscount } from '@shared/types';
 
 export type TripStatus = 'completed' | 'cancelled' | 'in_progress';
 
@@ -15,6 +15,19 @@ export interface TripStop {
   address: string;
 }
 
+export interface TripVehicle {
+  model: string;
+  color: string;
+  plate: string;
+}
+
+export interface TripRoute {
+  origin: Coordinates;
+  destination: Coordinates;
+  /** Puntos de la ruta trazada; vacío si no se guardó. */
+  points: Coordinates[];
+}
+
 export interface TripHistoryItem {
   id: string;
   date: Date;
@@ -29,4 +42,8 @@ export interface TripHistoryItem {
   /** Tarifa del conductor antes del descuento; solo si hubo descuento. */
   originalPrice?: number;
   discount?: TripDiscount | null;
+  /** Datos para el detalle; los viajes antiguos pueden no tenerlos. */
+  vehicle?: TripVehicle;
+  paymentMode?: PaymentMode;
+  route?: TripRoute;
 }
