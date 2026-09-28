@@ -30,6 +30,7 @@ import { useThemeStore } from '@store/useThemeStore';
 import { CalificacionModal, type Calificacion } from '@shared/components/card/CalificacionModal';
 import { UserNetworkAvatar } from '@shared/components/avatar/UserNetworkAvatar';
 import { PlacaVehiculo } from '@shared/components/ui/PlacaVehiculo';
+import { VehiculoIlustracion } from '@shared/components/ui/VehiculoIlustracion';
 import { AppButton } from '@shared/components/ui/AppButton';
 import { LegacyImages } from '@shared/assets/legacyAssets';
 import { calculateBearing } from '@shared/utils/mapUtils';
@@ -502,15 +503,21 @@ export function TrayectoTaxiScreen() {
           contentContainerStyle={styles.panelScrollContent}
           showsVerticalScrollIndicator={false}
         >
-          {/* Identificación del auto: PLACA GRANDE (ABC-123) */}
-          <View style={[styles.vehicleSection, { borderBottomColor: theme.divider }]}>
+          {/* Identificación del auto: dibujo con su color, placa grande (ABC-123) y modelo, centrados */}
+          <View
+            style={[styles.vehicleSection, { borderBottomColor: theme.divider }]}
+            accessible
+            accessibilityLabel={`Tu auto: ${driver.vehicleModel} color ${driver.vehicleColor.toLowerCase()}, placa ${driver.vehiclePlate}. Calificación ${driver.rating.toFixed(1)}`}
+          >
+            <VehiculoIlustracion color={driver.vehicleColor} plate={driver.vehiclePlate} width={184} />
             <PlacaVehiculo plate={driver.vehiclePlate} size="lg" />
             <View style={styles.vehicleInfoWrap}>
               <Text style={[styles.vehicleModelText, { color: theme.text }]} numberOfLines={1}>
                 {driver.vehicleModel}
-              </Text>
-              <Text style={[styles.vehicleColorText, { color: theme.textMuted }]}>
-                Color {driver.vehicleColor.toLowerCase()}
+                <Text style={[styles.vehicleColorText, { color: theme.textMuted }]}>
+                  {' · '}
+                  {driver.vehicleColor.toLowerCase()}
+                </Text>
               </Text>
               <View style={styles.driverRatingInline}>
                 <Ionicons name="star" size={13} color={Colors.star} />
@@ -854,14 +861,15 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.xl,
   },
   vehicleSection: {
-    flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: Spacing.md,
+    paddingTop: Spacing.xs,
+    paddingBottom: Spacing.md,
     borderBottomWidth: 1,
-    gap: Spacing.lg,
+    gap: Spacing.sm,
   },
   vehicleInfoWrap: {
-    flex: 1,
+    alignItems: 'center',
+    gap: 2,
   },
   vehicleModelText: {
     fontFamily: FontFamily.bold,
@@ -869,8 +877,7 @@ const styles = StyleSheet.create({
   },
   vehicleColorText: {
     fontFamily: FontFamily.regular,
-    fontSize: FontSize.sm,
-    marginTop: 1,
+    fontSize: FontSize.md,
   },
   driverRatingInline: {
     flexDirection: 'row',
