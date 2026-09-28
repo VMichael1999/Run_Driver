@@ -5,9 +5,24 @@
 
 ---
 
-## Progreso general: ~40% migrado
+## Progreso general: ~90% migrado (Capa visual y flujo pasajero rediseñado al 100% en `feat/redesign-ui`)
 
 ---
+
+## 🎨 Rediseño UI/UX RunSubasta (Completado en `feat/redesign-ui`)
+- [x] **Fase 0 (Preparación):** Auditoría de dependencias, splash screen `#0B0B0C`, fuentes GeneralSans (Regular, Medium, Semibold, Bold).
+- [x] **Fase 1 (Design System & Tokens):** Paleta negro marca (`#111519`) y lima (`#D4E838`), tokens semánticos de dominio, `PlacaVehiculo` (`ABC-123`), `StatusPill`, `PriceStepper`, `AuctionProgressBar`, `AppButton`, `ComponentCatalogScreen`.
+- [x] **Fase 2 (Pantallas Pasajero):**
+  - [x] Pantalla 1 & 2: Splash y Onboarding (`SplashScreen.tsx`).
+  - [x] Pantalla 3: Inicio (`ClienteHomeScreen.tsx`) con baldosas diferenciadas (Viaje, Subasta, Programar), "¿A dónde vas?".
+  - [x] Pantalla 4: Búsqueda de dirección y mapa (`SearchAddressScreen.tsx`, `SelectAddressOnMapScreen.tsx`) con riel de paradas.
+  - [x] Pantalla 5, 6 y 7: Solicitud taxi y Subasta modular (`SolicitudTaxiScreen.tsx`, `ServiceSelectionSheet.tsx`, `AuctionFareSheet.tsx`, `AuctionOffersView.tsx`, `DriverOfferCard.tsx`).
+  - [x] Pantalla 8 & 9: Conductor en camino y En viaje noche (`TrayectoTaxiScreen.tsx`) con placa grande, auto rotado (`car_north.png` con bearing), mapa nocturno, SOS seguro y compartir viaje.
+  - [x] Pantalla 10: Calificar conductor (`CalificacionModal.tsx`) con confirmación de llegada, precio, 5 estrellas y chips de aspectos.
+  - [x] Pantalla 11 & 12: Métodos de pago (`MetodosPagoScreen.tsx`) y Promociones (`PromocionesScreen.tsx`) con porcentajes en lima y sin Tunki.
+  - [x] Favoritas (`FavoritasScreen.tsx`), Programar Viaje (`ProgramarViajeScreen.tsx`), Perfil (`PerfilScreen.tsx`).
+  - [x] Login (`LoginScreen.tsx`) y Verificación OTP (`LoginVerificacionScreen.tsx`).
+  - [x] Chat (`ChatScreen.tsx`), Historial (`HistorialViajeScreen.tsx`), Configuración (`ConfiguracionScreen.tsx`).
 
 ## ✅ Ya migrado
 
