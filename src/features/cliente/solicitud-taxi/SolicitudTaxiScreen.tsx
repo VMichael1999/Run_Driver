@@ -28,7 +28,6 @@ import { getPlaceNameFromCoordinates } from '@shared/utils/locationUtils';
 import {
   ServiceSelectionSheet,
   useServiceSheetHeights,
-  type VehicleServiceOption,
   AuctionFareSheet,
   getAuctionRange,
   AuctionOffersView,
@@ -41,6 +40,7 @@ import {
   SEARCH_WINDOW_SECONDS,
 } from './components';
 import { MAX_EXTRA_STOPS, buildTaxiRequest, routeKey, tripDistanceKm } from './utils/routeRequest';
+import { VEHICLE_SERVICES } from './data/services';
 
 type Nav = NativeStackNavigationProp<ClienteStackParamList, 'SolicitudTaxi'>;
 
@@ -62,80 +62,6 @@ const LIMA_REGION: Region = {
   latitudeDelta: 0.05,
   longitudeDelta: 0.05,
 };
-
-const VEHICLE_SERVICES: VehicleServiceOption[] = [
-  {
-    id: 'subasta',
-    name: 'Subasta',
-    subtitle: 'Tú propones el precio',
-    price: 0,
-    currency: 'S/',
-    etaMinutes: 4,
-    seats: 4,
-    image: require('../../../../assets/servicios/recorte/subasta.png'),
-    isAuction: true,
-  },
-  {
-    id: 'xlcab_go',
-    name: 'XLCAB GO',
-    subtitle: 'Rápido y económico',
-    price: 25.5,
-    currency: 'S/',
-    etaMinutes: 4,
-    seats: 4,
-    image: require('../../../../assets/servicios/recorte/xlcab-go.png'),
-  },
-  {
-    id: 'confort',
-    name: 'Confort',
-    subtitle: 'Autos nuevos con aire acondicionado',
-    price: 35.0,
-    currency: 'S/',
-    etaMinutes: 5,
-    seats: 4,
-    image: require('../../../../assets/servicios/recorte/confort.png'),
-  },
-  {
-    id: 'premium',
-    name: 'Premium',
-    subtitle: 'Sedanes ejecutivos de alta gama',
-    price: 54.0,
-    currency: 'S/',
-    etaMinutes: 8,
-    seats: 4,
-    image: require('../../../../assets/servicios/recorte/premium.png'),
-  },
-  {
-    id: 'xl',
-    name: 'XL',
-    subtitle: 'Camionetas y vans familiares',
-    price: 64.0,
-    currency: 'S/',
-    etaMinutes: 10,
-    seats: 6,
-    image: require('../../../../assets/servicios/recorte/xl.png'),
-  },
-  {
-    id: 'pet',
-    name: 'Pet',
-    subtitle: 'Viaja seguro con tu mascota',
-    price: 48.0,
-    currency: 'S/',
-    etaMinutes: 7,
-    seats: 4,
-    image: require('../../../../assets/servicios/recorte/pet.png'),
-  },
-  {
-    id: 'espera_ahorra',
-    name: 'Espera y Ahorra',
-    subtitle: 'Tarifa reducida esperando unos minutos más',
-    price: 42.0,
-    currency: 'S/',
-    etaMinutes: 6,
-    seats: 4,
-    image: require('../../../../assets/servicios/recorte/espera-ahorra.png'),
-  },
-];
 
 export function SolicitudTaxiScreen() {
   const navigation = useNavigation<Nav>();
