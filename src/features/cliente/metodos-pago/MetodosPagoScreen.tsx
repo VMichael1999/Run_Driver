@@ -1,168 +1,141 @@
 import React from 'react';
-import {
-  Image,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import type { ClienteStackParamList } from '@navigation/types';
+import type { PaymentMode } from '@shared/types';
 import { usePaymentSelectionStore } from '@store/usePaymentSelectionStore';
+import { useRideDraftStore } from '@store/useRideDraftStore';
 import { PAYMENT_METHODS, type PaymentMethodId } from '@shared/data/paymentMethods';
-import { AppHeader, AppScreen } from '@shared/components/ui';
-import { Colors } from '@theme/colors';
+import { PageHeader } from '@shared/components/ui/PageHeader';
 import { useAppTheme } from '@theme/useAppTheme';
 import { FontFamily, FontSize } from '@theme/fonts';
-import { BorderRadius, Spacing, Shadow } from '@theme/spacing';
+import { BorderRadius } from '@theme/spacing';
 
-export function MetodosPagoScreen() {
+type Props = NativeStackScreenProps<ClienteStackParamList, 'MetodosPago'>;
+
+const MODE_BY_ID: Record<PaymentMethodId, PaymentMode> = { efectivo: 'Efectivo', yape: 'Yape', plin: 'Plin' };
+const ID_BY_MODE: Record<PaymentMode, PaymentMethodId> = { Efectivo: 'efectivo', Yape: 'yape', Plin: 'plin' };
+
+export function MetodosPagoScreen({ navigation, route }: Props) {
   const insets = useSafeAreaInsets();
   const theme = useAppTheme();
-  const selectedId = usePaymentSelectionStore((s) => s.selectedId);
-  const setSelected = usePaymentSelectionStore((s) => s.setSelected);
+  const forRide = route.params?.forRide === true;
+
+  const preferredId = usePaymentSelectionStore((s) => s.selectedId);
+  const setPreferred = usePaymentSelectionStore((s) => s.setSelected);
+  const ridePayment = useRideDraftStore((s) => s.paymentMethod);
+  const setRidePayment = useRideDraftStore((s) => s.setPaymentMethod);
+
+  const selectedId = forRide ? ID_BY_MODE[ridePayment.mode] : preferredId;
 
   const handleSelect = (id: PaymentMethodId) => {
-    Haptics.selectionAsync();
-    setSelected(id);
+    void Haptics.selectionAsync();
+    if (forRide) {
+      // Desde la solicitud de viaje: se aplica al viaje y se vuelve a la lista de servicios.
+      setRidePayment({ ...ridePayment, mode: MODE_BY_ID[id] });
+      navigation.goBack();
+      return;
+    }
+    setPreferred(id);
   };
 
   return (
-    <AppScreen>
-      <AppHeader title="Métodos de pago" />
-
+    <View style={[styles.container, { backgroundColor: theme.background, paddingTop: insets.top }]}>
       <ScrollView
-        contentContainerStyle={[styles.scroll, { paddingBottom: insets.bottom + Spacing['2xl'] }]}
+        contentContainerStyle={[styles.pad, { paddingBottom: insets.bottom + 22 }]}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={[styles.subtitle, { color: theme.textMuted }]}>
-          El que elijas se usará en tus próximos viajes. Puedes cambiarlo antes de pedir.
+        <PageHeader title="Métodos de pago" onBack={() => navigation.goBack()} />
+
+        <Text style={[styles.lead, { color: theme.textMuted }]}>
+          {forRide
+            ? 'Elige cómo vas a pagar este viaje.'
+            : 'El que elijas se usará en tus próximos viajes. Puedes cambiarlo antes de pedir.'}
         </Text>
 
         <View
-          style={styles.cardBox}
+          style={[styles.cardBox, { backgroundColor: theme.surface, borderColor: theme.line }]}
           accessibilityRole="radiogroup"
-          accessibilityLabel="Opciones de métodos de pago"
+          accessibilityLabel="Métodos de pago"
         >
-          {PAYMENT_METHODS.map((method) => {
+          {PAYMENT_METHODS.map((method, index) => {
             const isSelected = selectedId === method.id;
-
             return (
               <TouchableOpacity
                 key={method.id}
+                style={[styles.pm, index > 0 && { borderTopWidth: 1, borderTopColor: theme.line }]}
                 onPress={() => handleSelect(method.id)}
                 activeOpacity={0.8}
-                style={[
-                  styles.paymentCard,
-                  {
-                    backgroundColor: theme.surface,
-                    borderColor: isSelected ? Colors.accentLime : theme.divider,
-                  },
-                  isSelected && styles.paymentCardSelected,
-                ]}
                 accessibilityRole="radio"
                 accessibilityState={{ checked: isSelected }}
-                accessibilityLabel={`${method.label}: ${method.description}${isSelected ? ', seleccionado' : ''}`}
+                accessibilityLabel={`${method.label}. ${method.description}`}
               >
-                <View style={[styles.iconContainer, { backgroundColor: theme.surfaceMuted }]}>
-                  <Image
-                    source={method.image}
-                    style={styles.paymentLogo}
-                    resizeMode="contain"
-                  />
+                <Image source={method.image} style={styles.logo} resizeMode="contain" />
+                <View style={styles.text}>
+                  <Text style={[styles.label, { color: theme.text }]}>{method.label}</Text>
+                  <Text style={[styles.description, { color: theme.textMuted }]}>{method.description}</Text>
                 </View>
-
-                <View style={styles.textContainer}>
-                  <Text style={[styles.methodTitle, { color: theme.text }]}>
-                    {method.label}
-                  </Text>
-                  <Text style={[styles.methodDescription, { color: theme.textMuted }]}>
-                    {method.description}
-                  </Text>
-                </View>
-
                 <View
                   style={[
-                    styles.radioIndicator,
-                    {
-                      borderColor: isSelected ? Colors.accentLime : theme.divider,
-                      backgroundColor: isSelected ? Colors.accentLime : 'transparent',
-                    },
+                    styles.radio,
+                    isSelected ? { borderWidth: 7, borderColor: theme.text } : { borderColor: theme.line },
                   ]}
-                >
-                  {isSelected && (
-                    <Ionicons name="checkmark" size={14} color={Colors.onAccentLime} />
-                  )}
-                </View>
+                />
               </TouchableOpacity>
             );
           })}
         </View>
       </ScrollView>
-    </AppScreen>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  scroll: {
-    paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.sm,
-  },
-  subtitle: {
-    fontFamily: FontFamily.regular,
-    fontSize: FontSize.sm,
-    lineHeight: 20,
-    marginBottom: Spacing.lg,
-  },
-  cardBox: {
-    gap: Spacing.md,
-  },
-  paymentCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: Spacing.md,
-    borderRadius: BorderRadius.xl,
-    borderWidth: 1.5,
-    gap: Spacing.md,
-    ...Shadow.sm,
-  },
-  paymentCardSelected: {
-    borderWidth: 2,
-    ...Shadow.raise,
-  },
-  iconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: BorderRadius.lg,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 6,
-  },
-  paymentLogo: {
-    width: '100%',
-    height: '100%',
-  },
-  textContainer: {
+  container: {
     flex: 1,
   },
-  methodTitle: {
-    fontFamily: FontFamily.bold,
-    fontSize: FontSize.md,
-    marginBottom: 2,
+  pad: {
+    paddingTop: 10,
+    paddingHorizontal: 18,
+    gap: 16,
   },
-  methodDescription: {
+  lead: {
     fontFamily: FontFamily.regular,
-    fontSize: FontSize.xs,
-    lineHeight: 16,
+    fontSize: FontSize.caption,
   },
-  radioIndicator: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    borderWidth: 2,
+  cardBox: {
+    borderRadius: BorderRadius.xl,
+    borderWidth: 1,
+  },
+  pm: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    gap: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+  },
+  logo: {
+    width: 44,
+    height: 44,
+    borderRadius: BorderRadius.md,
+  },
+  text: {
+    flex: 1,
+  },
+  label: {
+    fontFamily: FontFamily.semibold,
+    fontSize: FontSize.bodyLg,
+  },
+  description: {
+    fontFamily: FontFamily.regular,
+    fontSize: FontSize.caption,
+  },
+  radio: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 2,
   },
 });

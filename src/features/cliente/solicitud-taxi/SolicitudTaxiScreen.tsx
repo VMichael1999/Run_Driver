@@ -27,9 +27,9 @@ import {
   useServiceSheetHeights,
   type VehicleServiceOption,
   AuctionFareSheet,
+  getAuctionRange,
   AuctionOffersView,
   AuctionPickupSheet,
-  PaymentSelectionModal,
   TripNotesModal,
   TripScheduleModal,
   useAuctionSimulation,
@@ -133,7 +133,6 @@ export function SolicitudTaxiScreen() {
   const request = useTaxiStore((s) => s.request);
   const acceptOffer = useTaxiStore((s) => s.acceptOffer);
   const paymentMethod = useRideDraftStore((s) => s.paymentMethod);
-  const setPaymentMethod = useRideDraftStore((s) => s.setPaymentMethod);
   const tripNotes = useRideDraftStore((s) => s.comment);
   const setTripNotes = useRideDraftStore((s) => s.setComment);
 
@@ -148,7 +147,6 @@ export function SolicitudTaxiScreen() {
   const [isAuctionRequestMode, setIsAuctionRequestMode] = useState(false);
 
   // Modales
-  const [paymentModalVisible, setPaymentModalVisible] = useState(false);
   const [notesModalVisible, setNotesModalVisible] = useState(false);
   const [scheduleModalVisible, setScheduleModalVisible] = useState(false);
 
@@ -164,6 +162,12 @@ export function SolicitudTaxiScreen() {
     ? calculateDistance(request.origin.position, request.destination.position)
     : 6.1;
   const durationMin = Math.round(distanceKm * 2.8);
+  const auctionBaseFare = Math.round(distanceKm * 2.8 + 8);
+  const shortName = (placeName?: string) => placeName?.split(',')[0]?.trim() ?? '';
+  const auctionRouteLabel = request?.origin && request?.destination
+    ? `${shortName(request.origin.placeName)} → ${shortName(request.destination.placeName)}`
+    : undefined;
+  const openPaymentMethods = () => navigation.navigate('MetodosPago', { forRide: true });
 
   // Animación del pin en pickup mode
   const animatePin = useCallback((toValue: number) => {
@@ -206,6 +210,8 @@ export function SolicitudTaxiScreen() {
   const handleServiceSubmit = () => {
     const selected = VEHICLE_SERVICES.find((s) => s.id === selectedServiceId) ?? VEHICLE_SERVICES[0];
     if (selected.isAuction) {
+      // Empieza en el mínimo sugerido, donde los conductores suelen responder.
+      setAuctionFare(getAuctionRange(auctionBaseFare).suggestedMin);
       setAuctionFareVisible(true);
     } else {
       acceptOffer({
@@ -225,7 +231,9 @@ export function SolicitudTaxiScreen() {
     }
   };
 
-  // Confirmar tarifa en el modal de Subasta
+  const closeAuctionFare = useCallback(() => setAuctionFareVisible(false), []);
+
+  // Confirmar tarifa en la pantalla de Subasta
   const handleConfirmAuctionFare = (fare: number) => {
     setAuctionFare(fare);
     setAuctionFareVisible(false);
@@ -404,7 +412,7 @@ export function SolicitudTaxiScreen() {
           selectedId={selectedServiceId}
           onSelectService={setSelectedServiceId}
           paymentMethod={paymentMethod}
-          onOpenPayment={() => setPaymentModalVisible(true)}
+          onOpenPayment={openPaymentMethods}
           tripNotes={tripNotes}
           onOpenNotes={() => setNotesModalVisible(true)}
           distanceKm={distanceKm}
@@ -419,17 +427,14 @@ export function SolicitudTaxiScreen() {
       <AuctionFareSheet
         visible={auctionFareVisible}
         fare={auctionFare}
-        baseFare={Math.round(distanceKm * 2.8 + 8)}
+        baseFare={auctionBaseFare}
+        routeLabel={auctionRouteLabel}
+        routeDistance={`${distanceKm.toFixed(1)} km`}
+        paymentMode={paymentMethod.mode}
+        onOpenPayment={openPaymentMethods}
         onChangeFare={setAuctionFare}
         onConfirm={handleConfirmAuctionFare}
-        onClose={() => setAuctionFareVisible(false)}
-      />
-
-      <PaymentSelectionModal
-        visible={paymentModalVisible}
-        selectedMode={paymentMethod.mode}
-        onSelectMode={(mode) => setPaymentMethod({ ...paymentMethod, mode })}
-        onClose={() => setPaymentModalVisible(false)}
+        onClose={closeAuctionFare}
       />
 
       <TripNotesModal

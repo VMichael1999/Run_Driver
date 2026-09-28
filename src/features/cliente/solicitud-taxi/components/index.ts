@@ -4,7 +4,7 @@ export { PaymentSelectionModal } from './PaymentSelectionModal';
 export type { SupportedPaymentMode } from './PaymentSelectionModal';
 export { TripNotesModal } from './TripNotesModal';
 export { TripScheduleModal } from './TripScheduleModal';
-export { AuctionFareSheet } from './AuctionFareSheet';
+export { AuctionFareSheet, getAuctionRange } from './AuctionFareSheet';
 export { AuctionPickupSheet } from './AuctionPickupSheet';
 export { ServiceSelectionSheet, useServiceSheetHeights } from './ServiceSelectionSheet';
 export type { VehicleServiceOption } from './ServiceSelectionSheet';

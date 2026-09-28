@@ -18,6 +18,8 @@ export const FontSize = {
   body: 14.5,
   bodyLg: 15,
   lead: 17,
+  title: 22,
+  glyph: 26,
   sm: 14,
   md: 16,
   lg: 18,

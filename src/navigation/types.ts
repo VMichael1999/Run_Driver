@@ -27,7 +27,8 @@ export type ClienteStackParamList = {
   HistorialViaje: undefined;
   Configuracion: undefined;
   Perfil: undefined;
-  MetodosPago: undefined;
+  /** forRide: elige el método del viaje en curso y vuelve; sin él, cambia la preferencia. */
+  MetodosPago: { forRide?: boolean } | undefined;
   Promociones: undefined;
   Favoritas: undefined;
   ProgramarViaje: undefined;

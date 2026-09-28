@@ -11,6 +11,8 @@ export interface PriceStepperProps {
   max?: number;
   step?: number;
   currency?: string;
+  /** Decimales que se muestran (2 para montos como 24.00). */
+  decimals?: number;
   style?: StyleProp<ViewStyle>;
 }
 
@@ -21,6 +23,7 @@ export function PriceStepper({
   max = 100,
   step = 1,
   currency = 'S/',
+  decimals = 0,
   style,
 }: PriceStepperProps) {
   const theme = useAppTheme();
@@ -47,34 +50,34 @@ export function PriceStepper({
       <TouchableOpacity
         style={[
           styles.stepButton,
-          { borderColor: theme.line, backgroundColor: theme.surface },
+          { borderColor: theme.line },
           isMin && styles.buttonDisabled,
         ]}
         onPress={handleDecrement}
         disabled={isMin}
         activeOpacity={0.7}
         accessibilityRole="button"
-        accessibilityLabel={`Disminuir precio a ${Math.max(min, value - step)} Soles`}
+        accessibilityLabel={`Bajar a ${currency} ${Math.max(min, value - step).toFixed(decimals)}`}
       >
         <Text style={[styles.stepIcon, { color: theme.text }, isMin && { color: theme.textMuted }]}>−</Text>
       </TouchableOpacity>
 
-      <View style={styles.valueWrap}>
-        <Text style={[styles.currency, { color: theme.textMuted }]}>{currency}</Text>
-        <Text style={[styles.value, { color: theme.text }]}>{value.toFixed(0)}</Text>
+      <View style={styles.valueWrap} accessibilityLiveRegion="polite">
+        <Text style={[styles.currency, { color: theme.text }]}>{currency}</Text>
+        <Text style={[styles.value, { color: theme.text }]}>{value.toFixed(decimals)}</Text>
       </View>
 
       <TouchableOpacity
         style={[
           styles.stepButton,
-          { borderColor: theme.line, backgroundColor: theme.surface },
+          { borderColor: theme.line },
           isMax && styles.buttonDisabled,
         ]}
         onPress={handleIncrement}
         disabled={isMax}
         activeOpacity={0.7}
         accessibilityRole="button"
-        accessibilityLabel={`Aumentar precio a ${Math.min(max, value + step)} Soles`}
+        accessibilityLabel={`Subir a ${currency} ${Math.min(max, value + step).toFixed(decimals)}`}
       >
         <Text style={[styles.stepIcon, { color: theme.text }, isMax && { color: theme.textMuted }]}>+</Text>
       </TouchableOpacity>
@@ -87,8 +90,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    gap: 8,
     width: '100%',
-    paddingVertical: 12,
   },
   stepButton: {
     width: 56,
@@ -103,10 +106,13 @@ const styles = StyleSheet.create({
   },
   stepIcon: {
     fontFamily: FontFamily.medium,
-    fontSize: FontSize['3xl'],
-    lineHeight: 34,
+    fontSize: FontSize.glyph,
+    lineHeight: 30,
   },
+  // Ancho mínimo fijo: General Sans no tiene cifras tabulares y el número no debe saltar al cambiar.
   valueWrap: {
+    flex: 1,
+    minWidth: 150,
     flexDirection: 'row',
     alignItems: 'baseline',
     justifyContent: 'center',
@@ -114,12 +120,11 @@ const styles = StyleSheet.create({
   },
   currency: {
     fontFamily: FontFamily.semibold,
-    fontSize: FontSize['2xl'],
+    fontSize: FontSize.title,
   },
   value: {
     fontFamily: FontFamily.bold,
     fontSize: FontSize['6xl'],
-    letterSpacing: -1,
-    fontVariant: ['tabular-nums'],
+    letterSpacing: -1.4,
   },
 });
