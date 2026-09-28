@@ -15,7 +15,7 @@ import type { ClienteStackParamList } from '@navigation/types';
 import { useTaxiStore } from '@store/useTaxiStore';
 import { useThemeStore } from '@store/useThemeStore';
 import { AppIcon } from '@shared/components/ui/AppIcon';
-import { MapStyleLight, MapStyleNight } from '@theme/mapStyles';
+import { getMapStyle } from '@theme/mapStyles';
 import { useRideDraftStore } from '@store/useRideDraftStore';
 import { Colors } from '@theme/colors';
 import { useAppTheme } from '@theme/useAppTheme';
@@ -147,6 +147,7 @@ export function SolicitudTaxiScreen() {
   const [isAuctionPickupMode, setIsAuctionPickupMode] = useState(false);
   const [isAuctionRequestMode, setIsAuctionRequestMode] = useState(false);
   const [searchStartedAt, setSearchStartedAt] = useState(0);
+  const [autoAccept, setAutoAccept] = useState(false);
 
   // Modales
   const [notesModalVisible, setNotesModalVisible] = useState(false);
@@ -268,16 +269,17 @@ export function SolicitudTaxiScreen() {
   // Cancelar subasta
   const handleCancelAuction = () => {
     Alert.alert(
-      'Cancelar búsqueda',
-      '¿Deseas cancelar la subasta actual?',
+      'Cancelar solicitud',
+      '¿Quieres cancelar la solicitud? Se descartan las ofertas y el precio que cambiaste.',
       [
-        { text: 'Continuar buscando', style: 'cancel' },
+        { text: 'Seguir buscando', style: 'cancel' },
         {
-          text: 'Sí, cancelar',
+          text: 'Cancelar solicitud',
           style: 'destructive',
           onPress: () => {
             auction.reset();
             setIsAuctionRequestMode(false);
+            setAutoAccept(false);
             // Lo editado durante la búsqueda no se conserva: la próxima vez parte del precio base.
             setAuctionFare(getAuctionRange(auctionBaseFare).suggestedMin);
           },
@@ -296,6 +298,15 @@ export function SolicitudTaxiScreen() {
     navigation.replace('TrayectoTaxi');
   };
 
+  // Aceptación automática: la primera oferta que iguala exactamente el precio pedido se acepta sola.
+  useEffect(() => {
+    if (!autoAccept || !isAuctionRequestMode) return;
+    const match = auction.offers.find((o) => Math.abs(o.driver.price - auctionFare) < 0.01);
+    if (match) handleAcceptOffer(match.id);
+    // handleAcceptOffer se recrea en cada render; lo que dispara la revisión son las ofertas y el switch.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoAccept, auction.offers, auctionFare, isAuctionRequestMode]);
+
   return (
     <View style={[styles.root, { backgroundColor: theme.background }]}>
       {/* Mapa central con la ruta */}
@@ -303,15 +314,13 @@ export function SolicitudTaxiScreen() {
         ref={mapRef}
         style={StyleSheet.absoluteFillObject}
         provider={PROVIDER_GOOGLE}
-        customMapStyle={isDark ? MapStyleNight : MapStyleLight}
+        customMapStyle={getMapStyle(isDark)}
         // En modo recogida el pin fijo está en el centro de la pantalla, así que no se desplaza el centro del mapa.
         mapPadding={isAuctionPickupMode ? { top: 0, right: 0, bottom: 0, left: 0 } : { top: insets.top + 8, right: 0, bottom: sheetHeights.collapsed, left: 0 }}
         userInterfaceStyle={isDark ? 'dark' : 'light'}
         initialRegion={LIMA_REGION}
         showsUserLocation={false}
         showsMyLocationButton={false}
-        showsPointsOfInterest={false}
-        showsBuildings={false}
         showsCompass={false}
         toolbarEnabled={false}
         onRegionChange={() => {
@@ -415,6 +424,14 @@ export function SolicitudTaxiScreen() {
           onRejectOffer={auction.rejectOffer}
           onExpireOffer={auction.expireOffer}
           onRestartSearch={startAuctionSearch}
+          serviceName="Subasta"
+          serviceImage={VEHICLE_SERVICES[0].image}
+          originName={request?.origin.placeName ?? 'Tu ubicación'}
+          destinationName={request?.destination.placeName ?? ''}
+          paymentMode={paymentMethod.mode}
+          autoAccept={autoAccept}
+          onToggleAutoAccept={setAutoAccept}
+          onCancelRequest={handleCancelAuction}
         />
       ) : isAuctionPickupMode ? (
         <AuctionPickupSheet
@@ -486,7 +503,8 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.lg,
     alignItems: 'center',
     justifyContent: 'center',
-    zIndex: 15,
+    // Por encima de la capa de ofertas y su degradado.
+    zIndex: 40,
   },
   mapPin: {
     width: 28,

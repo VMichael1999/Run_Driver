@@ -1,27 +1,34 @@
 import React from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Image, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 import Animated, {
   Easing,
   FadeInDown,
   FadeOut,
   LinearTransition,
   cancelAnimation,
+  interpolate,
+  runOnJS,
   useAnimatedStyle,
   useReducedMotion,
   useSharedValue,
   withDelay,
   withRepeat,
   withSequence,
+  withSpring,
   withTiming,
 } from 'react-native-reanimated';
-import type { DriverAlert } from '@shared/types';
+import type { DriverAlert, PaymentMode } from '@shared/types';
+import { Colors } from '@theme/colors';
 import { useAppTheme } from '@theme/useAppTheme';
 import { FontFamily, FontSize } from '@theme/fonts';
 import { BorderRadius, Shadow } from '@theme/spacing';
 import { AppButton } from '@shared/components/ui/AppButton';
 import { AppIcon } from '@shared/components/ui/AppIcon';
+import { PaymentRow } from '@shared/components/ui/PaymentRow';
 import { DriverOfferCard } from './DriverOfferCard';
 import { CountdownButton } from './CountdownButton';
 
@@ -46,7 +53,21 @@ interface AuctionOffersViewProps {
   onExpireOffer: (offerId: string) => void;
   /** Reinicia la búsqueda con el precio indicado (mismo precio = volver a solicitar). */
   onRestartSearch: (fare: number) => void;
+  /** Datos de la solicitud que se muestran en el panel inferior. */
+  serviceName: string;
+  serviceImage: ReturnType<typeof require>;
+  originName: string;
+  destinationName: string;
+  /** Método con el que se lanzó la búsqueda; no se puede cambiar mientras se busca. */
+  paymentMode: PaymentMode;
+  /** Acepta sola la primera oferta que iguale el precio pedido. */
+  autoAccept: boolean;
+  onToggleAutoAccept: (value: boolean) => void;
+  /** Pide confirmación y cancela la solicitud. */
+  onCancelRequest: () => void;
 }
+
+const SPRING = { damping: 22, stiffness: 220, mass: 0.9 };
 
 const FARE_STEP = 0.5;
 
@@ -121,6 +142,14 @@ export function AuctionOffersView({
   onRejectOffer,
   onExpireOffer,
   onRestartSearch,
+  serviceName,
+  serviceImage,
+  originName,
+  destinationName,
+  paymentMode,
+  autoAccept,
+  onToggleAutoAccept,
+  onCancelRequest,
 }: AuctionOffersViewProps) {
   const theme = useAppTheme();
   const insets = useSafeAreaInsets();
@@ -152,6 +181,48 @@ export function AuctionOffersView({
     }
   };
 
+  // --- Panel inferior arrastrable: mínimo = precio, botón y aceptación automática; expandido = detalles.
+  const chrome = 10 + 4 + 12 + 18 + insets.bottom; // padding superior, handle, espacio, padding inferior
+  const [topHeight, setTopHeight] = React.useState(0);
+  const [fullHeight, setFullHeight] = React.useState(0);
+  const collapsed = chrome + topHeight;
+  const expanded = Math.max(collapsed, chrome + fullHeight);
+  const panelHeight = useSharedValue(0);
+  const dragStart = useSharedValue(0);
+  const [isExpanded, setIsExpanded] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!topHeight) return;
+    panelHeight.value = panelHeight.value === 0
+      ? (isExpanded ? expanded : collapsed)
+      : withSpring(isExpanded ? expanded : collapsed, SPRING);
+  }, [collapsed, expanded, isExpanded, topHeight, panelHeight]);
+
+  const snapTo = React.useCallback((toExpanded: boolean) => setIsExpanded(toExpanded), []);
+
+  const dragGesture = Gesture.Pan()
+    .onStart(() => {
+      dragStart.value = panelHeight.value;
+    })
+    .onUpdate((e) => {
+      panelHeight.value = Math.max(collapsed - 30, Math.min(expanded, dragStart.value - e.translationY));
+    })
+    .onEnd((e) => {
+      const toExpanded =
+        e.velocityY < -500 ? true : e.velocityY > 500 ? false : panelHeight.value > (collapsed + expanded) / 2;
+      panelHeight.value = withSpring(toExpanded ? expanded : collapsed, SPRING);
+      runOnJS(snapTo)(toExpanded);
+    });
+  const tapGesture = Gesture.Tap().onEnd(() => {
+    runOnJS(snapTo)(!isExpanded);
+  });
+
+  const panelStyle = useAnimatedStyle(() => (panelHeight.value > 0 ? { height: panelHeight.value } : {}));
+  // Los detalles aparecen a medida que se sube el panel.
+  const detailsStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(panelHeight.value, [collapsed, collapsed + 60], [0, 1], 'clamp'),
+  }));
+
   const count = offers.length;
   const title =
     count > 0
@@ -162,22 +233,26 @@ export function AuctionOffersView({
   const subtitle = `Tu precio: S/ ${requestedFare.toFixed(2)} · ${
     isSearching ? `sigues buscando 0:${String(secondsLeft).padStart(2, '0')}` : 'búsqueda en pausa'
   }`;
+  // Halo del color de la superficie para que el texto se lea sobre el mapa sin poner una tarjeta.
+  const halo = { textShadowColor: theme.surface, textShadowRadius: 8, textShadowOffset: { width: 0, height: 0 } };
 
   return (
     <View style={styles.overlay} pointerEvents="box-none">
-      <View
-        style={[
-          styles.header,
-          { marginTop: insets.top + 6, backgroundColor: theme.surface },
-          Shadow.raise,
-        ]}
-        accessibilityLiveRegion="polite"
-      >
+      {/* Degradado sin bordes detrás del encabezado: el texto se lee sobre el mapa sin usar una tarjeta. */}
+      <Svg style={styles.topFade} width="100%" height={insets.top + 230} pointerEvents="none">
+        <Defs>
+          <LinearGradient id="fade" x1="0" y1="0" x2="0" y2="1">
+            <Stop offset="0" stopColor={theme.background} stopOpacity={0.96} />
+            <Stop offset="0.7" stopColor={theme.background} stopOpacity={0.85} />
+            <Stop offset="1" stopColor={theme.background} stopOpacity={0} />
+          </LinearGradient>
+        </Defs>
+        <Rect x="0" y="0" width="100%" height="100%" fill="url(#fade)" />
+      </Svg>
+      <View style={[styles.searchTop, { marginTop: insets.top + 6 }]} pointerEvents="none" accessibilityLiveRegion="polite">
         <SearchPulse active={isSearching} />
-        <View style={styles.headerText}>
-          <Text style={[styles.title, { color: theme.text }]}>{title}</Text>
-          <Text style={[styles.subtitle, { color: theme.textMuted }]}>{subtitle}</Text>
-        </View>
+        <Text style={[styles.title, halo, { color: theme.text }]}>{title}</Text>
+        <Text style={[styles.subtitle, halo, { color: theme.text }]}>{subtitle}</Text>
       </View>
 
       <Animated.FlatList
@@ -202,61 +277,148 @@ export function AuctionOffersView({
         )}
       />
 
-      <View
-        style={[
-          styles.panel,
-          { backgroundColor: theme.surface, paddingBottom: 18 + insets.bottom },
-          Shadow.sheet,
-        ]}
-      >
-        <View style={styles.fareRow}>
-          <TouchableOpacity
-            style={[styles.stepButton, { borderColor: theme.line }, draftFare <= minFare && styles.stepDisabled]}
-            onPress={() => changeFare(-FARE_STEP)}
-            disabled={draftFare <= minFare}
-            accessibilityRole="button"
-            accessibilityLabel={`Bajar a S/ ${Math.max(minFare, draftFare - FARE_STEP).toFixed(2)}`}
+      <Animated.View style={[styles.panel, { backgroundColor: theme.surface }, Shadow.sheet, panelStyle]}>
+        <GestureDetector gesture={Gesture.Exclusive(dragGesture, tapGesture)}>
+          <View
+            style={styles.dragArea}
+            accessible
+            accessibilityRole="adjustable"
+            accessibilityLabel={isExpanded ? 'Ocultar detalles de la solicitud' : 'Ver detalles de la solicitud'}
+            accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]}
+            onAccessibilityAction={(e) => snapTo(e.nativeEvent.actionName === 'increment')}
           >
-            <Text style={[styles.stepGlyph, { color: theme.text }]}>−</Text>
-          </TouchableOpacity>
-          <View style={styles.fareCenter} accessibilityLiveRegion="polite">
-            <Text style={[styles.fareLabel, { color: theme.textMuted }]}>
-              {priceChanged ? 'Nuevo precio' : 'Tu precio'}
-            </Text>
-            <View style={styles.fareValueRow}>
-              <Text style={[styles.fareCurrency, { color: theme.text }]}>S/</Text>
-              <Text style={[styles.fareValue, { color: theme.text }]}>{draftFare.toFixed(2)}</Text>
-            </View>
+            <View style={[styles.handle, { backgroundColor: theme.line }]} />
           </View>
-          <TouchableOpacity
-            style={[styles.stepButton, { borderColor: theme.line }, draftFare >= maxFare && styles.stepDisabled]}
-            onPress={() => changeFare(FARE_STEP)}
-            disabled={draftFare >= maxFare}
-            accessibilityRole="button"
-            accessibilityLabel={`Subir a S/ ${Math.min(maxFare, draftFare + FARE_STEP).toFixed(2)}`}
-          >
-            <Text style={[styles.stepGlyph, { color: theme.text }]}>+</Text>
-          </TouchableOpacity>
-        </View>
+        </GestureDetector>
 
-        {priceChanged ? (
-          <AppButton label="Cambiar precio" onPress={() => onRestartSearch(draftFare)} />
-        ) : isSearching ? (
-          // Mientras dura la búsqueda, el botón muestra el tiempo que queda; se activa al cambiar el precio.
-          <CountdownButton
-            tone="neutral"
-            height={56}
-            label="Cambiar precio"
-            accessibilityLabel={`Cambiar precio. Ajusta el monto para activarlo. Quedan ${secondsLeft} segundos de búsqueda`}
-            onPress={() => {}}
-            disabled
-            startedAt={searchStartedAt}
-            durationMs={windowMs}
-          />
-        ) : (
-          <AppButton label="Volver a solicitar" onPress={() => onRestartSearch(draftFare)} />
-        )}
-      </View>
+        <View onLayout={(e) => setFullHeight(e.nativeEvent.layout.height)}>
+          <View style={styles.topSection} onLayout={(e) => setTopHeight(e.nativeEvent.layout.height)}>
+            <View style={styles.fareRow}>
+              <TouchableOpacity
+                style={[styles.stepButton, { borderColor: theme.line }, draftFare <= minFare && styles.stepDisabled]}
+                onPress={() => changeFare(-FARE_STEP)}
+                disabled={draftFare <= minFare}
+                accessibilityRole="button"
+                accessibilityLabel={`Bajar a S/ ${Math.max(minFare, draftFare - FARE_STEP).toFixed(2)}`}
+              >
+                <Text style={[styles.stepGlyph, { color: theme.text }]}>−</Text>
+              </TouchableOpacity>
+              <View style={styles.fareCenter} accessibilityLiveRegion="polite">
+                <Text style={[styles.fareLabel, { color: theme.textMuted }]}>
+                  {priceChanged ? 'Nuevo precio' : 'Tu precio'}
+                </Text>
+                <View style={styles.fareValueRow}>
+                  <Text style={[styles.fareCurrency, { color: theme.text }]}>S/</Text>
+                  <Text style={[styles.fareValue, { color: theme.text }]}>{draftFare.toFixed(2)}</Text>
+                </View>
+              </View>
+              <TouchableOpacity
+                style={[styles.stepButton, { borderColor: theme.line }, draftFare >= maxFare && styles.stepDisabled]}
+                onPress={() => changeFare(FARE_STEP)}
+                disabled={draftFare >= maxFare}
+                accessibilityRole="button"
+                accessibilityLabel={`Subir a S/ ${Math.min(maxFare, draftFare + FARE_STEP).toFixed(2)}`}
+              >
+                <Text style={[styles.stepGlyph, { color: theme.text }]}>+</Text>
+              </TouchableOpacity>
+            </View>
+
+            {priceChanged ? (
+              <AppButton label="Cambiar precio" onPress={() => onRestartSearch(draftFare)} />
+            ) : isSearching ? (
+              // Mientras dura la búsqueda, el botón muestra el tiempo que queda; se activa al cambiar el precio.
+              <CountdownButton
+                tone="neutral"
+                height={56}
+                label="Cambiar precio"
+                accessibilityLabel={`Cambiar precio. Ajusta el monto para activarlo. Quedan ${secondsLeft} segundos de búsqueda`}
+                onPress={() => {}}
+                disabled
+                startedAt={searchStartedAt}
+                durationMs={windowMs}
+              />
+            ) : (
+              <AppButton label="Volver a solicitar" onPress={() => onRestartSearch(draftFare)} />
+            )}
+
+            <TouchableOpacity
+              style={styles.switchRow}
+              onPress={() => onToggleAutoAccept(!autoAccept)}
+              activeOpacity={0.8}
+              accessibilityRole="switch"
+              accessibilityState={{ checked: autoAccept }}
+              accessibilityLabel="Aceptar automáticamente una oferta igual a tu precio"
+            >
+              <View style={styles.switchText}>
+                <Text style={[styles.switchTitle, { color: theme.text }]}>Aceptar automáticamente</Text>
+                <Text style={[styles.switchSubtitle, { color: theme.textMuted }]}>
+                  Si un conductor ofrece S/ {requestedFare.toFixed(2)}, se acepta solo
+                </Text>
+              </View>
+              <Switch
+                value={autoAccept}
+                onValueChange={onToggleAutoAccept}
+                trackColor={{ false: theme.line, true: theme.sig }}
+                thumbColor={Colors.white}
+                ios_backgroundColor={theme.line}
+                importantForAccessibility="no"
+                accessibilityElementsHidden
+              />
+            </TouchableOpacity>
+          </View>
+
+          <Animated.View style={[styles.details, { borderTopColor: theme.line }, detailsStyle]}>
+            <View style={styles.serviceRow}>
+              <Image source={serviceImage} style={styles.serviceImage} resizeMode="contain" />
+              <View style={styles.flex}>
+                <Text style={[styles.serviceName, { color: theme.text }]}>{serviceName}</Text>
+                <Text style={[styles.serviceMeta, { color: theme.textMuted }]}>
+                  Tú propones · S/ {requestedFare.toFixed(2)}
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.route}>
+              <View style={styles.rail}>
+                <View style={styles.railRing}>
+                  <View style={[styles.railDot, { backgroundColor: Colors.pinOrigin }]} />
+                </View>
+                <View style={[styles.railLine, { backgroundColor: theme.line }]} />
+                <View style={styles.railRing}>
+                  <View style={[styles.railDot, { backgroundColor: Colors.pinDestination }]} />
+                </View>
+              </View>
+              <View style={styles.routeText}>
+                <View>
+                  <Text style={[styles.routeLabel, { color: theme.textMuted }]}>Desde</Text>
+                  <Text style={[styles.routeValue, { color: theme.text }]} numberOfLines={1}>
+                    {originName}
+                  </Text>
+                </View>
+                <View>
+                  <Text style={[styles.routeLabel, { color: theme.textMuted }]}>Hacia</Text>
+                  <Text style={[styles.routeValue, { color: theme.text }]} numberOfLines={1}>
+                    {destinationName}
+                  </Text>
+                </View>
+              </View>
+            </View>
+
+            <PaymentRow mode={paymentMode} label={`Pagas con ${paymentMode}`} />
+
+            <TouchableOpacity
+              style={[styles.cancel, { borderColor: theme.line }]}
+              onPress={onCancelRequest}
+              activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityLabel="Cancelar solicitud"
+            >
+              <Text style={[styles.cancelText, { color: theme.danger }]}>Cancelar solicitud</Text>
+            </TouchableOpacity>
+          </Animated.View>
+        </View>
+        <View style={{ height: 18 + insets.bottom }} />
+      </Animated.View>
     </View>
   );
 }
@@ -266,47 +428,47 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     zIndex: 20,
   },
-  header: {
-    marginLeft: 64,
-    marginRight: 12,
-    borderRadius: BorderRadius.xl,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    flexDirection: 'row',
+  topFade: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+  },
+  // Como .search-top del diseño: ondas centradas y el texto debajo, sin tarjeta.
+  searchTop: {
     alignItems: 'center',
-    gap: 10,
+    gap: 8,
+    paddingHorizontal: 64,
   },
   pulse: {
-    width: 64,
-    height: 64,
+    width: 88,
+    height: 88,
     alignItems: 'center',
     justifyContent: 'center',
   },
   ring: {
     position: 'absolute',
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+    width: 88,
+    height: 88,
+    borderRadius: 44,
     borderWidth: 2,
   },
   bolt: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  headerText: {
-    flex: 1,
-    gap: 2,
   },
   title: {
     fontFamily: FontFamily.semibold,
     fontSize: FontSize.lead,
+    textAlign: 'center',
   },
   subtitle: {
-    fontFamily: FontFamily.regular,
+    marginTop: -6,
+    fontFamily: FontFamily.medium,
     fontSize: FontSize.caption,
+    textAlign: 'center',
   },
   list: {
     flex: 1,
@@ -318,8 +480,20 @@ const styles = StyleSheet.create({
   panel: {
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    paddingTop: 16,
     paddingHorizontal: 16,
+    overflow: 'hidden',
+  },
+  dragArea: {
+    paddingTop: 10,
+    paddingBottom: 12,
+    alignItems: 'center',
+  },
+  handle: {
+    width: 40,
+    height: 4,
+    borderRadius: 4,
+  },
+  topSection: {
     gap: 14,
   },
   fareRow: {
@@ -366,5 +540,97 @@ const styles = StyleSheet.create({
     fontFamily: FontFamily.bold,
     fontSize: FontSize['3xl'],
     letterSpacing: -0.9,
+  },
+  switchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  switchText: {
+    flex: 1,
+  },
+  switchTitle: {
+    fontFamily: FontFamily.semibold,
+    fontSize: FontSize.sm,
+  },
+  switchSubtitle: {
+    fontFamily: FontFamily.regular,
+    fontSize: FontSize.caption,
+  },
+  details: {
+    marginTop: 14,
+    paddingTop: 14,
+    borderTopWidth: 1,
+    gap: 14,
+  },
+  flex: {
+    flex: 1,
+  },
+  serviceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  serviceImage: {
+    width: 74,
+    height: 48,
+  },
+  serviceName: {
+    fontFamily: FontFamily.semibold,
+    fontSize: FontSize.bodyLg,
+  },
+  serviceMeta: {
+    fontFamily: FontFamily.regular,
+    fontSize: FontSize.xs,
+  },
+  route: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  rail: {
+    width: 16,
+    alignItems: 'center',
+    paddingVertical: 6,
+  },
+  railRing: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: Colors.pinRing,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  railDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  railLine: {
+    width: 2,
+    flex: 1,
+    marginVertical: 4,
+  },
+  routeText: {
+    flex: 1,
+    gap: 10,
+  },
+  routeLabel: {
+    fontFamily: FontFamily.medium,
+    fontSize: FontSize.xs,
+  },
+  routeValue: {
+    fontFamily: FontFamily.semibold,
+    fontSize: FontSize.body,
+  },
+  cancel: {
+    height: 48,
+    borderRadius: 13,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cancelText: {
+    fontFamily: FontFamily.semibold,
+    fontSize: FontSize.bodyLg,
   },
 });
