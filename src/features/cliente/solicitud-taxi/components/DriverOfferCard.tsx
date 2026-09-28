@@ -1,11 +1,20 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Image, Animated, ActivityIndicator } from 'react-native';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  Image,
+  Animated,
+  ActivityIndicator,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { DriverAlert } from '@shared/types';
 import { Colors } from '@theme/colors';
 import { useAppTheme } from '@theme/useAppTheme';
 import { FontFamily, FontSize } from '@theme/fonts';
 import { Spacing, BorderRadius, Shadow } from '@theme/spacing';
+import { PlacaVehiculo } from '@shared/components/ui/PlacaVehiculo';
 
 interface DriverOfferCardProps {
   driver: DriverAlert;
@@ -20,7 +29,7 @@ interface DriverOfferCardProps {
 
 export function DriverOfferCard({
   driver,
-  totalDurationSeconds = 10,
+  totalDurationSeconds = 12,
   offeredFare,
   onAccept,
   onReject,
@@ -31,10 +40,14 @@ export function DriverOfferCard({
   const [isAcceptLoading, setIsAcceptLoading] = useState(false);
   const [isRejectLoading, setIsRejectLoading] = useState(false);
   const [remainingSeconds, setRemainingSeconds] = useState(totalDurationSeconds);
-  const acceptProgress = useRef(new Animated.Value(1)).current;
+  const progressAnim = useRef(new Animated.Value(1)).current;
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const didExpireRef = useRef(false);
-  const showYourFare = Math.abs(driver.price - offeredFare) < 0.01;
+
+  const priceDiff = driver.price - offeredFare;
+  const isLower = priceDiff < -0.01;
+  const isHigher = priceDiff > 0.01;
+  const isSame = Math.abs(priceDiff) < 0.01;
 
   useEffect(() => {
     timerRef.current = setInterval(() => {
@@ -61,14 +74,14 @@ export function DriverOfferCard({
   }, [onExpired, remainingSeconds]);
 
   useEffect(() => {
-    Animated.timing(acceptProgress, {
-      toValue: remainingSeconds / totalDurationSeconds,
-      duration: 1000,
+    Animated.timing(progressAnim, {
+      toValue: Math.max(0, remainingSeconds / totalDurationSeconds),
+      duration: 950,
       useNativeDriver: false,
     }).start();
-  }, [acceptProgress, remainingSeconds, totalDurationSeconds]);
+  }, [progressAnim, remainingSeconds, totalDurationSeconds]);
 
-  const acceptProgressWidth = acceptProgress.interpolate({
+  const progressWidth = progressAnim.interpolate({
     inputRange: [0, 1],
     outputRange: ['0%', '100%'],
   });
@@ -77,7 +90,6 @@ export function DriverOfferCard({
     if (isAcceptLoading || isRejectLoading) return;
     setIsAcceptLoading(true);
     try {
-      await new Promise((resolve) => setTimeout(resolve, 320));
       await onAccept();
     } finally {
       setIsAcceptLoading(false);
@@ -95,79 +107,102 @@ export function DriverOfferCard({
   }, [onReject, isAcceptLoading, isRejectLoading]);
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.surface }]}>
-      <View style={styles.driverRow}>
-        <View style={styles.avatarWrap}>
-          <Image source={{ uri: driver.imageUrl }} style={styles.avatar} />
-        </View>
+    <View style={[styles.container, { backgroundColor: theme.surface, borderColor: theme.line }, Shadow.raise]}>
+      {/* Cabecera: Conductor, vehículo y precio */}
+      <View style={styles.topRow}>
+        <Image source={{ uri: driver.imageUrl }} style={styles.avatar} />
 
         <View style={styles.driverInfo}>
           <View style={styles.nameRow}>
-            <Text style={[styles.driverName, { color: theme.text }]}>{driver.driverName}</Text>
-            <View style={styles.ratingWrap}>
-              <Ionicons name="star" size={14} color="#f59e0b" />
-              <Text style={[styles.ratingText, { color: theme.textMuted }]}>{driver.rating.toFixed(1)}</Text>
+            <Text style={[styles.driverName, { color: theme.text }]} numberOfLines={1}>
+              {driver.driverName}
+            </Text>
+            <View style={styles.ratingBadge}>
+              <Ionicons name="star" size={13} color={Colors.star} />
+              <Text style={[styles.ratingText, { color: theme.text }]}>
+                {driver.rating.toFixed(1)}
+              </Text>
             </View>
           </View>
 
           <View style={styles.vehicleRow}>
-            <Ionicons name="car" size={14} color={theme.textMuted} />
-            <Text style={[styles.vehicleText, { color: theme.text }]}>
-              {driver.vehicleModel} - {driver.vehiclePlate}
+            <Text style={[styles.vehicleModel, { color: theme.textMuted }]} numberOfLines={1}>
+              {driver.vehicleModel}
             </Text>
+            <PlacaVehiculo plate={driver.vehiclePlate} size="sm" />
           </View>
         </View>
 
-        <View style={styles.etaColumn}>
-          <Text style={[styles.etaLabel, { color: theme.textMuted }]}>LLega en</Text>
-          <Text style={[styles.etaValue, { color: theme.text }]}>{driver.etaMinutes} min</Text>
+        <View style={styles.priceColumn}>
+          <Text style={[styles.priceValue, { color: theme.text }]}>
+            {driver.currency} {driver.price.toFixed(2)}
+          </Text>
+          {isSame ? (
+            <View style={[styles.diffBadge, { backgroundColor: theme.surfaceMuted }]}>
+              <Text style={[styles.diffText, { color: theme.textMuted }]}>Tu oferta</Text>
+            </View>
+          ) : isLower ? (
+            <View style={[styles.diffBadge, { backgroundColor: theme.onlineSoft }]}>
+              <Text style={[styles.diffText, { color: theme.online }]}>
+                −{driver.currency} {Math.abs(priceDiff).toFixed(0)}
+              </Text>
+            </View>
+          ) : isHigher ? (
+            <View style={[styles.diffBadge, { backgroundColor: theme.surfaceMuted }]}>
+              <Text style={[styles.diffText, { color: theme.textMuted }]}>
+                +{driver.currency} {priceDiff.toFixed(0)}
+              </Text>
+            </View>
+          ) : null}
         </View>
       </View>
 
-      <View style={styles.priceSection}>
-        <Text style={[styles.priceValue, { color: theme.text }]}>
-          {driver.currency} 
-          {driver.price.toFixed(2)}
+      {/* ETA y distancia */}
+      <View style={styles.metaRow}>
+        <Ionicons name="time-outline" size={14} color={theme.textMuted} />
+        <Text style={[styles.metaText, { color: theme.textMuted }]}>
+          Llega en {driver.etaMinutes} min ({driver.distanceKm.toFixed(1)} km)
         </Text>
-        {showYourFare ? (
-          <View style={styles.yourFarePill}>
-            <Text style={styles.yourFareText}>Tu tarifa</Text>
-          </View>
-        ) : null}
       </View>
 
-      <View style={styles.buttonsRow}>
+      {/* Barra regresiva de tiempo en Lima (#D4E838) */}
+      <View style={[styles.timerTrack, { backgroundColor: theme.line }]}>
+        <Animated.View style={[styles.timerBar, { width: progressWidth, backgroundColor: theme.sig }]} />
+      </View>
+
+      {/* Botones de acción */}
+      <View style={styles.actionsRow}>
         <TouchableOpacity
-          style={[styles.rejectButton, { backgroundColor: theme.surface, borderColor: theme.divider }, (isAcceptLoading || isRejectLoading) && styles.buttonDisabled]}
+          style={[styles.rejectBtn, { borderColor: theme.line, backgroundColor: theme.surface }]}
           onPress={handleReject}
           disabled={isAcceptLoading || isRejectLoading}
           activeOpacity={0.8}
+          accessible
+          accessibilityRole="button"
+          accessibilityLabel={`Rechazar oferta de ${driver.driverName}`}
         >
           {isRejectLoading ? (
-            <Ionicons name="hourglass" size={20} color="#94a3b8" />
+            <ActivityIndicator size="small" color={theme.textMuted} />
           ) : (
-            <Text style={[styles.rejectButtonText, { color: theme.text }]}>Rechazar</Text>
+            <Text style={[styles.rejectText, { color: theme.textMuted }]}>Rechazar</Text>
           )}
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[
-            styles.acceptButton,
-            { backgroundColor: theme.accent },
-            (isAcceptLoading || isRejectLoading) && styles.acceptButtonDisabled,
-          ]}
+          style={[styles.acceptBtn, { backgroundColor: theme.sig }]}
           onPress={handleAccept}
           disabled={isAcceptLoading || isRejectLoading}
-          activeOpacity={0.88}
+          activeOpacity={0.85}
+          accessible
+          accessibilityRole="button"
+          accessibilityLabel={`Aceptar oferta de ${driver.driverName} por ${driver.currency} ${driver.price.toFixed(2)}`}
         >
-          <Animated.View style={[styles.acceptProgressFill, { width: acceptProgressWidth, backgroundColor: 'rgba(255, 255, 255, 0.22)' }]} />
           {isAcceptLoading ? (
-            <View style={styles.acceptLoadingContent}>
-              <ActivityIndicator size="small" color={Colors.white} />
-              <Text style={styles.acceptButtonText}>Aceptando</Text>
-            </View>
+            <ActivityIndicator size="small" color={theme.onSig} />
           ) : (
-            <Text style={styles.acceptButtonText}>Aceptar</Text>
+            <Text style={[styles.acceptText, { color: theme.onSig }]}>
+              Aceptar por {driver.currency} {driver.price.toFixed(2)}
+            </Text>
           )}
         </TouchableOpacity>
       </View>
@@ -177,143 +212,118 @@ export function DriverOfferCard({
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: Colors.white,
-    borderRadius: 6,
+    borderRadius: BorderRadius.xl,
     padding: Spacing.md,
-    ...Shadow.md,
+    borderWidth: 1,
+    gap: Spacing.sm,
+    marginBottom: Spacing.sm,
   },
-  driverRow: {
+  topRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-  },
-  avatarWrap: {
-    marginRight: Spacing.md,
+    alignItems: 'center',
+    gap: Spacing.md,
   },
   avatar: {
-    width: 62,
-    height: 62,
-    borderRadius: 31,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
   },
   driverInfo: {
     flex: 1,
+    gap: 2,
   },
   nameRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 4,
+    gap: 6,
   },
   driverName: {
     fontFamily: FontFamily.bold,
-    fontSize: FontSize.lg,
-    color: '#1f2937',
-    marginRight: Spacing.xs,
+    fontSize: FontSize.md - 1,
   },
-  ratingWrap: {
+  ratingBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 2,
+    gap: 3,
   },
   ratingText: {
-    fontFamily: FontFamily.regular,
-    fontSize: FontSize.sm,
-    color: '#64748b',
+    fontFamily: FontFamily.semibold,
+    fontSize: FontSize.xs,
   },
   vehicleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 6,
   },
-  vehicleText: {
-    fontFamily: FontFamily.regular,
-    fontSize: FontSize.md,
-    color: '#1f2937',
-  },
-  etaColumn: {
-    alignItems: 'flex-end',
-  },
-  etaLabel: {
+  vehicleModel: {
     fontFamily: FontFamily.regular,
     fontSize: FontSize.xs,
-    color: '#94a3b8',
-    marginBottom: 2,
+    maxWidth: 90,
   },
-  etaValue: {
-    fontFamily: FontFamily.bold,
-    fontSize: FontSize.sm,
-    color: '#1f2937',
-  },
-  priceSection: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 4,
-    gap: Spacing.sm,
+  priceColumn: {
+    alignItems: 'flex-end',
+    gap: 2,
   },
   priceValue: {
     fontFamily: FontFamily.bold,
-    fontSize: 30,
-    color: '#111827',
-  },
-  yourFarePill: {
-    backgroundColor: '#111111',
-    borderRadius: 999,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: 5,
-  },
-  yourFareText: {
-    fontFamily: FontFamily.bold,
-    fontSize: FontSize.xs,
-    color: Colors.white,
-  },
-  buttonsRow: {
-    flexDirection: 'row',
-    marginTop: Spacing.md,
-    gap: Spacing.md,
-  },
-  rejectButton: {
-    flex: 1,
-    height: 56,
-    borderRadius: BorderRadius.md,
-    backgroundColor: Colors.white,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  buttonDisabled: {
-    opacity: 0.6,
-  },
-  rejectButtonText: {
-    fontFamily: FontFamily.regular,
     fontSize: FontSize.lg,
-    color: '#111827',
+    fontVariant: ['tabular-nums'],
   },
-  acceptButton: {
-    flex: 1,
-    height: 56,
-    borderRadius: BorderRadius.md,
-    backgroundColor: '#1d5fa8',
+  diffBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 1.5,
+    borderRadius: BorderRadius.full,
+  },
+  diffText: {
+    fontFamily: FontFamily.semibold,
+    fontSize: 10,
+  },
+  metaRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    gap: 4,
+  },
+  metaText: {
+    fontFamily: FontFamily.regular,
+    fontSize: FontSize.xs,
+  },
+  timerTrack: {
+    height: 4,
+    borderRadius: 2,
     overflow: 'hidden',
+    marginVertical: 2,
   },
-  acceptProgressFill: {
-    position: 'absolute',
-    left: 0,
-    top: 0,
-    bottom: 0,
-    backgroundColor: '#60a5fa',
+  timerBar: {
+    height: '100%',
+    borderRadius: 2,
   },
-  acceptButtonDisabled: {
-    opacity: 0.88,
-  },
-  acceptLoadingContent: {
+  actionsRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.sm,
+    marginTop: 2,
   },
-  acceptButtonText: {
+  rejectBtn: {
+    flex: 1,
+    height: 42,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  rejectText: {
+    fontFamily: FontFamily.semibold,
+    fontSize: FontSize.sm,
+  },
+  acceptBtn: {
+    flex: 1.6,
+    height: 42,
+    borderRadius: BorderRadius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  acceptText: {
     fontFamily: FontFamily.bold,
-    fontSize: FontSize.lg,
-    color: Colors.white,
+    fontSize: FontSize.sm,
   },
 });

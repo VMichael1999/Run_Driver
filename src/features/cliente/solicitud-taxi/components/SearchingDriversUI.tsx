@@ -10,9 +10,10 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 interface SearchingDriversUIProps {
   isSearching: boolean;
   onCancel?: () => void;
+  subtitle?: string;
 }
 
-export function SearchingDriversUI({ isSearching, onCancel }: SearchingDriversUIProps) {
+export function SearchingDriversUI({ isSearching, onCancel, subtitle }: SearchingDriversUIProps) {
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const rotateAnim = useRef(new Animated.Value(0)).current;
   const rippleAnim = useRef(new Animated.Value(0)).current;
