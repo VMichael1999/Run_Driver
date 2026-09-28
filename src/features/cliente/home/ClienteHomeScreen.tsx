@@ -24,7 +24,7 @@ import { useThemeStore } from '@store/useThemeStore';
 import { useFavoriteAddressesStore } from '@store/useFavoriteAddressesStore';
 import { getCurrentLocationMarker, getQuickCurrentLocationMarker } from '@shared/utils/locationUtils';
 import { useAppTheme } from '@theme/useAppTheme';
-import { MapStyleLight, MapStyleNight } from '@theme/mapStyles';
+import { getMapStyle } from '@theme/mapStyles';
 import { FontFamily, FontSize } from '@theme/fonts';
 import { Spacing, BorderRadius, Shadow } from '@theme/spacing';
 
@@ -222,7 +222,7 @@ export function ClienteHomeScreen() {
             ref={mapRef}
             style={StyleSheet.absoluteFill}
             provider={PROVIDER_GOOGLE}
-            customMapStyle={isDark ? MapStyleNight : MapStyleLight}
+            customMapStyle={getMapStyle(isDark)}
             // La hoja inferior se monta 24 px sobre el mapa; el padding deja visible el logo de Google.
             mapPadding={{ top: insets.top + 56, right: 0, bottom: 24, left: 0 }}
             userInterfaceStyle={isDark ? 'dark' : 'light'}
@@ -232,9 +232,6 @@ export function ClienteHomeScreen() {
             showsUserLocation={false}
             showsMyLocationButton={false}
             showsCompass={false}
-            showsPointsOfInterest={false}
-            showsBuildings={false}
-            showsIndoors={false}
             toolbarEnabled={false}
           >
             {origin ? (

@@ -11,7 +11,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import type { ClienteStackParamList } from '@navigation/types';
 import { Colors } from '@theme/colors';
@@ -79,6 +79,8 @@ function groupBySection(options: DrawerOption[]): Array<[DrawerSection, DrawerOp
 
 export function AppDrawer({ visible, onClose, onNavigate, onLogout, phoneLabel }: AppDrawerProps) {
   const theme = useAppTheme();
+  // Dentro de un Modal, SafeAreaView de iOS no recibe los márgenes: se toman del proveedor de la app.
+  const insets = useSafeAreaInsets();
   const translateX = React.useRef(new Animated.Value(-DRAWER_WIDTH)).current;
   const backdropOpacity = React.useRef(new Animated.Value(0)).current;
   const [internalVisible, setInternalVisible] = React.useState<boolean>(visible);
@@ -138,7 +140,7 @@ export function AppDrawer({ visible, onClose, onNavigate, onLogout, phoneLabel }
         </Animated.View>
 
         <Animated.View style={[styles.panel, { backgroundColor: theme.drawer, transform: [{ translateX }] }]}>
-          <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
+          <View style={[styles.safeArea, { paddingTop: insets.top + 8, paddingBottom: insets.bottom + 8 }]}>
             <TouchableOpacity
               style={styles.profileSection}
               onPress={() => handleSelect('Perfil')}
@@ -189,7 +191,7 @@ export function AppDrawer({ visible, onClose, onNavigate, onLogout, phoneLabel }
               <Text style={styles.logoutText}>Cerrar sesión</Text>
             </TouchableOpacity>
             <Text style={styles.versionLabel}>Version {APP_VERSION}</Text>
-          </SafeAreaView>
+          </View>
         </Animated.View>
       </View>
     </Modal>

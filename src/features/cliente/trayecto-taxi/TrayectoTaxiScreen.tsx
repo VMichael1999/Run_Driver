@@ -32,10 +32,10 @@ import { LegacyImages } from '@shared/assets/legacyAssets';
 import { calculateBearing } from '@shared/utils/mapUtils';
 import { Colors } from '@theme/colors';
 import { useAppTheme } from '@theme/useAppTheme';
+import { getMapStyle } from '@theme/mapStyles';
 import { FontFamily, FontSize } from '@theme/fonts';
 import { Spacing, BorderRadius, Shadow } from '@theme/spacing';
 
-const mapStyleNight = require('../../../../assets/legacy/maps/map_style_night.json');
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 const COLLAPSED_HEIGHT = 440;
@@ -351,7 +351,7 @@ export function TrayectoTaxiScreen() {
         initialRegion={region}
         showsUserLocation={false}
         showsMyLocationButton={false}
-        customMapStyle={isDark ? mapStyleNight : undefined}
+        customMapStyle={getMapStyle(isDark)}
       >
         {/* Marcador de Origen */}
         <Marker coordinate={request.origin.position} anchor={{ x: 0.5, y: 0.5 }}>
