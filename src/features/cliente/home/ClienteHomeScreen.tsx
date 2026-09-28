@@ -526,8 +526,6 @@ const styles = StyleSheet.create({
   favoritesTitle: {
     fontFamily: FontFamily.semibold,
     fontSize: FontSize.xs,
-    letterSpacing: 0.5,
-    textTransform: 'uppercase',
   },
   addFavoriteLink: {
     fontFamily: FontFamily.semibold,
@@ -573,8 +571,6 @@ const styles = StyleSheet.create({
   auctionBadgeText: {
     fontFamily: FontFamily.bold,
     fontSize: 9,
-    letterSpacing: 0.5,
-    textTransform: 'uppercase',
   },
   serviceImage: {
     width: 60,

@@ -259,8 +259,6 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.5)',
     fontFamily: FontFamily.bold,
     fontSize: FontSize.xs,
-    textTransform: 'uppercase',
-    letterSpacing: 0.6,
     paddingHorizontal: Spacing.md,
     marginBottom: Spacing.xs,
   },

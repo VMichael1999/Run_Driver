@@ -320,8 +320,6 @@ const styles = StyleSheet.create({
   addressLabel: {
     fontFamily: FontFamily.semibold,
     fontSize: 10,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
   },
   addressValue: {
     fontFamily: FontFamily.bold,

@@ -301,8 +301,6 @@ const styles = StyleSheet.create({
   auctionTagText: {
     fontFamily: FontFamily.bold,
     fontSize: 9,
-    letterSpacing: 0.5,
-    textTransform: 'uppercase',
   },
   serviceMeta: {
     fontFamily: FontFamily.regular,

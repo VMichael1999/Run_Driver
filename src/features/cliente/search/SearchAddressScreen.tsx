@@ -378,8 +378,6 @@ const styles = StyleSheet.create({
   itineraryLabel: {
     fontFamily: FontFamily.semibold,
     fontSize: 10,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
   },
   itineraryValue: {
     fontFamily: FontFamily.semibold,

@@ -299,6 +299,5 @@ const styles = StyleSheet.create({
     color: Colors.white,
     fontFamily: FontFamily.bold,
     fontSize: FontSize.md,
-    letterSpacing: 0.5,
   },
 });

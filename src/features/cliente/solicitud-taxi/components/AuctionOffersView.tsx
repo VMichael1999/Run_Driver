@@ -189,8 +189,6 @@ const styles = StyleSheet.create({
   fareLabel: {
     fontFamily: FontFamily.semibold,
     fontSize: FontSize.xs,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
   },
   fareAmount: {
     fontFamily: FontFamily.bold,

@@ -54,7 +54,6 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: FontSize.xs,
-    letterSpacing: 0.5,
   },
   row: {
     paddingVertical: Spacing.xs,

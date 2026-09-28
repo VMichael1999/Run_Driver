@@ -768,7 +768,6 @@ const styles = StyleSheet.create({
     color: Colors.white,
     fontFamily: FontFamily.bold,
     fontSize: FontSize.sm,
-    letterSpacing: 0.5,
   },
   destinationBanner: {
     position: 'absolute',
