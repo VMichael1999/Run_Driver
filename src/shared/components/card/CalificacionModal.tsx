@@ -32,6 +32,8 @@ export interface Calificacion {
   puntuacion: number;
   aspectos: Aspecto[];
   comentario?: string;
+  /** Propina en soles; se paga al conductor con el método del viaje. */
+  propina?: number;
 }
 
 interface Props {
@@ -52,6 +54,9 @@ interface Props {
 
 /** Tiempo que se muestra "Calificación enviada" antes de volver al inicio. */
 const SENT_CONFIRMATION_MS = 1600;
+
+/** Montos de propina en soles; 0 es "Sin propina". */
+const TIP_OPTIONS = [0, 1, 2, 5];
 
 const STAR_PATH = 'M12 2.8l2.8 5.9 6.4.8-4.7 4.4 1.2 6.4L12 17.2l-5.7 3.1 1.2-6.4L2.8 9.5l6.4-.8z';
 
@@ -82,6 +87,7 @@ export function CalificacionModal({
   const [rating, setRating] = useState(5);
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [comment, setComment] = useState('');
+  const [tip, setTip] = useState(0);
   // Tras enviar se muestra la confirmación y, al terminar, se entrega la calificación.
   const [sentRating, setSentRating] = useState<number | null>(null);
   const sentTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -91,6 +97,7 @@ export function CalificacionModal({
       setRating(5);
       setSelected(new Set());
       setComment('');
+      setTip(0);
       setSentRating(null);
     }
   }, [visible]);
@@ -124,6 +131,7 @@ export function CalificacionModal({
       puntuacion: rating,
       aspectos: aspectosCalificacion.filter((a) => selected.has(a.id)),
       comentario: comment.trim() || undefined,
+      propina: tip > 0 ? tip : undefined,
     };
     setSentRating(rating);
     sentTimerRef.current = setTimeout(() => onSend(calificacion), SENT_CONFIRMATION_MS);
@@ -135,6 +143,7 @@ export function CalificacionModal({
   };
 
   const firstName = user.nombres.split(' ')[0] || user.nombres;
+  const tipSentence = tip > 0 ? ` y ${currency} ${tip.toFixed(2)} de propina` : '';
   const now = new Date();
   const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
 
@@ -151,7 +160,7 @@ export function CalificacionModal({
           style={[styles.sentScreen, { backgroundColor: theme.background }]}
           accessible
           accessibilityRole="alert"
-          accessibilityLabel={`Calificación enviada. Le diste ${sentRating} estrella${sentRating > 1 ? 's' : ''} a ${firstName}.`}
+          accessibilityLabel={`Calificación enviada. Le diste ${sentRating} estrella${sentRating > 1 ? 's' : ''} a ${firstName}${tipSentence}.`}
         >
           <Animated.View entering={ZoomIn.duration(260)} style={[styles.sentCircle, { backgroundColor: theme.onlineSoft }]}>
             <AppIcon name="check" size={32} color={theme.online} />
@@ -159,7 +168,8 @@ export function CalificacionModal({
           <Animated.View entering={FadeIn.delay(120).duration(220)} style={styles.sentTextWrap}>
             <Text style={[styles.sentTitle, { color: theme.text }]}>Calificación enviada</Text>
             <Text style={[styles.sentSubtitle, { color: theme.textMuted }]}>
-              Le diste {sentRating} estrella{sentRating > 1 ? 's' : ''} a {firstName}.
+              Le diste {sentRating} estrella{sentRating > 1 ? 's' : ''} a {firstName}
+              {tipSentence}.
             </Text>
           </Animated.View>
         </View>
@@ -265,6 +275,52 @@ export function CalificacionModal({
                   );
                 })}
               </View>
+            </View>
+
+            {/* Propina: al final del viaje, cuando ya se sabe cómo fue el servicio */}
+            <View style={styles.aspectsSection}>
+              <Text style={[styles.aspectsTitle, { color: theme.text }]}>¿Quieres dejarle propina?</Text>
+              <View style={styles.chips} accessibilityRole="radiogroup">
+                {TIP_OPTIONS.map((amount) => {
+                  const isSelected = tip === amount;
+                  const label = amount === 0 ? 'Sin propina' : `${currency} ${amount}`;
+                  return (
+                    <TouchableOpacity
+                      key={amount}
+                      onPress={() => {
+                        Haptics.selectionAsync();
+                        setTip(amount);
+                      }}
+                      activeOpacity={0.8}
+                      style={[
+                        styles.chip,
+                        isSelected
+                          ? { backgroundColor: theme.text, borderColor: theme.text }
+                          : { borderColor: theme.line },
+                      ]}
+                      accessibilityRole="radio"
+                      accessibilityState={{ selected: isSelected }}
+                      accessibilityLabel={amount === 0 ? 'Sin propina' : `Propina de ${amount} soles`}
+                    >
+                      <Text
+                        style={[
+                          styles.chipText,
+                          isSelected
+                            ? { color: theme.surface, fontFamily: FontFamily.semibold }
+                            : { color: theme.text },
+                        ]}
+                      >
+                        {label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+              {tip > 0 ? (
+                <Text style={[styles.tipHint, { color: theme.textMuted }]}>
+                  Se la das a {firstName} con {paymentMethod.toLowerCase()}, junto con el pago del viaje.
+                </Text>
+              ) : null}
             </View>
 
             {/* Comentario opcional */}
@@ -408,6 +464,10 @@ const styles = StyleSheet.create({
     paddingVertical: 9,
     borderRadius: 12,
     borderWidth: 1.5,
+  },
+  tipHint: {
+    fontFamily: FontFamily.regular,
+    fontSize: FontSize.caption,
   },
   chipText: {
     fontFamily: FontFamily.medium,
