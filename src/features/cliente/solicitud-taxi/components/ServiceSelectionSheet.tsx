@@ -3,6 +3,7 @@ import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View, useWindowD
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
+  type SharedValue,
   runOnJS,
   useAnimatedReaction,
   useAnimatedStyle,
@@ -55,6 +56,8 @@ interface ServiceSelectionSheetProps {
   submitLabel?: string;
   /** Con un solo servicio fijo: muestra "Otros servicios" para volver a la lista completa. */
   onShowAllServices?: () => void;
+  /** Alto animado de la hoja; se pasa para que otros elementos (la flecha de volver) la sigan. */
+  heightValue?: SharedValue<number>;
 }
 
 // Alto de cada fila de servicio (imagen 48 + padding 6*2) más el espacio entre filas.
@@ -99,13 +102,15 @@ export function ServiceSelectionSheet({
   title = 'Elige cómo viajar',
   submitLabel: submitLabelOverride,
   onShowAllServices,
+  heightValue,
 }: ServiceSelectionSheetProps) {
   const theme = useAppTheme();
   const insets = useSafeAreaInsets();
   const [listHeight, setListHeight] = React.useState<number | undefined>(undefined);
   const { collapsed, expanded } = useServiceSheetHeights(listHeight, Boolean(discount));
 
-  const sheetHeight = useSharedValue(collapsed);
+  const ownHeight = useSharedValue(collapsed);
+  const sheetHeight = heightValue ?? ownHeight;
   const dragStart = useSharedValue(collapsed);
   const isDragging = useSharedValue(false);
   const [isExpanded, setIsExpanded] = React.useState(false);

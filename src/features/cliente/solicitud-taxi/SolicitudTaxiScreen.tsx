@@ -6,7 +6,15 @@ import {
   Alert,
   Animated,
   Image,
+  useWindowDimensions,
 } from 'react-native';
+import Reanimated, {
+  interpolate,
+  runOnJS,
+  useAnimatedReaction,
+  useAnimatedStyle,
+  useSharedValue,
+} from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MapView, { Marker, PROVIDER_GOOGLE, type Region } from 'react-native-maps';
 import { RoutePolyline } from '@shared/components/map/RoutePolyline';
@@ -52,6 +60,11 @@ const DEFAULT_SCHEDULE_SERVICE_ID = 'espera_ahorra';
 const RIDE_MATCH_DELAY_MS = 4500;
 /** Un viaje se programa con al menos esta anticipación. */
 const MIN_SCHEDULE_AHEAD_MS = 15 * 60 * 1000;
+/** Flecha de volver sobre la hoja: 44 de alto + 12 de separación con el borde de la hoja. */
+const BACK_BUTTON_SIZE = 44;
+const BACK_DOCK_GAP = 12;
+/** Recorrido en el que la flecha se desvanece al acercarse a la tarjeta de direcciones. */
+const BACK_FADE_DISTANCE = 48;
 
 const ORIGIN_PIN = require('../../../../assets/legacy/images/location_origen.png');
 const DESTINATION_PIN = require('../../../../assets/legacy/images/location_destino.png');
@@ -116,6 +129,27 @@ export function SolicitudTaxiScreen() {
   const [isAuctionRequestMode, setIsAuctionRequestMode] = useState(false);
   const [searchStartedAt, setSearchStartedAt] = useState(0);
   const [autoAccept, setAutoAccept] = useState(false);
+
+  // Con la hoja de servicios, la flecha de volver flota sobre ella y la acompaña al arrastrarla;
+  // se desvanece al acercarse a la tarjeta de direcciones y vuelve a aparecer al bajar la hoja.
+  const showsServiceSheet = !rideSearchServiceId && !isAuctionRequestMode && !isAuctionPickupMode;
+  const { height: windowHeight } = useWindowDimensions();
+  const sheetHeightValue = useSharedValue(sheetHeights.collapsed);
+  const [backHidden, setBackHidden] = useState(false);
+  const backCollisionY = insets.top + 6 + routeCardHeight + 8;
+  const backDockStyle = useAnimatedStyle(() => {
+    const top = windowHeight - sheetHeightValue.value - BACK_DOCK_GAP - BACK_BUTTON_SIZE;
+    const visible = interpolate(top, [backCollisionY, backCollisionY + BACK_FADE_DISTANCE], [0, 1], 'clamp');
+    return { top, opacity: visible, transform: [{ scale: 0.8 + 0.2 * visible }] };
+  });
+  // Oculta del todo, no se puede tocar.
+  useAnimatedReaction(
+    () => windowHeight - sheetHeightValue.value - BACK_DOCK_GAP - BACK_BUTTON_SIZE < backCollisionY + 4,
+    (hidden, previous) => {
+      if (hidden !== previous) runOnJS(setBackHidden)(hidden);
+    },
+    [windowHeight, backCollisionY],
+  );
 
   // Modales
   const [notesModalVisible, setNotesModalVisible] = useState(false);
@@ -227,6 +261,19 @@ export function SolicitudTaxiScreen() {
         if (now - lastDragFitRef.current < 120) return;
         lastDragFitRef.current = now;
       }
+      // mapPadding ya reserva la altura mínima de la hoja; aquí solo se suma lo que crece al arrastrarla.
+      // Arriba se deja libre la tarjeta de origen, paradas y destino.
+      let top = 24 + routeCardHeight;
+      let bottom = Math.max(0, sheetHeight - sheetHeights.collapsed) + 16;
+      // Si la hoja y la tarjeta casi se juntan, el mapa se alejaría hasta mostrar el continente:
+      // los márgenes se reducen para dejar siempre una franja donde encuadrar la ruta.
+      const mapArea = windowHeight - (insets.top + 8) - sheetHeights.collapsed;
+      const maxPadding = Math.max(0, mapArea - 80);
+      if (top + bottom > maxPadding) {
+        const ratio = maxPadding / (top + bottom);
+        top *= ratio;
+        bottom *= ratio;
+      }
       mapRef.current?.fitToCoordinates(
         [
           request.origin.position,
@@ -235,24 +282,18 @@ export function SolicitudTaxiScreen() {
           ...(request.routePoints ?? []),
         ],
         {
-          // mapPadding ya reserva la altura mínima de la hoja; aquí solo se suma lo que crece al arrastrarla.
-          // Arriba se deja libre la tarjeta de origen, paradas y destino.
-          edgePadding: {
-            top: 24 + routeCardHeight,
-            right: 40,
-            bottom: Math.max(0, sheetHeight - sheetHeights.collapsed) + 16,
-            left: 40,
-          },
+          edgePadding: { top, right: 40, bottom, left: 40 },
           animated: settled,
         },
       );
     },
-    [request, isAuctionPickupMode, sheetHeights.collapsed, routeCardHeight],
+    [request, isAuctionPickupMode, sheetHeights.collapsed, routeCardHeight, windowHeight, insets.top],
   );
 
+  // Al cambiar la ruta o la tarjeta, se encuadra con la hoja en la altura que tenga en ese momento.
   useEffect(() => {
-    fitRoute(sheetHeights.collapsed);
-  }, [fitRoute, sheetHeights.collapsed]);
+    fitRoute(sheetHeightValue.value);
+  }, [fitRoute, sheetHeightValue]);
 
   // Submit desde el sheet de selección de servicio
   const handleServiceSubmit = () => {
@@ -425,7 +466,17 @@ export function SolicitudTaxiScreen() {
         provider={PROVIDER_GOOGLE}
         customMapStyle={getMapStyle(isDark)}
         // En modo recogida el pin fijo está en el centro de la pantalla, así que no se desplaza el centro del mapa.
-        mapPadding={isAuctionPickupMode ? { top: 0, right: 0, bottom: 0, left: 0 } : { top: insets.top + 8, right: 0, bottom: sheetHeights.collapsed, left: 0 }}
+        // Con la flecha sobre la hoja, el logo de Google sube por encima de ella para no quedar tapado.
+        mapPadding={
+          isAuctionPickupMode
+            ? { top: 0, right: 0, bottom: 0, left: 0 }
+            : {
+                top: insets.top + 8,
+                right: 0,
+                bottom: sheetHeights.collapsed + (showsServiceSheet ? BACK_BUTTON_SIZE + BACK_DOCK_GAP : 0),
+                left: 0,
+              }
+        }
         userInterfaceStyle={isDark ? 'dark' : 'light'}
         initialRegion={LIMA_REGION}
         showsUserLocation={false}
@@ -479,8 +530,27 @@ export function SolicitudTaxiScreen() {
         ) : null}
       </MapView>
 
-      {/* Botón flotante para retroceder; la pantalla de Subasta tiene el suyo */}
-      {!auctionFareVisible ? (
+      {/* Flecha de volver sobre la hoja de servicios */}
+      {showsServiceSheet && !auctionFareVisible ? (
+        <Reanimated.View
+          style={[styles.dockedBackWrap, backDockStyle]}
+          pointerEvents={backHidden ? 'none' : 'box-none'}
+        >
+          <TouchableOpacity
+            style={[styles.backButton, { backgroundColor: theme.surface }, Shadow.raise]}
+            onPress={() => navigation.goBack()}
+            activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel="Volver"
+            accessibilityElementsHidden={backHidden}
+          >
+            <AppIcon name="back" color={theme.text} />
+          </TouchableOpacity>
+        </Reanimated.View>
+      ) : null}
+
+      {/* Botón flotante para retroceder en los demás modos; la pantalla de Subasta tiene el suyo */}
+      {!showsServiceSheet && !auctionFareVisible ? (
         <TouchableOpacity
           style={[
             styles.floatingBackBtn,
@@ -511,7 +581,7 @@ export function SolicitudTaxiScreen() {
       ) : null}
 
       {/* Origen, paradas y destino; tocar un punto lo cambia */}
-      {!isAuctionPickupMode && !isAuctionRequestMode && !rideSearchServiceId ? (
+      {showsServiceSheet ? (
         <View
           style={[styles.routeCardWrap, { top: insets.top + 6 }]}
           onLayout={(e) => setRouteCardHeight(e.nativeEvent.layout.height)}
@@ -608,6 +678,7 @@ export function SolicitudTaxiScreen() {
           }
           discount={discount}
           onHeightChange={fitRoute}
+          heightValue={sheetHeightValue}
         />
       )}
 
@@ -663,10 +734,22 @@ const styles = StyleSheet.create({
   },
   routeCardWrap: {
     position: 'absolute',
-    // A la derecha del botón de volver (12 + 44 + 8).
-    left: 64,
+    left: 12,
     right: 12,
     zIndex: 30,
+  },
+  // La posición vertical la anima backDockStyle, siguiendo el borde superior de la hoja.
+  dockedBackWrap: {
+    position: 'absolute',
+    left: 12,
+    zIndex: 25,
+  },
+  backButton: {
+    width: BACK_BUTTON_SIZE,
+    height: BACK_BUTTON_SIZE,
+    borderRadius: BorderRadius.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   stopMarker: {
     width: 18,
