@@ -378,7 +378,7 @@ const styles = StyleSheet.create({
   },
   itineraryLabel: {
     fontFamily: FontFamily.semibold,
-    fontSize: 10,
+    fontSize: FontSize['2xs'],
   },
   itineraryValue: {
     fontFamily: FontFamily.semibold,

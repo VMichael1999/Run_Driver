@@ -216,7 +216,7 @@ const styles = StyleSheet.create({
   },
   countryFlag: {
     marginRight: Spacing.xs,
-    fontSize: 18,
+    fontSize: FontSize.lg,
   },
   countryCode: {
     fontSize: FontSize.md,

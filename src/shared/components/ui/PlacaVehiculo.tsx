@@ -63,6 +63,7 @@ export function PlacaVehiculo({ plate, size = 'md', style }: PlacaVehiculoProps)
   );
 }
 
+// Los tamaños de texto replican las proporciones de la placa peruana real, por eso no usan FontSize.
 const styles = StyleSheet.create({
   container: {
     minWidth: 84,

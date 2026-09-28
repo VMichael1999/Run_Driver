@@ -276,7 +276,7 @@ const styles = StyleSheet.create({
   },
   diffText: {
     fontFamily: FontFamily.semibold,
-    fontSize: 10,
+    fontSize: FontSize['2xs'],
   },
   metaRow: {
     flexDirection: 'row',

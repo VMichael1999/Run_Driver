@@ -133,7 +133,7 @@ const styles = StyleSheet.create({
   },
   addressLabel: {
     fontFamily: FontFamily.semibold,
-    fontSize: 10,
+    fontSize: FontSize['2xs'],
   },
   addressValue: {
     fontFamily: FontFamily.bold,

@@ -114,7 +114,7 @@ const styles = StyleSheet.create({
   },
   flag: {
     marginRight: Spacing.sm,
-    fontSize: 18,
+    fontSize: FontSize.lg,
   },
   itemText: {
     color: Colors.textPrimary,

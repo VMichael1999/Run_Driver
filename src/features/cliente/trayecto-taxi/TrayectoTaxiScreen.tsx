@@ -813,7 +813,7 @@ const styles = StyleSheet.create({
   },
   bannerStatusText: {
     fontFamily: FontFamily.semibold,
-    fontSize: 11,
+    fontSize: FontSize['2xs'],
     color: Colors.online,
   },
   bannerDestinationText: {
@@ -856,7 +856,7 @@ const styles = StyleSheet.create({
   advancePillText: {
     color: Colors.onAccentLime,
     fontFamily: FontFamily.bold,
-    fontSize: 11,
+    fontSize: FontSize['2xs'],
   },
   dragArea: {
     height: 24,

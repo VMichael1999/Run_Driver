@@ -103,8 +103,8 @@ const styles = StyleSheet.create({
   },
   stepIcon: {
     fontFamily: FontFamily.medium,
-    fontSize: 28,
-    lineHeight: 32,
+    fontSize: FontSize['3xl'],
+    lineHeight: 34,
   },
   valueWrap: {
     flexDirection: 'row',

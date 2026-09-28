@@ -75,7 +75,7 @@ const styles = StyleSheet.create({
     padding: Spacing.lg,
     ...Shadow.sm,
   },
-  menuIcon: { fontSize: 20, marginRight: Spacing.md },
+  menuIcon: { fontSize: FontSize.xl, marginRight: Spacing.md },
   menuLabel: { flex: 1, fontSize: FontSize.md, fontFamily: FontFamily.regular, color: Colors.textPrimary },
   menuChevron: { fontSize: FontSize.xl, color: Colors.textSecondary, fontFamily: FontFamily.bold },
 });

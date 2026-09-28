@@ -300,7 +300,7 @@ const styles = StyleSheet.create({
   },
   auctionTagText: {
     fontFamily: FontFamily.bold,
-    fontSize: 9,
+    fontSize: FontSize['2xs'],
   },
   serviceMeta: {
     fontFamily: FontFamily.regular,

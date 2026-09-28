@@ -8,6 +8,8 @@ export const FontFamily = {
 } as const;
 
 export const FontSize = {
+  // Mínimo para etiquetas y badges; nada por debajo de 11 para que se lea en la calle
+  '2xs': 11,
   xs: 12,
   sm: 14,
   md: 16,

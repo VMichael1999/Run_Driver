@@ -379,7 +379,7 @@ const styles = StyleSheet.create({
   },
   promoValidity: {
     fontFamily: FontFamily.semibold,
-    fontSize: 11,
+    fontSize: FontSize['2xs'],
     fontStyle: 'italic',
   },
 });

@@ -180,11 +180,11 @@ const styles = StyleSheet.create({
   },
   rangeLabel: {
     fontFamily: FontFamily.regular,
-    fontSize: 11,
+    fontSize: FontSize['2xs'],
   },
   rangeStatus: {
     fontFamily: FontFamily.semibold,
-    fontSize: 11,
+    fontSize: FontSize['2xs'],
   },
   hintBox: {
     flexDirection: 'row',

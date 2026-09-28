@@ -570,7 +570,7 @@ const styles = StyleSheet.create({
   },
   auctionBadgeText: {
     fontFamily: FontFamily.bold,
-    fontSize: 9,
+    fontSize: FontSize['2xs'],
   },
   serviceImage: {
     width: 60,
@@ -583,7 +583,7 @@ const styles = StyleSheet.create({
   },
   serviceSubtitle: {
     fontFamily: FontFamily.regular,
-    fontSize: 11,
+    fontSize: FontSize['2xs'],
     marginTop: 1,
   },
 });
