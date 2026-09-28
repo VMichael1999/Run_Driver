@@ -17,7 +17,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import MapView, { Marker, Polyline, PROVIDER_GOOGLE, type LatLng } from 'react-native-maps';
+import MapView, { Marker, PROVIDER_GOOGLE, type LatLng } from 'react-native-maps';
+import { RoutePolyline } from '@shared/components/map/RoutePolyline';
 import * as Haptics from 'expo-haptics';
 import type { ClienteStackParamList } from '@navigation/types';
 import { useRideDraftStore } from '@store/useRideDraftStore';
@@ -340,7 +341,6 @@ export function TrayectoTaxiScreen() {
   };
 
   // Polyline color: lime in dark/night mode, black/dark in day mode
-  const routeStrokeColor = isDark ? Colors.accentLime : Colors.primary;
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
@@ -383,13 +383,7 @@ export function TrayectoTaxiScreen() {
 
         {/* Ruta trazada */}
         {routeCoords.length > 1 ? (
-          <Polyline
-            coordinates={routeCoords}
-            strokeColor={routeStrokeColor}
-            strokeWidth={5}
-            lineCap="round"
-            lineJoin="round"
-          />
+          <RoutePolyline coordinates={routeCoords} />
         ) : null}
       </MapView>
 

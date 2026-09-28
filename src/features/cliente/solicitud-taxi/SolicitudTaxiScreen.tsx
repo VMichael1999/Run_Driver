@@ -8,7 +8,8 @@ import {
   Image,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import MapView, { Marker, Polyline, PROVIDER_GOOGLE, type Region } from 'react-native-maps';
+import MapView, { Marker, PROVIDER_GOOGLE, type Region } from 'react-native-maps';
+import { RoutePolyline } from '@shared/components/map/RoutePolyline';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { ClienteStackParamList } from '@navigation/types';
@@ -351,23 +352,7 @@ export function SolicitudTaxiScreen() {
         ) : null}
 
         {request?.routePoints && request.routePoints.length > 1 && !isAuctionPickupMode ? (
-          <>
-            {/* strokeColors además de strokeColor: en iOS con Google Maps solo strokeColors pinta la línea. */}
-            <Polyline
-              coordinates={request.routePoints}
-              strokeWidth={10}
-              strokeColor={theme.routeCase}
-              strokeColors={[theme.routeCase]}
-              lineJoin="round"
-            />
-            <Polyline
-              coordinates={request.routePoints}
-              strokeWidth={5}
-              strokeColor={theme.route}
-              strokeColors={[theme.route]}
-              lineJoin="round"
-            />
-          </>
+          <RoutePolyline coordinates={request.routePoints} />
         ) : null}
       </MapView>
 

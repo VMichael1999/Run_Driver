@@ -7,7 +7,8 @@ import {
   Animated,
   ActivityIndicator,
 } from 'react-native';
-import MapView, { Polyline, PROVIDER_GOOGLE, type Region } from 'react-native-maps';
+import MapView, { PROVIDER_GOOGLE, type Region } from 'react-native-maps';
+import { RoutePolyline } from '@shared/components/map/RoutePolyline';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -114,11 +115,7 @@ export function ConfirmarPuntoPartidaScreen({ route, navigation }: Props) {
           showsMyLocationButton={false}
         >
           {routePoints.length >= 2 && (
-            <Polyline
-              coordinates={routePoints}
-              strokeColor={theme.accent}
-              strokeWidth={4}
-            />
+            <RoutePolyline coordinates={routePoints} />
           )}
         </MapView>
 
