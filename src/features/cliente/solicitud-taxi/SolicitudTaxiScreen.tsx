@@ -26,7 +26,6 @@ import {
   AuctionOffersView,
   AuctionPickupSheet,
   PaymentSelectionModal,
-  type SupportedPaymentMode,
   TripNotesModal,
   TripScheduleModal,
   useAuctionSimulation,
@@ -387,7 +386,7 @@ export function SolicitudTaxiScreen() {
 
       <PaymentSelectionModal
         visible={paymentModalVisible}
-        selectedMode={paymentMethod.mode as SupportedPaymentMode}
+        selectedMode={paymentMethod.mode}
         onSelectMode={(mode) => setPaymentMethod({ ...paymentMethod, mode })}
         onClose={() => setPaymentModalVisible(false)}
       />
