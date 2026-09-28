@@ -1,7 +1,6 @@
 import React from 'react';
 import {
   Alert,
-  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -10,11 +9,12 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import DateTimePicker, {
-  type DateTimePickerEvent,
-} from '@react-native-community/datetimepicker';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { ClienteStackParamList } from '@navigation/types';
 import * as Haptics from 'expo-haptics';
 import { useScheduledTripsStore } from '@store/useScheduledTripsStore';
+import { useRideDraftStore } from '@store/useRideDraftStore';
 import type { ScheduledTrip } from './types';
 import {
   AppButton,
@@ -23,12 +23,24 @@ import {
   AppListRow,
   AppScreen,
   AppSectionTitle,
-  AppTextInput,
 } from '@shared/components/ui';
 import { Colors } from '@theme/colors';
 import { useAppTheme } from '@theme/useAppTheme';
 import { FontFamily, FontSize } from '@theme/fonts';
 import { BorderRadius, Spacing, Shadow } from '@theme/spacing';
+
+const shortName = (placeName?: string) => placeName?.split(',')[0]?.trim() ?? '';
+
+/** "Av. Arequipa → Calle 4 · Confort · S/ 35.00" */
+function tripSummary(trip: ScheduledTrip): string {
+  const route = trip.destination
+    ? `${shortName(trip.origin?.placeName) || 'Tu ubicación'} → ${shortName(trip.destination.placeName)}`
+    : trip.notes || 'Sin destino';
+  const service = trip.service
+    ? ` · ${trip.service.name} · ${trip.service.currency} ${trip.service.price.toFixed(2)}`
+    : '';
+  return route + service;
+}
 
 function formatDateTime(timestamp: number): string {
   const date = new Date(timestamp);
@@ -43,49 +55,18 @@ function formatDateTime(timestamp: number): string {
 export function ProgramarViajeScreen() {
   const insets = useSafeAreaInsets();
   const theme = useAppTheme();
+  const navigation = useNavigation<NativeStackNavigationProp<ClienteStackParamList, 'ProgramarViaje'>>();
   const trips = useScheduledTripsStore((s) => s.trips);
-  const scheduleTrip = useScheduledTripsStore((s) => s.scheduleTrip);
   const cancelTrip = useScheduledTripsStore((s) => s.cancelTrip);
+  const setEntryMode = useRideDraftStore((s) => s.setEntryMode);
+  const clearExtraStops = useRideDraftStore((s) => s.clearExtraStops);
 
-  const minDate = React.useMemo(() => new Date(Date.now() + 15 * 60 * 1000), []);
-
-  const [scheduledFor, setScheduledFor] = React.useState<Date>(minDate);
-  const [notes, setNotes] = React.useState<string>('');
-  const [pickerVisible, setPickerVisible] = React.useState<boolean>(false);
-  const [pickerMode, setPickerMode] = React.useState<'date' | 'time'>('date');
-
-  const showPicker = (mode: 'date' | 'time') => {
+  // Se programa igual que desde la tarjeta "Programar" del inicio: destino, servicio y fecha.
+  const startScheduling = () => {
     Haptics.selectionAsync();
-    setPickerMode(mode);
-    setPickerVisible(true);
-  };
-
-  const handlePickerChange = (event: DateTimePickerEvent, selected?: Date) => {
-    if (Platform.OS === 'android') {
-      setPickerVisible(false);
-    }
-    if (event.type === 'dismissed' || !selected) return;
-    setScheduledFor(selected);
-  };
-
-  const handleSchedule = () => {
-    if (scheduledFor.getTime() < minDate.getTime()) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert(
-        'Hora inválida',
-        'Debes programar el viaje con al menos 15 minutos de anticipación.'
-      );
-      return;
-    }
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    scheduleTrip({
-      origin: null,
-      destination: null,
-      scheduledFor: scheduledFor.getTime(),
-      notes,
-    });
-    setNotes('');
-    Alert.alert('Viaje programado', 'Te avisaremos cuando se acerque la hora de tu viaje.');
+    setEntryMode('schedule');
+    clearExtraStops();
+    navigation.navigate('SearchAddress', { target: 'destination' });
   };
 
   const confirmCancel = (trip: ScheduledTrip) => {
@@ -120,56 +101,16 @@ export function ProgramarViajeScreen() {
       >
         <AppCard style={styles.formCard}>
           <Text style={[styles.formTitle, { color: theme.text }]}>
-            ¿Cuándo lo necesitas?
+            ¿Necesitas un viaje más tarde?
           </Text>
-
-          <View style={styles.pickerRow}>
-            <TouchableOpacity
-              style={[styles.pickerButton, { backgroundColor: theme.surfaceMuted }]}
-              onPress={() => showPicker('date')}
-              activeOpacity={0.8}
-              accessibilityRole="button"
-              accessibilityLabel="Elegir fecha del viaje"
-            >
-              <Ionicons name="calendar-outline" size={18} color={theme.text} />
-              <Text style={[styles.pickerLabel, { color: theme.text }]}>
-                {scheduledFor.toLocaleDateString('es-PE', {
-                  day: '2-digit',
-                  month: 'short',
-                  year: 'numeric',
-                })}
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.pickerButton, { backgroundColor: theme.surfaceMuted }]}
-              onPress={() => showPicker('time')}
-              activeOpacity={0.8}
-              accessibilityRole="button"
-              accessibilityLabel="Elegir hora del viaje"
-            >
-              <Ionicons name="time-outline" size={18} color={theme.text} />
-              <Text style={[styles.pickerLabel, { color: theme.text }]}>
-                {scheduledFor.getHours().toString().padStart(2, '0')}:
-                {scheduledFor.getMinutes().toString().padStart(2, '0')}
-              </Text>
-            </TouchableOpacity>
-          </View>
-
-          <Text style={[styles.formLabel, { color: theme.text }]}>Notas (opcional)</Text>
-          <AppTextInput
-            value={notes}
-            onChangeText={setNotes}
-            placeholder="Ej. Llevaré maleta grande o mascota"
-            multiline
-            inputStyle={styles.notesInput}
-          />
-
+          <Text style={[styles.formText, { color: theme.textMuted }]}>
+            Elige el destino, el servicio y la hora. A esa hora buscaremos tu conductor.
+          </Text>
           <AppButton
-            label="Programar viaje"
+            label="Programar un viaje"
             variant="sig"
             size="md"
-            onPress={handleSchedule}
+            onPress={startScheduling}
             style={styles.saveButton}
           />
         </AppCard>
@@ -188,7 +129,7 @@ export function ProgramarViajeScreen() {
             <AppCard key={trip.id} padded={false} style={styles.tripCard}>
               <AppListRow
                 title={formatDateTime(trip.scheduledFor)}
-                subtitle={trip.notes || 'Sin notas adicionales'}
+                subtitle={tripSummary(trip)}
                 left={
                   <View
                     style={[
@@ -217,16 +158,6 @@ export function ProgramarViajeScreen() {
         )}
       </ScrollView>
 
-      {pickerVisible ? (
-        <DateTimePicker
-          value={scheduledFor}
-          mode={pickerMode}
-          minimumDate={pickerMode === 'date' ? minDate : undefined}
-          is24Hour
-          onChange={handlePickerChange}
-          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-        />
-      ) : null}
     </AppScreen>
   );
 }
@@ -246,30 +177,9 @@ const styles = StyleSheet.create({
     fontFamily: FontFamily.bold,
     fontSize: FontSize.lg,
   },
-  pickerRow: {
-    flexDirection: 'row',
-    gap: Spacing.sm,
-  },
-  pickerButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: 14,
-    borderRadius: BorderRadius.lg,
-  },
-  pickerLabel: {
-    fontFamily: FontFamily.bold,
+  formText: {
+    fontFamily: FontFamily.regular,
     fontSize: FontSize.sm,
-  },
-  formLabel: {
-    fontFamily: FontFamily.semibold,
-    fontSize: FontSize.sm,
-  },
-  notesInput: {
-    minHeight: 64,
-    textAlignVertical: 'top',
   },
   saveButton: {
     marginTop: Spacing.xs,

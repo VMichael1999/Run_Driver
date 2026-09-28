@@ -18,6 +18,8 @@ import { AppButton } from '@shared/components/ui/AppButton';
 interface TripScheduleModalProps {
   visible: boolean;
   initialDate?: Date;
+  /** Fecha más temprana que se puede elegir; por defecto, ahora. */
+  minimumDate?: Date;
   onConfirm: (date: Date) => void;
   onClose: () => void;
 }
@@ -25,6 +27,7 @@ interface TripScheduleModalProps {
 export function TripScheduleModal({
   visible,
   initialDate,
+  minimumDate,
   onConfirm,
   onClose,
 }: TripScheduleModalProps) {
@@ -68,7 +71,7 @@ export function TripScheduleModal({
               mode={mode}
               display={Platform.OS === 'ios' ? 'spinner' : 'default'}
               onChange={onChange}
-              minimumDate={new Date()}
+              minimumDate={minimumDate ?? new Date()}
             />
           </View>
 

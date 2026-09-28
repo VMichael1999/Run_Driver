@@ -16,10 +16,8 @@ export const useScheduledTripsStore = create<ScheduledTripsState>((set) => ({
   trips: [],
   scheduleTrip: (input) => {
     const next: ScheduledTrip = {
+      ...input,
       id: generateId(),
-      origin: input.origin,
-      destination: input.destination,
-      scheduledFor: input.scheduledFor,
       notes: input.notes?.trim() || undefined,
       createdAt: Date.now(),
     };
