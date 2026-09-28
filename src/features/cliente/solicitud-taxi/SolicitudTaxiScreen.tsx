@@ -388,7 +388,7 @@ export function SolicitudTaxiScreen() {
         <View pointerEvents="none" style={styles.centerPinWrap}>
           <Animated.View style={{ transform: [{ translateY: pinLift }] }}>
             <View style={[styles.pickupPinHead, { backgroundColor: theme.primary }]}>
-              <View style={[styles.pickupPinDot, { backgroundColor: theme.sig }]} />
+              <View style={[styles.pickupPinDot, { backgroundColor: isDark ? theme.onPrimary : theme.sig }]} />
             </View>
             <View style={[styles.pickupPinStem, { backgroundColor: theme.primary }]} />
           </Animated.View>
