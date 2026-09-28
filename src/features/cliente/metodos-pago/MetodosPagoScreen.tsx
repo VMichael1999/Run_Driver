@@ -1,13 +1,22 @@
 import React from 'react';
-import { Image, ScrollView, StyleSheet, View } from 'react-native';
+import {
+  Image,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as Haptics from 'expo-haptics';
 import { usePaymentSelectionStore } from '@store/usePaymentSelectionStore';
 import { PAYMENT_METHODS, type PaymentMethodId } from '@shared/data/paymentMethods';
-import { AppCard, AppHeader, AppListRow, AppScreen, AppSectionTitle } from '@shared/components/ui';
+import { AppHeader, AppScreen } from '@shared/components/ui';
 import { Colors } from '@theme/colors';
 import { useAppTheme } from '@theme/useAppTheme';
-import { Spacing } from '@theme/spacing';
+import { FontFamily, FontSize } from '@theme/fonts';
+import { BorderRadius, Spacing, Shadow } from '@theme/spacing';
 
 export function MetodosPagoScreen() {
   const insets = useSafeAreaInsets();
@@ -16,53 +25,81 @@ export function MetodosPagoScreen() {
   const setSelected = usePaymentSelectionStore((s) => s.setSelected);
 
   const handleSelect = (id: PaymentMethodId) => {
+    Haptics.selectionAsync();
     setSelected(id);
   };
 
   return (
     <AppScreen>
-      <AppHeader title="Metodos de pago" />
+      <AppHeader title="Métodos de pago" />
 
       <ScrollView
         contentContainerStyle={[styles.scroll, { paddingBottom: insets.bottom + Spacing['2xl'] }]}
         showsVerticalScrollIndicator={false}
       >
-        <AppSectionTitle>Otros metodos</AppSectionTitle>
+        <Text style={[styles.subtitle, { color: theme.textMuted }]}>
+          El que elijas se usará en tus próximos viajes. Puedes cambiarlo antes de pedir.
+        </Text>
 
-        <AppCard padded={false} style={styles.section}>
-          {PAYMENT_METHODS.map((method, index) => {
+        <View
+          style={styles.cardBox}
+          accessibilityRole="radiogroup"
+          accessibilityLabel="Opciones de métodos de pago"
+        >
+          {PAYMENT_METHODS.map((method) => {
             const isSelected = selectedId === method.id;
-            const isLast = index === PAYMENT_METHODS.length - 1;
 
             return (
-              <AppListRow
+              <TouchableOpacity
                 key={method.id}
-                title={method.label}
-                subtitle={method.description}
-                showDivider={!isLast}
                 onPress={() => handleSelect(method.id)}
-                left={(
-                  <View style={styles.iconWrap}>
-                    <Image source={method.image} style={styles.icon} resizeMode="contain" />
-                  </View>
-                )}
-                right={(
-                  <View
-                    style={[
-                      styles.radio,
-                      isSelected
-                        ? { backgroundColor: theme.accent }
-                        : { borderColor: theme.textDisabled, backgroundColor: 'transparent' },
-                    ]}
-                  >
-                    {isSelected ? <Ionicons name="checkmark" size={16} color={Colors.white} /> : null}
-                  </View>
-                )}
-                style={styles.row}
-              />
+                activeOpacity={0.8}
+                style={[
+                  styles.paymentCard,
+                  {
+                    backgroundColor: theme.surface,
+                    borderColor: isSelected ? Colors.accentLime : theme.divider,
+                  },
+                  isSelected && styles.paymentCardSelected,
+                ]}
+                accessibilityRole="radio"
+                accessibilityState={{ checked: isSelected }}
+                accessibilityLabel={`${method.label}: ${method.description}${isSelected ? ', seleccionado' : ''}`}
+              >
+                <View style={styles.iconContainer}>
+                  <Image
+                    source={method.image}
+                    style={styles.paymentLogo}
+                    resizeMode="contain"
+                  />
+                </View>
+
+                <View style={styles.textContainer}>
+                  <Text style={[styles.methodTitle, { color: theme.text }]}>
+                    {method.label}
+                  </Text>
+                  <Text style={[styles.methodDescription, { color: theme.textMuted }]}>
+                    {method.description}
+                  </Text>
+                </View>
+
+                <View
+                  style={[
+                    styles.radioIndicator,
+                    {
+                      borderColor: isSelected ? Colors.accentLime : theme.divider,
+                      backgroundColor: isSelected ? Colors.accentLime : 'transparent',
+                    },
+                  ]}
+                >
+                  {isSelected && (
+                    <Ionicons name="checkmark" size={14} color={Colors.onAccentLime} />
+                  )}
+                </View>
+              </TouchableOpacity>
             );
           })}
-        </AppCard>
+        </View>
       </ScrollView>
     </AppScreen>
   );
@@ -71,29 +108,61 @@ export function MetodosPagoScreen() {
 const styles = StyleSheet.create({
   scroll: {
     paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.lg,
+    paddingTop: Spacing.sm,
   },
-  section: {
-    paddingHorizontal: Spacing.md,
+  subtitle: {
+    fontFamily: FontFamily.regular,
+    fontSize: FontSize.sm,
+    lineHeight: 20,
+    marginBottom: Spacing.lg,
   },
-  row: {
-    minHeight: 68,
+  cardBox: {
+    gap: Spacing.md,
   },
-  iconWrap: {
-    width: 44,
-    height: 32,
+  paymentCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: Spacing.md,
+    borderRadius: BorderRadius.xl,
+    borderWidth: 1.5,
+    gap: Spacing.md,
+    ...Shadow.sm,
+  },
+  paymentCardSelected: {
+    borderWidth: 2,
+    ...Shadow.raise,
+  },
+  iconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: BorderRadius.lg,
+    backgroundColor: '#F7F8F9',
     alignItems: 'center',
     justifyContent: 'center',
+    padding: 6,
   },
-  icon: {
-    width: 40,
-    height: 28,
+  paymentLogo: {
+    width: '100%',
+    height: '100%',
   },
-  radio: {
+  textContainer: {
+    flex: 1,
+  },
+  methodTitle: {
+    fontFamily: FontFamily.bold,
+    fontSize: FontSize.md,
+    marginBottom: 2,
+  },
+  methodDescription: {
+    fontFamily: FontFamily.regular,
+    fontSize: FontSize.xs,
+    lineHeight: 16,
+  },
+  radioIndicator: {
     width: 24,
     height: 24,
     borderRadius: 12,
-    borderWidth: 1.5,
+    borderWidth: 2,
     alignItems: 'center',
     justifyContent: 'center',
   },

@@ -1,96 +1,227 @@
 import React from 'react';
-import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import {
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { AppButton, AppCard, AppHeader, AppScreen, AppSectionTitle, AppTextInput } from '@shared/components/ui';
+import * as Haptics from 'expo-haptics';
+import { AppHeader, AppScreen } from '@shared/components/ui';
 import { Colors } from '@theme/colors';
 import { useAppTheme } from '@theme/useAppTheme';
 import { FontFamily, FontSize } from '@theme/fonts';
-import { BorderRadius, Spacing } from '@theme/spacing';
+import { BorderRadius, Spacing, Shadow } from '@theme/spacing';
 import { usePromociones } from './hooks/usePromociones';
 
 export function PromocionesScreen() {
   const insets = useSafeAreaInsets();
   const theme = useAppTheme();
-  const { promotions, isLoading, error, appliedCoupon, applyCoupon, removeCoupon } = usePromociones();
+  const { promotions, isLoading, error, appliedCoupon, applyCoupon, removeCoupon } =
+    usePromociones();
 
   const [code, setCode] = React.useState<string>('');
   const [isApplying, setIsApplying] = React.useState<boolean>(false);
 
   const handleApply = async () => {
     if (!code.trim()) return;
+    Haptics.selectionAsync();
     setIsApplying(true);
     try {
       const result = await applyCoupon(code);
-      if (result.ok) setCode('');
+      if (result.ok) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        setCode('');
+      } else {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      }
     } finally {
       setIsApplying(false);
     }
   };
 
+  const handleRemove = () => {
+    Haptics.selectionAsync();
+    removeCoupon();
+  };
+
   return (
-    <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardAvoidingView
+      style={styles.root}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
       <AppScreen>
         <AppHeader title="Promociones" />
+
         <ScrollView
-          contentContainerStyle={[styles.scroll, { paddingBottom: insets.bottom + Spacing['2xl'] }]}
+          contentContainerStyle={[
+            styles.scroll,
+            { paddingBottom: insets.bottom + Spacing['2xl'] },
+          ]}
           keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
         >
-          <AppCard>
-            <Text style={[styles.couponTitle, { color: theme.text }]}>Codigo promocional</Text>
+          {/* Sección de ingreso de código */}
+          <View style={styles.sectionWrap}>
+            <Text style={[styles.sectionHeading, { color: theme.text }]}>
+              ¿Tienes un código?
+            </Text>
+
+            <View
+              style={[
+                styles.couponInputRow,
+                { backgroundColor: theme.surface, borderColor: theme.divider },
+              ]}
+            >
+              <Ionicons
+                name="pricetag-outline"
+                size={18}
+                color={Colors.online}
+                style={styles.inputIcon}
+              />
+              <TextInput
+                value={code}
+                onChangeText={setCode}
+                placeholder="Ej. RUN10"
+                placeholderTextColor={theme.textDisabled}
+                autoCapitalize="characters"
+                autoCorrect={false}
+                style={[styles.inputField, { color: theme.text }]}
+                accessibilityLabel="Código promocional"
+              />
+              <TouchableOpacity
+                onPress={handleApply}
+                disabled={!code.trim() || isApplying}
+                activeOpacity={0.8}
+                style={[
+                  styles.applyBtn,
+                  {
+                    backgroundColor: code.trim() ? Colors.accentLime : theme.surfaceMuted,
+                    opacity: isApplying ? 0.7 : 1,
+                  },
+                ]}
+                accessibilityRole="button"
+                accessibilityLabel="Aplicar código promocional"
+              >
+                {isApplying ? (
+                  <ActivityIndicator size="small" color={Colors.onAccentLime} />
+                ) : (
+                  <Text
+                    style={[
+                      styles.applyBtnText,
+                      { color: code.trim() ? Colors.onAccentLime : theme.textDisabled },
+                    ]}
+                  >
+                    Aplicar
+                  </Text>
+                )}
+              </TouchableOpacity>
+            </View>
+
+            {/* Mensaje de cupón aplicado */}
             {appliedCoupon ? (
-              <View style={[styles.appliedRow, { backgroundColor: theme.surfaceSoft }]}>
-                <View style={styles.appliedInfo}>
-                  <Text style={styles.appliedCode}>{appliedCoupon.code}</Text>
-                  <Text style={[styles.appliedDescription, { color: theme.textMuted }]}>
-                    {appliedCoupon.description} ({appliedCoupon.discountPercent}% off)
+              <View
+                style={[
+                  styles.appliedBanner,
+                  { backgroundColor: Colors.onlineSoft, borderColor: Colors.online },
+                ]}
+              >
+                <Ionicons name="checkmark-circle" size={18} color={Colors.online} />
+                <View style={styles.appliedTextWrap}>
+                  <Text style={[styles.appliedTitle, { color: Colors.online }]}>
+                    {appliedCoupon.code} aplicado
+                  </Text>
+                  <Text style={[styles.appliedDesc, { color: theme.textMuted }]}>
+                    {appliedCoupon.description} ({appliedCoupon.discountPercent} % menos)
                   </Text>
                 </View>
-                <TouchableOpacity onPress={removeCoupon} activeOpacity={0.85}>
-                  <Ionicons name="close-circle" size={26} color={Colors.error} />
+                <TouchableOpacity
+                  onPress={handleRemove}
+                  activeOpacity={0.7}
+                  accessibilityRole="button"
+                  accessibilityLabel="Quitar código aplicado"
+                  style={styles.removeCouponBtn}
+                >
+                  <Ionicons name="close-circle" size={20} color={Colors.danger} />
                 </TouchableOpacity>
               </View>
+            ) : null}
+
+            {/* Error al aplicar cupón */}
+            {error ? (
+              <View style={[styles.errorBanner, { backgroundColor: Colors.dangerSoft }]}>
+                <Ionicons name="alert-circle-outline" size={16} color={Colors.danger} />
+                <Text style={[styles.errorText, { color: Colors.danger }]}>{error}</Text>
+              </View>
+            ) : null}
+          </View>
+
+          {/* Sección de promociones activas */}
+          <View style={styles.sectionWrap}>
+            <View style={styles.sectionHeaderRow}>
+              <Text style={[styles.sectionHeading, { color: theme.text }]}>
+                Activas para ti
+              </Text>
+              <View style={[styles.countBadge, { backgroundColor: theme.surfaceMuted }]}>
+                <Text style={[styles.countBadgeText, { color: theme.textMuted }]}>
+                  {promotions.length}
+                </Text>
+              </View>
+            </View>
+
+            {isLoading ? (
+              <ActivityIndicator color={Colors.accentLime} style={styles.loader} />
+            ) : promotions.length === 0 ? (
+              <View style={[styles.emptyCard, { backgroundColor: theme.surface }]}>
+                <Ionicons name="gift-outline" size={32} color={theme.textDisabled} />
+                <Text style={[styles.emptyText, { color: theme.textMuted }]}>
+                  No hay promociones disponibles por ahora.
+                </Text>
+              </View>
             ) : (
-              <View style={styles.inputRow}>
-                <AppTextInput
-                  value={code}
-                  onChangeText={setCode}
-                  placeholder="Ej. RUN10"
-                  autoCapitalize="characters"
-                  autoCorrect={false}
-                  inputStyle={styles.couponInput}
-                />
-                <AppButton
-                  label="Aplicar"
-                  onPress={handleApply}
-                  disabled={!code.trim()}
-                  loading={isApplying}
-                  style={styles.applyButton}
-                  labelStyle={styles.applyButtonText}
-                />
+              <View style={styles.promotionsList}>
+                {promotions.map((promo) => (
+                  <View
+                    key={promo.id}
+                    style={[
+                      styles.promoCard,
+                      { backgroundColor: theme.surface, borderColor: theme.divider },
+                    ]}
+                  >
+                    {/* Badge de porcentaje */}
+                    <View
+                      style={[
+                        styles.percentBadge,
+                        { backgroundColor: Colors.accentLime },
+                      ]}
+                    >
+                      <Text style={styles.percentText}>{promo.discountPercent} %</Text>
+                    </View>
+
+                    <View style={styles.promoContent}>
+                      <Text style={[styles.promoTitle, { color: theme.text }]}>
+                        {promo.title}
+                      </Text>
+                      <Text style={[styles.promoDescription, { color: theme.textMuted }]}>
+                        {promo.description}
+                      </Text>
+                      <Text style={[styles.promoValidity, { color: Colors.online }]}>
+                        {promo.id === 'p-001'
+                          ? 'Se aplica solo al pedir'
+                          : 'Hoy aplica en Lima'}
+                      </Text>
+                    </View>
+                  </View>
+                ))}
               </View>
             )}
-            {error ? <Text style={styles.errorText}>{error}</Text> : null}
-          </AppCard>
-
-          <AppSectionTitle>Promociones activas</AppSectionTitle>
-
-          {isLoading ? (
-            <ActivityIndicator color={theme.accent} />
-          ) : promotions.length === 0 ? (
-            <Text style={[styles.emptyText, { color: theme.textMuted }]}>No hay promociones disponibles.</Text>
-          ) : (
-            promotions.map((promotion) => (
-              <AppCard key={promotion.id} style={styles.promotionCard}>
-                <View style={styles.promoBadge}>
-                  <Text style={styles.promoBadgeText}>{promotion.discountPercent}% off</Text>
-                </View>
-                <Text style={[styles.promoTitle, { color: theme.text }]}>{promotion.title}</Text>
-                <Text style={[styles.promoDescription, { color: theme.textMuted }]}>{promotion.description}</Text>
-                <Text style={[styles.promoValid, { color: theme.textDisabled }]}>Valido hasta {promotion.validUntil}</Text>
-              </AppCard>
-            ))
-          )}
+          </View>
         </ScrollView>
       </AppScreen>
     </KeyboardAvoidingView>
@@ -103,87 +234,152 @@ const styles = StyleSheet.create({
   },
   scroll: {
     paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.lg,
-    gap: Spacing.md,
+    paddingTop: Spacing.sm,
+    gap: Spacing.xl,
   },
-  couponTitle: {
-    fontFamily: FontFamily.bold,
-    fontSize: FontSize.md,
-    marginBottom: Spacing.sm,
-  },
-  inputRow: {
-    flexDirection: 'row',
+  sectionWrap: {
     gap: Spacing.sm,
   },
-  couponInput: {
-    flex: 1,
+  sectionHeading: {
     fontFamily: FontFamily.bold,
-    letterSpacing: 1,
-  },
-  applyButton: {
-    minWidth: 90,
-    borderRadius: BorderRadius.md,
-  },
-  applyButtonText: {
     fontSize: FontSize.sm,
   },
-  appliedRow: {
+  sectionHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: BorderRadius.md,
-    padding: Spacing.md,
+    justifyContent: 'space-between',
   },
-  appliedInfo: {
+  countBadge: {
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 2,
+    borderRadius: BorderRadius.full,
+  },
+  countBadgeText: {
+    fontFamily: FontFamily.semibold,
+    fontSize: FontSize.xs,
+  },
+  couponInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: BorderRadius.xl,
+    borderWidth: 1.5,
+    paddingLeft: Spacing.md,
+    paddingRight: 6,
+    height: 52,
+    ...Shadow.sm,
+  },
+  inputIcon: {
+    marginRight: Spacing.sm,
+  },
+  inputField: {
     flex: 1,
-  },
-  appliedCode: {
     fontFamily: FontFamily.bold,
     fontSize: FontSize.md,
-    color: Colors.success,
+    letterSpacing: 0.5,
   },
-  appliedDescription: {
-    fontFamily: FontFamily.regular,
+  applyBtn: {
+    paddingHorizontal: Spacing.md,
+    height: 40,
+    borderRadius: BorderRadius.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  applyBtnText: {
+    fontFamily: FontFamily.bold,
     fontSize: FontSize.sm,
+  },
+  appliedBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: Spacing.md,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    gap: Spacing.sm,
+    marginTop: 4,
+  },
+  appliedTextWrap: {
+    flex: 1,
+  },
+  appliedTitle: {
+    fontFamily: FontFamily.bold,
+    fontSize: FontSize.sm,
+  },
+  appliedDesc: {
+    fontFamily: FontFamily.regular,
+    fontSize: FontSize.xs,
+    marginTop: 1,
+  },
+  removeCouponBtn: {
+    padding: 4,
+  },
+  errorBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: Spacing.sm,
+    borderRadius: BorderRadius.md,
+    gap: Spacing.xs,
+    marginTop: 4,
   },
   errorText: {
-    color: Colors.error,
     fontFamily: FontFamily.regular,
-    fontSize: FontSize.sm,
-    marginTop: Spacing.sm,
+    fontSize: FontSize.xs,
+  },
+  loader: {
+    marginVertical: Spacing.xl,
+  },
+  emptyCard: {
+    padding: Spacing.xl,
+    borderRadius: BorderRadius.xl,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.sm,
   },
   emptyText: {
     fontFamily: FontFamily.regular,
-    fontSize: FontSize.md,
+    fontSize: FontSize.sm,
     textAlign: 'center',
-    paddingVertical: Spacing.lg,
   },
-  promotionCard: {
-    gap: 4,
+  promotionsList: {
+    gap: Spacing.md,
   },
-  promoBadge: {
-    alignSelf: 'flex-start',
-    backgroundColor: Colors.warning,
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: 2,
-    borderRadius: BorderRadius.sm,
-    marginBottom: Spacing.xs,
+  promoCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: Spacing.md,
+    borderRadius: BorderRadius.xl,
+    borderWidth: 1.5,
+    gap: Spacing.md,
+    ...Shadow.sm,
   },
-  promoBadgeText: {
-    color: Colors.white,
+  percentBadge: {
+    width: 60,
+    height: 60,
+    borderRadius: BorderRadius.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  percentText: {
     fontFamily: FontFamily.bold,
-    fontSize: 11,
+    fontSize: FontSize.md,
+    color: Colors.onAccentLime,
+  },
+  promoContent: {
+    flex: 1,
   },
   promoTitle: {
     fontFamily: FontFamily.bold,
     fontSize: FontSize.md,
+    marginBottom: 2,
   },
   promoDescription: {
     fontFamily: FontFamily.regular,
-    fontSize: FontSize.sm,
-  },
-  promoValid: {
-    fontFamily: FontFamily.regular,
     fontSize: FontSize.xs,
-    marginTop: 4,
+    lineHeight: 16,
+    marginBottom: 4,
+  },
+  promoValidity: {
+    fontFamily: FontFamily.semibold,
+    fontSize: 11,
+    fontStyle: 'italic',
   },
 });

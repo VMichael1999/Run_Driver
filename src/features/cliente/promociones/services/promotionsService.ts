@@ -7,23 +7,23 @@ const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, 
 const STATIC_PROMOTIONS: Promotion[] = [
   {
     id: 'p-001',
-    title: 'Primer viaje al 50%',
-    description: 'Aplica para nuevos clientes en su primera carrera.',
+    title: 'Primer viaje al 50 %',
+    description: 'Para nuevos clientes en su primera carrera.',
     discountPercent: 50,
     validUntil: '2026-12-31',
   },
   {
     id: 'p-002',
-    title: 'Fines de semana 15% off',
-    description: 'Sabados y domingos en viajes dentro de Lima.',
+    title: 'Fines de semana 15 % menos',
+    description: 'Sábados y domingos, en viajes dentro de Lima.',
     discountPercent: 15,
     validUntil: '2026-09-30',
   },
 ];
 
 const KNOWN_COUPONS: Record<string, { discountPercent: number; description: string }> = {
-  RUN10: { discountPercent: 10, description: 'Descuento RUN10' },
-  RUN25: { discountPercent: 25, description: 'Descuento RUN25' },
+  RUN10: { discountPercent: 10, description: '10 % menos en tu próximo viaje' },
+  RUN25: { discountPercent: 25, description: '25 % menos en tu próximo viaje' },
 };
 
 export interface PromotionsService {

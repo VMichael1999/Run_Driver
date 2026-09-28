@@ -19,13 +19,13 @@ export const PAYMENT_METHODS: readonly PaymentMethodOption[] = [
   {
     id: 'yape',
     label: 'Yape',
-    description: 'Transferencia con tu numero o QR.',
+    description: 'Transferencia con tu número o QR.',
     image: require('../../../assets/payment/Yape.png'),
   },
   {
     id: 'plin',
     label: 'Plin',
-    description: 'Pago con Plin via numero o QR.',
+    description: 'Pago con Plin vía número o QR.',
     image: require('../../../assets/payment/Plin.png'),
   },
 ];
