@@ -1,19 +1,19 @@
 import React from 'react';
-import {
-  Image,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import Animated, {
+  runOnJS,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+} from 'react-native-reanimated';
 import type { PaymentMethod } from '@shared/types';
 import { useAppTheme } from '@theme/useAppTheme';
 import { FontFamily, FontSize } from '@theme/fonts';
-import { Spacing, BorderRadius, Shadow } from '@theme/spacing';
+import { BorderRadius, Shadow } from '@theme/spacing';
 import { AppButton } from '@shared/components/ui/AppButton';
+import { AppIcon } from '@shared/components/ui/AppIcon';
 
 export interface VehicleServiceOption {
   id: string;
@@ -41,6 +41,27 @@ interface ServiceSelectionSheetProps {
   onSchedulePress?: () => void;
 }
 
+// Alto de cada fila de servicio (imagen 48 + padding 6*2) más el espacio entre filas.
+const ROW_HEIGHT = 62;
+// Handle, encabezado, fila de pago, botón y espacios entre ellos.
+const SHEET_CHROME = 10 + 4 + 12 + 24 + 12 + 12 + 52 + 12 + 56 + 18;
+const SPRING = { damping: 22, stiffness: 220, mass: 0.9 };
+
+/** Alturas de la hoja: mínima al elegir destino y expandida al arrastrarla. */
+export function useServiceSheetHeights() {
+  const { height } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  const collapsed = Math.round(SHEET_CHROME + insets.bottom + ROW_HEIGHT * 2.6);
+  const expanded = Math.round(height - insets.top - 72);
+  return { collapsed: Math.min(collapsed, expanded), expanded };
+}
+
+const PAYMENT_LOGOS = {
+  Yape: require('../../../../../assets/payment/Yape.png'),
+  Plin: require('../../../../../assets/payment/Plin.png'),
+  Efectivo: require('../../../../../assets/payment/Efectivo.png'),
+} as const;
+
 export function ServiceSelectionSheet({
   services,
   selectedId,
@@ -56,69 +77,84 @@ export function ServiceSelectionSheet({
 }: ServiceSelectionSheetProps) {
   const theme = useAppTheme();
   const insets = useSafeAreaInsets();
+  const { collapsed, expanded } = useServiceSheetHeights();
+
+  const sheetHeight = useSharedValue(collapsed);
+  const dragStart = useSharedValue(collapsed);
+  const [isExpanded, setIsExpanded] = React.useState(false);
+
+  const snapTo = React.useCallback(
+    (toExpanded: boolean) => {
+      sheetHeight.value = withSpring(toExpanded ? expanded : collapsed, SPRING);
+      setIsExpanded(toExpanded);
+    },
+    [collapsed, expanded, sheetHeight],
+  );
+
+  // Solo la cabecera (handle + título) arrastra la hoja; la lista hace scroll por su cuenta.
+  const dragGesture = Gesture.Pan()
+    .onStart(() => {
+      dragStart.value = sheetHeight.value;
+    })
+    .onUpdate((e) => {
+      const next = dragStart.value - e.translationY;
+      sheetHeight.value = Math.max(collapsed - 40, Math.min(expanded, next));
+    })
+    .onEnd((e) => {
+      const middle = (collapsed + expanded) / 2;
+      const toExpanded = e.velocityY < -500 ? true : e.velocityY > 500 ? false : sheetHeight.value > middle;
+      runOnJS(snapTo)(toExpanded);
+    });
+
+  const tapGesture = Gesture.Tap().onEnd(() => {
+    runOnJS(snapTo)(!isExpanded);
+  });
+
+  const sheetStyle = useAnimatedStyle(() => ({ height: sheetHeight.value }));
 
   const selectedService = services.find((s) => s.id === selectedId) ?? services[0];
   const isAuction = selectedService?.isAuction === true;
-
-  const getPaymentLogo = () => {
-    switch (paymentMethod.mode) {
-      case 'Yape':
-        return require('../../../../../assets/payment/yape.png');
-      case 'Plin':
-        return require('../../../../../assets/payment/plin.png');
-      case 'Efectivo':
-      default:
-        return require('../../../../../assets/payment/efectivo.png');
-    }
-  };
+  const paymentLogo = PAYMENT_LOGOS[paymentMethod.mode] ?? PAYMENT_LOGOS.Efectivo;
 
   const submitLabel = isAuction
-    ? 'Continuar a subasta'
-    : `Pedir ${selectedService?.name ?? 'viaje'} · S/ ${(selectedService?.price ?? 25).toFixed(2)}`;
+    ? 'Proponer mi precio'
+    : `Pedir ${selectedService?.name ?? 'viaje'} · S/ ${(selectedService?.price ?? 0).toFixed(2)}`;
 
   return (
-    <View
+    <Animated.View
       style={[
-        styles.container,
-        {
-          backgroundColor: theme.surface,
-          paddingBottom: Math.max(insets.bottom, Spacing.md),
-        },
+        styles.sheet,
+        { backgroundColor: theme.surface, paddingBottom: 18 + insets.bottom },
         Shadow.sheet,
+        sheetStyle,
       ]}
     >
-      <View style={[styles.handle, { backgroundColor: theme.line }]} />
-
-      {/* Cabecera con distancia y tiempo total estimado */}
-      <View style={styles.headerRow}>
-        <View>
-          <Text style={[styles.title, { color: theme.text }]}>Elige cómo viajar</Text>
-          {distanceKm && durationMin ? (
-            <Text style={[styles.metaText, { color: theme.textMuted }]}>
-              {distanceKm.toFixed(1)} km · aprox. {durationMin} min
-            </Text>
-          ) : null}
+      <GestureDetector gesture={Gesture.Exclusive(dragGesture, tapGesture)}>
+        <View
+          style={styles.dragArea}
+          accessible
+          accessibilityRole="adjustable"
+          accessibilityLabel={isExpanded ? 'Contraer lista de servicios' : 'Expandir lista de servicios'}
+          accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]}
+          onAccessibilityAction={(e) => snapTo(e.nativeEvent.actionName === 'increment')}
+        >
+          <View style={[styles.handle, { backgroundColor: theme.line }]} />
+          <View style={styles.headerRow}>
+            <Text style={[styles.title, { color: theme.text }]}>Elige cómo viajar</Text>
+            {distanceKm && durationMin ? (
+              <Text style={[styles.meta, { color: theme.textMuted }]}>
+                {distanceKm.toFixed(1)} km · {durationMin} min
+              </Text>
+            ) : null}
+          </View>
         </View>
+      </GestureDetector>
 
-        {onSchedulePress ? (
-          <TouchableOpacity
-            style={[styles.scheduleBtn, { borderColor: theme.line }]}
-            onPress={onSchedulePress}
-            activeOpacity={0.8}
-            accessible
-            accessibilityRole="button"
-            accessibilityLabel="Programar viaje para más tarde"
-          >
-            <Ionicons name="calendar-outline" size={16} color={theme.text} />
-          </TouchableOpacity>
-        ) : null}
-      </View>
-
-      {/* Lista vertical de servicios */}
       <ScrollView
-        style={styles.servicesScroll}
+        style={styles.list}
+        contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.servicesList}
+        nestedScrollEnabled
       >
         {services.map((item) => {
           const isSelected = item.id === selectedId;
@@ -126,239 +162,202 @@ export function ServiceSelectionSheet({
             <TouchableOpacity
               key={item.id}
               style={[
-                styles.serviceCard,
-                {
-                  backgroundColor: isSelected ? theme.surfaceMuted : theme.surface,
-                  borderColor: isSelected
-                    ? item.isAuction
-                      ? theme.sig
-                      : theme.primary
-                    : theme.line,
-                  borderWidth: isSelected ? 2 : 1,
-                },
+                styles.svc,
+                isSelected && { borderColor: theme.text, backgroundColor: theme.background },
               ]}
               onPress={() => onSelectService(item.id)}
               activeOpacity={0.82}
-              accessible
               accessibilityRole="radio"
               accessibilityState={{ selected: isSelected }}
-              accessibilityLabel={`Servicio ${item.name}, ${item.isAuction ? 'Tú propones precio' : `${item.currency} ${item.price.toFixed(2)}`}`}
+              accessibilityLabel={`${item.name}, ${
+                item.isAuction ? 'tú propones el precio' : `${item.currency} ${item.price.toFixed(2)}, llega en ${item.etaMinutes} minutos`
+              }`}
             >
-              <Image source={item.image} style={styles.serviceImage} resizeMode="contain" />
-
-              <View style={styles.serviceInfo}>
-                <View style={styles.serviceNameRow}>
-                  <Text style={[styles.serviceName, { color: theme.text }]}>{item.name}</Text>
-                  {item.isAuction ? (
-                    <View style={[styles.auctionTag, { backgroundColor: theme.sig }]}>
-                      <Text style={[styles.auctionTagText, { color: theme.onSig }]}>Subasta</Text>
-                    </View>
-                  ) : null}
-                </View>
-
-                <Text style={[styles.serviceMeta, { color: theme.textMuted }]}>
-                  {item.isAuction
-                    ? item.subtitle ?? 'Tú propones el precio'
-                    : `${item.seats} asientos · ${item.etaMinutes} min`}
+              <Image source={item.image} style={styles.svcImage} resizeMode="contain" />
+              <View style={styles.svcInfo}>
+                <Text style={[styles.svcName, { color: theme.text }]}>{item.name}</Text>
+                <Text style={[styles.svcMeta, { color: theme.textMuted }]}>
+                  {item.isAuction ? 'Propón tu precio' : `${item.seats} asientos · ${item.etaMinutes} min`}
                 </Text>
               </View>
-
-              <View style={styles.servicePriceWrap}>
-                {item.isAuction ? (
-                  <Text style={[styles.auctionPriceText, { color: theme.text }]}>Tú propones</Text>
-                ) : (
-                  <Text style={[styles.servicePrice, { color: theme.text }]}>
-                    {item.currency} {item.price.toFixed(2)}
-                  </Text>
-                )}
-              </View>
+              {item.isAuction ? (
+                <View style={[styles.youPill, { backgroundColor: theme.sig }]}>
+                  <Text style={[styles.youText, { color: theme.onSig }]}>Tú propones</Text>
+                </View>
+              ) : (
+                <Text style={[styles.price, { color: theme.text }]}>
+                  {item.currency} {item.price.toFixed(2)}
+                </Text>
+              )}
             </TouchableOpacity>
           );
         })}
       </ScrollView>
 
-      {/* Fila de método de pago y notas */}
-      <View style={[styles.footerControls, { borderTopColor: theme.line }]}>
+      <View style={styles.footerRow}>
         <TouchableOpacity
-          style={[styles.paymentSelector, { backgroundColor: theme.surfaceMuted, borderColor: theme.line }]}
+          style={[styles.payRow, { borderColor: theme.line }]}
           onPress={onOpenPayment}
           activeOpacity={0.8}
-          accessible
           accessibilityRole="button"
-          accessibilityLabel={`Método de pago seleccionado: ${paymentMethod.mode}. Toca para cambiar`}
+          accessibilityLabel={`Método de pago: ${paymentMethod.mode}. Cambiar`}
         >
-          <Image source={getPaymentLogo()} style={styles.paymentLogo} resizeMode="contain" />
-          <Text style={[styles.paymentText, { color: theme.text }]}>{paymentMethod.mode}</Text>
-          <Text style={[styles.paymentChange, { color: theme.textMuted }]}>Cambiar</Text>
+          <Image source={paymentLogo} style={styles.payLogo} resizeMode="contain" />
+          <Text style={[styles.payName, { color: theme.text }]}>{paymentMethod.mode}</Text>
+          <View style={styles.change}>
+            <Text style={[styles.changeText, { color: theme.textMuted }]}>Cambiar</Text>
+            <AppIcon name="chev" size="s" color={theme.textMuted} />
+          </View>
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.notesSelector, { backgroundColor: theme.surfaceMuted, borderColor: theme.line }]}
+          style={[styles.iconButton, { borderColor: tripNotes ? theme.text : theme.line }]}
           onPress={onOpenNotes}
           activeOpacity={0.8}
-          accessible
           accessibilityRole="button"
-          accessibilityLabel="Agregar o ver notas del viaje"
+          accessibilityLabel={tripNotes ? 'Ver nota para el conductor' : 'Agregar nota para el conductor'}
         >
-          <Ionicons
-            name={tripNotes ? 'document-text' : 'document-text-outline'}
-            size={18}
-            color={theme.text}
-          />
-          <Text style={[styles.notesText, { color: theme.text }]} numberOfLines={1}>
-            {tripNotes ? 'Con notas' : 'Notas'}
-          </Text>
+          <AppIcon name="msg" color={theme.text} />
         </TouchableOpacity>
+
+        {onSchedulePress ? (
+          <TouchableOpacity
+            style={[styles.iconButton, { borderColor: theme.line }]}
+            onPress={onSchedulePress}
+            activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel="Programar para más tarde"
+          >
+            <AppIcon name="cal" color={theme.text} />
+          </TouchableOpacity>
+        ) : null}
       </View>
 
-      {/* Botón principal de solicitud (en Sentence case, no mayúsculas) */}
-      <AppButton
-        label={submitLabel}
-        variant={isAuction ? 'sig' : 'primary'}
-        onPress={onSubmit}
-      />
-    </View>
+      <AppButton label={submitLabel} variant={isAuction ? 'sig' : 'primary'} onPress={onSubmit} />
+    </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    borderTopLeftRadius: BorderRadius['2xl'],
-    borderTopRightRadius: BorderRadius['2xl'],
-    paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.sm,
-    gap: Spacing.sm,
-    maxHeight: '62%',
+  sheet: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingHorizontal: 14,
+    gap: 12,
+  },
+  dragArea: {
+    paddingTop: 10,
+    gap: 12,
   },
   handle: {
-    width: 38,
-    height: 4,
-    borderRadius: 2,
     alignSelf: 'center',
-    marginBottom: Spacing.xs,
+    width: 40,
+    height: 4,
+    borderRadius: 4,
   },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 2,
+    gap: 10,
   },
   title: {
-    fontFamily: FontFamily.bold,
-    fontSize: FontSize.lg,
-    letterSpacing: -0.3,
+    fontFamily: FontFamily.semibold,
+    fontSize: FontSize.lead,
   },
-  metaText: {
+  meta: {
     fontFamily: FontFamily.regular,
-    fontSize: FontSize.xs,
-    marginTop: 1,
+    fontSize: FontSize.caption,
   },
-  scheduleBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: BorderRadius.md,
-    borderWidth: 1.5,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  servicesScroll: {
-    flexGrow: 0,
-  },
-  servicesList: {
-    gap: Spacing.sm,
-    paddingVertical: 4,
-  },
-  serviceCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: Spacing.md,
-    paddingVertical: 10,
-    borderRadius: BorderRadius.xl,
-    gap: Spacing.md,
-  },
-  serviceImage: {
-    width: 58,
-    height: 38,
-  },
-  serviceInfo: {
+  list: {
     flex: 1,
+  },
+  listContent: {
     gap: 2,
   },
-  serviceNameRow: {
+  svc: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 10,
+    paddingTop: 6,
+    paddingBottom: 6,
+    paddingLeft: 6,
+    paddingRight: 10,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1.5,
+    borderColor: 'transparent',
   },
-  serviceName: {
-    fontFamily: FontFamily.bold,
-    fontSize: FontSize.md - 1,
+  svcImage: {
+    width: 74,
+    height: 48,
   },
-  auctionTag: {
-    paddingHorizontal: 6,
-    paddingVertical: 1.5,
-    borderRadius: BorderRadius.full,
+  svcInfo: {
+    flex: 1,
   },
-  auctionTagText: {
-    fontFamily: FontFamily.bold,
-    fontSize: FontSize['2xs'],
+  svcName: {
+    fontFamily: FontFamily.semibold,
+    fontSize: FontSize.bodyLg,
   },
-  serviceMeta: {
+  svcMeta: {
     fontFamily: FontFamily.regular,
     fontSize: FontSize.xs,
   },
-  servicePriceWrap: {
-    alignItems: 'flex-end',
-  },
-  servicePrice: {
+  price: {
     fontFamily: FontFamily.bold,
     fontSize: FontSize.md,
-    fontVariant: ['tabular-nums'],
+    textAlign: 'right',
   },
-  auctionPriceText: {
+  youPill: {
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: BorderRadius.full,
+  },
+  youText: {
     fontFamily: FontFamily.semibold,
     fontSize: FontSize.xs,
   },
-  footerControls: {
+  footerRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-    paddingTop: Spacing.xs,
-    borderTopWidth: 1,
+    gap: 8,
   },
-  paymentSelector: {
+  payRow: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.sm,
-    paddingHorizontal: Spacing.md,
+    gap: 10,
     paddingVertical: 10,
+    paddingHorizontal: 12,
     borderRadius: BorderRadius.lg,
-    borderWidth: 1,
+    borderWidth: 1.5,
   },
-  paymentLogo: {
-    width: 24,
-    height: 24,
+  payLogo: {
+    width: 28,
+    height: 28,
+    borderRadius: BorderRadius.sm,
   },
-  paymentText: {
-    flex: 1,
+  payName: {
     fontFamily: FontFamily.semibold,
     fontSize: FontSize.sm,
   },
-  paymentChange: {
-    fontFamily: FontFamily.regular,
-    fontSize: FontSize.xs,
-  },
-  notesSelector: {
+  change: {
+    marginLeft: 'auto',
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: 10,
-    borderRadius: BorderRadius.lg,
-    borderWidth: 1,
+    gap: 2,
   },
-  notesText: {
+  changeText: {
     fontFamily: FontFamily.semibold,
-    fontSize: FontSize.xs,
+    fontSize: FontSize.sm,
+  },
+  iconButton: {
+    width: 52,
+    borderRadius: 13,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

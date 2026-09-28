@@ -6,22 +6,26 @@ import {
   Platform,
   Alert,
   Animated,
+  Image,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MapView, { Marker, Polyline, PROVIDER_GOOGLE, type Region } from 'react-native-maps';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { ClienteStackParamList } from '@navigation/types';
 import { useTaxiStore } from '@store/useTaxiStore';
+import { useThemeStore } from '@store/useThemeStore';
+import { AppIcon } from '@shared/components/ui/AppIcon';
+import { MapStyleLight, MapStyleNight } from '@theme/mapStyles';
 import { useRideDraftStore } from '@store/useRideDraftStore';
 import { Colors } from '@theme/colors';
 import { useAppTheme } from '@theme/useAppTheme';
-import { Spacing, BorderRadius, Shadow } from '@theme/spacing';
-import { calculateDistance, formatDistance, formatEta } from '@shared/utils/mapUtils';
+import { BorderRadius, Shadow } from '@theme/spacing';
+import { calculateDistance } from '@shared/utils/mapUtils';
 import { getPlaceNameFromCoordinates } from '@shared/utils/locationUtils';
 import {
   ServiceSelectionSheet,
+  useServiceSheetHeights,
   type VehicleServiceOption,
   AuctionFareSheet,
   AuctionOffersView,
@@ -33,6 +37,9 @@ import {
 } from './components';
 
 type Nav = NativeStackNavigationProp<ClienteStackParamList, 'SolicitudTaxi'>;
+
+const ORIGIN_PIN = require('../../../../assets/legacy/images/location_origen.png');
+const DESTINATION_PIN = require('../../../../assets/legacy/images/location_destino.png');
 
 const LIMA_REGION: Region = {
   latitude: -12.0464,
@@ -119,6 +126,8 @@ export function SolicitudTaxiScreen() {
   const navigation = useNavigation<Nav>();
   const insets = useSafeAreaInsets();
   const theme = useAppTheme();
+  const isDark = useThemeStore((s) => s.isDark);
+  const sheetHeights = useServiceSheetHeights();
   const mapRef = useRef<MapView | null>(null);
 
   // Stores
@@ -172,11 +181,11 @@ export function SolicitudTaxiScreen() {
     mapRef.current?.fitToCoordinates(
       [request.origin.position, request.destination.position, ...(request.routePoints ?? [])],
       {
-        edgePadding: { top: insets.top + 70, right: 50, bottom: 350, left: 50 },
+        edgePadding: { top: insets.top + 70, right: 50, bottom: sheetHeights.collapsed + 24, left: 50 },
         animated: true,
       },
     );
-  }, [request, insets.top, isAuctionPickupMode]);
+  }, [request, insets.top, isAuctionPickupMode, sheetHeights.collapsed]);
 
   // Submit desde el sheet de selección de servicio
   const handleServiceSubmit = () => {
@@ -256,9 +265,16 @@ export function SolicitudTaxiScreen() {
         ref={mapRef}
         style={StyleSheet.absoluteFillObject}
         provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
+        customMapStyle={isDark ? MapStyleNight : MapStyleLight}
+        mapType={Platform.OS === 'ios' ? 'mutedStandard' : 'standard'}
+        userInterfaceStyle={isDark ? 'dark' : 'light'}
         initialRegion={LIMA_REGION}
-        showsUserLocation
+        showsUserLocation={false}
         showsMyLocationButton={false}
+        showsPointsOfInterest={false}
+        showsBuildings={false}
+        showsCompass={false}
+        toolbarEnabled={false}
         onRegionChange={() => {
           if (isAuctionPickupMode) animatePin(-16);
         }}
@@ -275,27 +291,22 @@ export function SolicitudTaxiScreen() {
         }}
       >
         {request?.origin && !isAuctionPickupMode ? (
-          <Marker coordinate={request.origin.position} title="Punto de partida">
-            <View style={[styles.markerPin, { backgroundColor: theme.origin }]}>
-              <View style={styles.markerInnerDot} />
-            </View>
+          <Marker coordinate={request.origin.position} anchor={{ x: 0.5, y: 1 }} title="Punto de partida">
+            <Image source={ORIGIN_PIN} style={styles.mapPin} resizeMode="contain" />
           </Marker>
         ) : null}
 
         {request?.destination && !isAuctionPickupMode ? (
-          <Marker coordinate={request.destination.position} title="Destino">
-            <View style={[styles.markerSquare, { backgroundColor: theme.destination }]}>
-              <View style={styles.markerInnerSquare} />
-            </View>
+          <Marker coordinate={request.destination.position} anchor={{ x: 0.5, y: 1 }} title="Destino">
+            <Image source={DESTINATION_PIN} style={styles.mapPin} resizeMode="contain" />
           </Marker>
         ) : null}
 
         {request?.routePoints && request.routePoints.length > 1 && !isAuctionPickupMode ? (
-          <Polyline
-            coordinates={request.routePoints}
-            strokeWidth={4.5}
-            strokeColor={theme.route}
-          />
+          <>
+            <Polyline coordinates={request.routePoints} strokeWidth={10} strokeColor={theme.routeCase} lineJoin="round" />
+            <Polyline coordinates={request.routePoints} strokeWidth={5} strokeColor={theme.route} lineJoin="round" />
+          </>
         ) : null}
       </MapView>
 
@@ -304,9 +315,8 @@ export function SolicitudTaxiScreen() {
         style={[
           styles.floatingBackBtn,
           {
-            top: insets.top + Spacing.sm,
+            top: insets.top + 6,
             backgroundColor: theme.surface,
-            borderColor: theme.line,
           },
           Shadow.raise,
         ]}
@@ -324,7 +334,7 @@ export function SolicitudTaxiScreen() {
         accessibilityRole="button"
         accessibilityLabel="Volver"
       >
-        <Ionicons name="arrow-back" size={20} color={theme.text} />
+        <AppIcon name="back" color={theme.text} />
       </TouchableOpacity>
 
       {/* Pin interactivo en modo pickup */}
@@ -417,42 +427,17 @@ const styles = StyleSheet.create({
   },
   floatingBackBtn: {
     position: 'absolute',
-    left: Spacing.lg,
+    left: 12,
     width: 44,
     height: 44,
     borderRadius: BorderRadius.lg,
-    borderWidth: 1.5,
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 15,
   },
-  markerPin: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...Shadow.md,
-  },
-  markerInnerDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: Colors.white,
-  },
-  markerSquare: {
-    width: 24,
-    height: 24,
-    borderRadius: 4,
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...Shadow.md,
-  },
-  markerInnerSquare: {
-    width: 8,
-    height: 8,
-    borderRadius: 1,
-    backgroundColor: Colors.white,
+  mapPin: {
+    width: 28,
+    height: 35,
   },
   centerPinWrap: {
     position: 'absolute',

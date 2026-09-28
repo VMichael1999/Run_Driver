@@ -6,7 +6,7 @@ export { TripNotesModal } from './TripNotesModal';
 export { TripScheduleModal } from './TripScheduleModal';
 export { AuctionFareSheet } from './AuctionFareSheet';
 export { AuctionPickupSheet } from './AuctionPickupSheet';
-export { ServiceSelectionSheet } from './ServiceSelectionSheet';
+export { ServiceSelectionSheet, useServiceSheetHeights } from './ServiceSelectionSheet';
 export type { VehicleServiceOption } from './ServiceSelectionSheet';
 export { AuctionOffersView } from './AuctionOffersView';
 export type { AuctionOfferItem } from './AuctionOffersView';
