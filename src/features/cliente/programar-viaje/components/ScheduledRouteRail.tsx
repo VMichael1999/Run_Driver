@@ -30,6 +30,7 @@ export function ScheduledRouteRail({ origin, destination, stops, onRemoveStop, o
       {places.map(({ label, place, color, stopIndex }, index) => (
         <View key={`${label}-${index}`} style={styles.row}>
           <View style={styles.dotColumn}>
+            <View style={[styles.topSegment, { backgroundColor: index === 0 ? 'transparent' : theme.line }]} />
             <View style={styles.ring}>
               <View style={[styles.dot, { backgroundColor: color }]} />
             </View>
@@ -82,7 +83,11 @@ const styles = StyleSheet.create({
   dotColumn: {
     width: 16,
     alignItems: 'center',
-    paddingTop: 2,
+  },
+  // Alinea el punto con la etiqueta y une con la fila anterior.
+  topSegment: {
+    width: 2,
+    height: 2,
   },
   ring: {
     width: 16,
@@ -100,8 +105,6 @@ const styles = StyleSheet.create({
   line: {
     width: 2,
     flex: 1,
-    minHeight: 14,
-    marginVertical: 3,
   },
   text: {
     flex: 1,
