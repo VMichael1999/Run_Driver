@@ -323,9 +323,9 @@ export function TrayectoTaxiScreen() {
   };
 
   // Complete Rating
-  const handleRatingComplete = (_calificacion?: Calificacion) => {
+  const handleRatingComplete = (calificacion?: Calificacion) => {
     if (activeTrip) {
-      addCompletedTrip(activeTrip);
+      addCompletedTrip(activeTrip, { tip: calificacion?.propina });
       // El cupón es para un viaje: se gasta al terminarlo (si se cancela, sigue guardado).
       // Solo se borra si es el mismo que se usó, por si se aplicó otro durante el viaje.
       const usedCoupon = activeTrip.discount?.source === 'coupon' ? activeTrip.discount.label : null;

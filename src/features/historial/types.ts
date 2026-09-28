@@ -42,6 +42,8 @@ export interface TripHistoryItem {
   /** Tarifa del conductor antes del descuento; solo si hubo descuento. */
   originalPrice?: number;
   discount?: TripDiscount | null;
+  /** Propina que se dejó al calificar; no está incluida en `price`. */
+  tip?: number;
   /** Datos para el detalle; los viajes antiguos pueden no tenerlos. */
   vehicle?: TripVehicle;
   paymentMode?: PaymentMode;
