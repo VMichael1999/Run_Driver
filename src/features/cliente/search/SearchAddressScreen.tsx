@@ -243,9 +243,11 @@ export function SearchAddressScreen({ route, navigation }: Props) {
             {target === 'origin'
               ? activeInput
               : staticField('Desde', originName, () => navigation.push('SearchAddress', { target: 'origin' }))}
-            {extraStops.map((stop, idx) =>
-              staticField(`Parada ${idx + 1}`, stop.placeName, undefined, () => removeExtraStop(idx)),
-            )}
+            {extraStops.map((stop, idx) => (
+              <React.Fragment key={`${stop.placeName}-${idx}`}>
+                {staticField(`Parada ${idx + 1}`, stop.placeName, undefined, () => removeExtraStop(idx))}
+              </React.Fragment>
+            ))}
             {target === 'origin'
               ? destination
                 ? staticField('Hacia', destination.placeName)
