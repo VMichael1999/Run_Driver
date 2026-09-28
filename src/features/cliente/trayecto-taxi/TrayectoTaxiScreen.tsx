@@ -509,7 +509,7 @@ export function TrayectoTaxiScreen() {
             accessible
             accessibilityLabel={`Tu auto: ${driver.vehicleModel} color ${driver.vehicleColor.toLowerCase()}, placa ${driver.vehiclePlate}. Calificación ${driver.rating.toFixed(1)}`}
           >
-            <VehiculoIlustracion color={driver.vehicleColor} plate={driver.vehiclePlate} width={184} />
+            <VehiculoIlustracion color={driver.vehicleColor} plate={driver.vehiclePlate} width={210} />
             <PlacaVehiculo plate={driver.vehiclePlate} size="lg" />
             <View style={styles.vehicleInfoWrap}>
               <Text style={[styles.vehicleModelText, { color: theme.text }]} numberOfLines={1}>

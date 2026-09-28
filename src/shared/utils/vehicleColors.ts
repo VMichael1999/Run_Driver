@@ -6,13 +6,13 @@ export interface VehiclePaint {
 }
 
 const PAINTS: Record<string, VehiclePaint> = {
-  plata: { light: '#E8ECF0', base: '#A9B1B9', dark: '#646C74' },
-  blanco: { light: '#FFFFFF', base: '#E4E8EC', dark: '#A9B0B7' },
-  negro: { light: '#5B636C', base: '#262B31', dark: '#0A0C0E' },
-  gris: { light: '#AEB5BB', base: '#6F777E', dark: '#3C4146' },
-  azul: { light: '#7FA6E6', base: '#2456A8', dark: '#0E2A5C' },
-  rojo: { light: '#F07A80', base: '#B3202A', dark: '#5E0C12' },
-  verde: { light: '#6FBF97', base: '#1F6B4A', dark: '#0C3322' },
+  plata: { light: '#EEF1F4', base: '#A9B1B9', dark: '#5E666E' },
+  blanco: { light: '#FFFFFF', base: '#E3E7EB', dark: '#A2AAB2' },
+  negro: { light: '#5E6771', base: '#2A3037', dark: '#111417' },
+  gris: { light: '#B4BBC1', base: '#6F777E', dark: '#3C4146' },
+  azul: { light: '#8DB0EA', base: '#2456A8', dark: '#0E2A5C' },
+  rojo: { light: '#F2868C', base: '#B3202A', dark: '#5E0C12' },
+  verde: { light: '#7CC7A1', base: '#1F6B4A', dark: '#0C3322' },
   dorado: { light: '#F1DFB6', base: '#B8995F', dark: '#6E5630' },
 };
 
