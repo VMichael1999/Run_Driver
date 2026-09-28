@@ -50,14 +50,15 @@ export function TripNotesModal({
         style={styles.keyboardAvoid}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <Pressable style={styles.backdrop} onPress={onClose}>
+        <Pressable style={styles.backdrop} onPress={onClose} accessibilityRole="button" accessibilityLabel="Cerrar">
           <Pressable
             style={[
               styles.sheet,
               { backgroundColor: theme.surface, paddingBottom: Math.max(insets.bottom, Spacing.lg) },
               Shadow.sheet,
             ]}
-            onPress={(e) => e.stopPropagation()}
+            accessible={false}
+          onPress={(e) => e.stopPropagation()}
           >
             <View style={[styles.handle, { backgroundColor: theme.line }]} />
             <Text style={[styles.title, { color: theme.text }]}>Notas del viaje</Text>

@@ -360,6 +360,8 @@ export function ClienteHomeScreen() {
                   style={[styles.emptyFavoriteRow, { backgroundColor: theme.surfaceMuted }]}
                   onPress={() => navigation.navigate('SearchAddress', { target: 'destination', saveFavorite: true })}
                   activeOpacity={0.8}
+                  accessibilityRole="button"
+                  accessibilityLabel="Guardar un destino frecuente"
                 >
                   <Ionicons name="bookmark-outline" size={18} color={theme.textMuted} />
                   <Text style={[styles.emptyFavoriteText, { color: theme.textMuted }]}>

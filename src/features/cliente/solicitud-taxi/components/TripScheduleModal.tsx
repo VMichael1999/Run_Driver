@@ -46,13 +46,14 @@ export function TripScheduleModal({
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable style={styles.backdrop} onPress={onClose}>
+      <Pressable style={styles.backdrop} onPress={onClose} accessibilityRole="button" accessibilityLabel="Cerrar">
         <Pressable
           style={[
             styles.sheet,
             { backgroundColor: theme.surface, paddingBottom: Math.max(insets.bottom, Spacing.lg) },
             Shadow.sheet,
           ]}
+          accessible={false}
           onPress={(e) => e.stopPropagation()}
         >
           <View style={[styles.handle, { backgroundColor: theme.line }]} />

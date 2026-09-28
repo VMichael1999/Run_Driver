@@ -134,7 +134,7 @@ export function AppDrawer({ visible, onClose, onNavigate, onLogout, phoneLabel }
     <Modal visible={internalVisible} transparent animationType="none" onRequestClose={onClose}>
       <View style={styles.root}>
         <Animated.View style={[styles.backdrop, { opacity: backdropOpacity }]}>
-          <Pressable style={StyleSheet.absoluteFillObject} onPress={onClose} />
+          <Pressable style={StyleSheet.absoluteFillObject} onPress={onClose} accessibilityRole="button" accessibilityLabel="Cerrar menú" />
         </Animated.View>
 
         <Animated.View style={[styles.panel, { backgroundColor: theme.drawer, transform: [{ translateX }] }]}>
@@ -142,6 +142,8 @@ export function AppDrawer({ visible, onClose, onNavigate, onLogout, phoneLabel }
             <TouchableOpacity
               style={styles.profileSection}
               onPress={() => handleSelect('Perfil')}
+              accessibilityRole="button"
+              accessibilityLabel="Ver perfil"
               activeOpacity={0.85}
             >
               <View style={styles.avatarWrap}>
@@ -169,6 +171,8 @@ export function AppDrawer({ visible, onClose, onNavigate, onLogout, phoneLabel }
                       key={option.id}
                       style={styles.menuItem}
                       onPress={() => handleSelect(option.route)}
+                  accessibilityRole="button"
+                  accessibilityLabel={option.label}
                       activeOpacity={0.75}
                     >
                       <Ionicons name={option.icon} size={22} color={Colors.white} />
@@ -180,7 +184,7 @@ export function AppDrawer({ visible, onClose, onNavigate, onLogout, phoneLabel }
             </ScrollView>
 
             <View style={styles.divider} />
-            <TouchableOpacity style={styles.logoutButton} onPress={handleLogout} activeOpacity={0.8}>
+            <TouchableOpacity style={styles.logoutButton} onPress={handleLogout} activeOpacity={0.8} accessibilityRole="button">
               <Ionicons name="log-out-outline" size={22} color={Colors.dangerOnDark} />
               <Text style={styles.logoutText}>Cerrar sesión</Text>
             </TouchableOpacity>

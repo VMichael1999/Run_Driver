@@ -39,7 +39,7 @@ export function TripTimeline({ pickup, dropoff, extraStop, onAddStop }: Props) {
 
         {extraStop ? (
           <View style={styles.row}>
-            <TouchableOpacity onPress={onAddStop} activeOpacity={0.85} disabled={!onAddStop}>
+            <TouchableOpacity onPress={onAddStop} activeOpacity={0.85} disabled={!onAddStop} accessibilityRole="button">
               <Text style={[styles.addStop, { color: theme.accent }]}>{extraStop.label}</Text>
             </TouchableOpacity>
             {extraStop.address ? <Text style={[styles.address, { color: theme.text }]}>{extraStop.address}</Text> : null}
@@ -53,7 +53,7 @@ export function TripTimeline({ pickup, dropoff, extraStop, onAddStop }: Props) {
           </View>
         ) : (
           <View style={styles.row}>
-            <TouchableOpacity onPress={onAddStop} activeOpacity={0.85}>
+            <TouchableOpacity onPress={onAddStop} activeOpacity={0.85} accessibilityRole="button" accessibilityLabel="Agregar parada">
               <View style={styles.addStopRow}>
                 <Ionicons name="add" size={14} color={theme.accent} />
                 <Text style={[styles.addStop, { color: theme.accent }]}>Agregar parada</Text>

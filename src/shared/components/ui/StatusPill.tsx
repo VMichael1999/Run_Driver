@@ -50,7 +50,7 @@ export function StatusPill({ label, status = 'online', onPress, style }: StatusP
 
   if (onPress) {
     return (
-      <TouchableOpacity onPress={onPress} activeOpacity={0.8}>
+      <TouchableOpacity onPress={onPress} activeOpacity={0.8} accessibilityRole="button" accessibilityLabel={label}>
         {content}
       </TouchableOpacity>
     );

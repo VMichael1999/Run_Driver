@@ -33,6 +33,8 @@ export function TripHistoryCard({ trip, onPressMenu }: Props) {
         <Text style={[styles.dateLabel, { color: theme.text }]}>{formatTripDate(trip.date)}</Text>
         <TouchableOpacity
           onPress={() => onPressMenu?.(trip)}
+          accessibilityRole="button"
+          accessibilityLabel="Más opciones del viaje"
           activeOpacity={0.85}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >

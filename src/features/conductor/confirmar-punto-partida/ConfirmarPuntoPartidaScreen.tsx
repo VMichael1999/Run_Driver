@@ -131,10 +131,10 @@ export function ConfirmarPuntoPartidaScreen({ route, navigation }: Props) {
         </View>
 
         <View style={[styles.fabColumn, { top: insets.top + Spacing.md }]}>
-          <TouchableOpacity style={[styles.fabButton, { backgroundColor: theme.surface }]} onPress={() => void handleRecenter()}>
+          <TouchableOpacity style={[styles.fabButton, { backgroundColor: theme.surface }]} onPress={() => void handleRecenter()} accessibilityRole="button" accessibilityLabel="Actualizar ubicación">
             <Ionicons name="refresh" size={20} color={theme.text} />
           </TouchableOpacity>
-          <TouchableOpacity style={[styles.fabButton, { backgroundColor: theme.surface }]}>
+          <TouchableOpacity style={[styles.fabButton, { backgroundColor: theme.surface }]} accessibilityRole="button" accessibilityLabel="Más opciones">
             <Ionicons name="ellipsis-horizontal" size={20} color={theme.text} />
           </TouchableOpacity>
         </View>
@@ -150,10 +150,10 @@ export function ConfirmarPuntoPartidaScreen({ route, navigation }: Props) {
 
       <View style={[styles.panel, { paddingBottom: insets.bottom + Spacing.md, backgroundColor: theme.surface }]}>
         <View style={styles.panelTopRow}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton} accessibilityRole="button" accessibilityLabel="Volver">
             <Ionicons name="arrow-back" size={22} color={theme.text} />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.gpsButton} onPress={() => void handleRecenter()}>
+          <TouchableOpacity style={styles.gpsButton} onPress={() => void handleRecenter()} accessibilityRole="button" accessibilityLabel="Centrar en mi ubicación">
             <Ionicons name="locate-outline" size={22} color={theme.accent} />
           </TouchableOpacity>
         </View>

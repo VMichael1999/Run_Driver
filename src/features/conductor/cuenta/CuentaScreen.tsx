@@ -35,7 +35,7 @@ export function CuentaScreen() {
 
       <View style={styles.menu}>
         {menuItems.map((item) => (
-          <TouchableOpacity key={item.label} style={styles.menuItem} onPress={item.onPress} activeOpacity={0.8}>
+          <TouchableOpacity key={item.label} style={styles.menuItem} onPress={item.onPress} activeOpacity={0.8} accessibilityRole="button" accessibilityLabel={item.label}>
             <Text style={styles.menuIcon}>{item.icon}</Text>
             <Text style={styles.menuLabel}>{item.label}</Text>
             <Text style={styles.menuChevron}>›</Text>

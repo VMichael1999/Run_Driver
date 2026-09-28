@@ -38,7 +38,7 @@ export function SolicitudesTrayectoScreen() {
         <Text style={styles.passengerName}>Ana Torres</Text>
         <Text style={styles.destination}>🏁 Destino: San Borja, Lima</Text>
 
-        <TouchableOpacity style={styles.arrivedButton} activeOpacity={0.85}>
+        <TouchableOpacity style={styles.arrivedButton} activeOpacity={0.85} accessibilityRole="button">
           <Text style={styles.arrivedButtonText}>Llegué al punto de recogida</Text>
         </TouchableOpacity>
       </View>

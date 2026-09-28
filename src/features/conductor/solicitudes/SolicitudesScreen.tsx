@@ -30,7 +30,13 @@ export function SolicitudesScreen() {
         contentContainerStyle={styles.list}
         refreshing={isLoading}
         renderItem={({ item }) => (
-          <TouchableOpacity style={styles.card} onPress={() => handlePress(item)} activeOpacity={0.85}>
+          <TouchableOpacity
+            style={styles.card}
+            onPress={() => handlePress(item)}
+            activeOpacity={0.85}
+            accessibilityRole="button"
+            accessibilityLabel={`Solicitud de ${item.passengerName}, desde ${item.origin.placeName}`}
+          >
             <View style={styles.cardHeader}>
               <Text style={styles.passengerName}>{item.passengerName}</Text>
               <Text style={styles.rating}>⭐ {item.rating}</Text>

@@ -29,15 +29,15 @@ export function CountryBottomSheet({ visible, countries, onClose, onSelect }: Pr
       <View style={styles.overlay}>
         <View style={styles.sheet}>
           <View style={styles.header}>
-            <Text style={styles.title}>Seleccione su pais</Text>
-            <TouchableOpacity onPress={onClose}>
+            <Text style={styles.title}>Selecciona tu país</Text>
+            <TouchableOpacity onPress={onClose} accessibilityRole="button" accessibilityLabel="Cerrar" hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
               <Text style={styles.close}>✕</Text>
             </TouchableOpacity>
           </View>
           <TextInput
             value={query}
             onChangeText={setQuery}
-            placeholder="Buscar un pais"
+            placeholder="Buscar un país"
             placeholderTextColor={Colors.textDisabled}
             style={styles.search}
           />
@@ -48,6 +48,8 @@ export function CountryBottomSheet({ visible, countries, onClose, onSelect }: Pr
               <TouchableOpacity
                 style={styles.item}
                 activeOpacity={0.8}
+                accessibilityRole="button"
+                accessibilityLabel={item.value}
                 onPress={() => {
                   onSelect(item);
                   onClose();

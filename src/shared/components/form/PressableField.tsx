@@ -16,7 +16,13 @@ export function PressableField({ label, value, placeholder, onPress }: Props) {
   return (
     <View>
       <Text style={styles.label}>{label}</Text>
-      <TouchableOpacity style={styles.field} onPress={onPress} activeOpacity={0.85}>
+      <TouchableOpacity
+        style={styles.field}
+        onPress={onPress}
+        activeOpacity={0.85}
+        accessibilityRole="button"
+        accessibilityLabel={value ? `${label}: ${value}` : label}
+      >
         <Text style={[styles.value, !value && styles.placeholder]}>{value || placeholder || ''}</Text>
         <Ionicons name="chevron-down" size={18} color={Colors.textSecondary} />
       </TouchableOpacity>
