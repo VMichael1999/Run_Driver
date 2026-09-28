@@ -6,15 +6,19 @@ import {
   StyleSheet,
   Modal,
   ScrollView,
-  Image,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { UserNetworkAvatar } from '../avatar/UserNetworkAvatar';
+import { AppButton } from '../ui/AppButton';
 import { aspectosCalificacion, type Aspecto } from '@data/aspectosCalificacion';
 import { Colors } from '@theme/colors';
 import { useAppTheme } from '@theme/useAppTheme';
 import { FontFamily, FontSize } from '@theme/fonts';
-import { Spacing, BorderRadius, Shadow } from '@theme/spacing';
+import { Spacing, BorderRadius } from '@theme/spacing';
 
 export interface CalificacionUser {
   nombres: string;
@@ -26,6 +30,7 @@ export interface CalificacionUser {
 export interface Calificacion {
   puntuacion: number;
   aspectos: Aspecto[];
+  comentario?: string;
 }
 
 interface Props {
@@ -38,6 +43,9 @@ interface Props {
   origin?: string;
   destination?: string;
   paymentMethod?: string;
+  fareAmount?: number;
+  currency?: string;
+  durationMinutes?: number;
   vehicleImageSource?: any;
 }
 
@@ -46,25 +54,27 @@ export function CalificacionModal({
   user,
   onClose,
   onSend,
-  vehicleModel,
-  vehiclePlate,
-  origin,
   destination,
-  paymentMethod,
-  vehicleImageSource,
+  paymentMethod = 'Efectivo',
+  fareAmount = 24.0,
+  currency = 'S/',
+  durationMinutes = 19,
 }: Props) {
   const theme = useAppTheme();
-  const [rating, setRating] = useState(0);
+  const [rating, setRating] = useState(5);
   const [selected, setSelected] = useState<Set<number>>(new Set());
+  const [comment, setComment] = useState('');
 
   useEffect(() => {
     if (!visible) {
-      setRating(0);
+      setRating(5);
       setSelected(new Set());
+      setComment('');
     }
   }, [visible]);
 
   const toggleAspecto = (id: number) => {
+    Haptics.selectionAsync();
     setSelected((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
@@ -73,125 +83,193 @@ export function CalificacionModal({
     });
   };
 
-  const handleSend = () => {
-    const aspectos = aspectosCalificacion.filter((a) => selected.has(a.id));
-    onSend({ puntuacion: rating, aspectos });
+  const handleSelectStar = (stars: number) => {
+    Haptics.selectionAsync();
+    setRating(stars);
   };
 
+  const handleSend = () => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    const aspectos = aspectosCalificacion.filter((a) => selected.has(a.id));
+    onSend({
+      puntuacion: rating,
+      aspectos,
+      comentario: comment.trim() || undefined,
+    });
+  };
+
+  const handleSkip = () => {
+    Haptics.selectionAsync();
+    onClose();
+  };
+
+  const firstName = user.nombres.split(' ')[0] || user.nombres;
+  const now = new Date();
+  const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+
   return (
-    <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
-      <View style={[styles.screen, { backgroundColor: theme.background }]}>
-        <View style={[styles.topHandle, { backgroundColor: theme.divider }]} />
-
-        <View style={styles.header}>
-          <TouchableOpacity style={[styles.headerButton, { borderColor: theme.divider }]} onPress={onClose} activeOpacity={0.85}>
-            <Ionicons name="close" size={18} color={theme.text} />
+    <Modal visible={visible} animationType="slide" transparent={false} onRequestClose={onClose}>
+      <KeyboardAvoidingView
+        style={[styles.screen, { backgroundColor: theme.background }]}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <View style={styles.topBar}>
+          <TouchableOpacity
+            style={[styles.closeButton, { backgroundColor: theme.surfaceMuted }]}
+            onPress={onClose}
+            activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel="Cerrar calificación"
+          >
+            <Ionicons name="close" size={20} color={theme.text} />
           </TouchableOpacity>
-          <Text style={[styles.headerTitle, { color: theme.text }]}>Has llegado</Text>
-          <TouchableOpacity style={[styles.headerButton, { borderColor: theme.divider }]} activeOpacity={0.85}>
-            <Ionicons name="share-social-outline" size={18} color={theme.text} />
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.noticeBanner}>
-          <Text style={styles.noticeText}>Asegurate de no olvidar tus pertenencias</Text>
-          <Ionicons name="eye-outline" size={14} color={Colors.white} />
         </View>
 
         <ScrollView
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
         >
-          <View style={styles.heroSection}>
-            {vehicleImageSource ? (
-              <Image source={vehicleImageSource} style={styles.heroCar} resizeMode="contain" />
-            ) : null}
-            <View style={styles.heroAvatarWrap}>
-              <UserNetworkAvatar imageUrl={user.imageUrl} radius={22} />
+          {/* Confirmación de llegada y pago */}
+          <View style={[styles.doneCard, { backgroundColor: theme.surface, borderColor: theme.divider }]}>
+            <View style={styles.doneIconWrap}>
+              <Ionicons name="checkmark-circle" size={32} color={Colors.success} />
+            </View>
+            <View style={styles.doneTextWrap}>
+              <Text style={[styles.doneTitle, { color: theme.text }]} numberOfLines={2}>
+                Llegaste a {destination || 'tu destino'}
+              </Text>
+              <Text style={[styles.doneSubtitle, { color: theme.textMuted }]}>
+                {timeStr} · {durationMinutes} min · {currency} {fareAmount.toFixed(2)} en {paymentMethod.toLowerCase()}
+              </Text>
             </View>
           </View>
 
-          <Text style={[styles.userName, { color: theme.text }]}>{user.nombres}</Text>
-          <Text style={[styles.userVehicleMeta, { color: theme.textMuted }]}>
-            {vehicleModel || 'Vehiculo'} • {vehiclePlate || 'L-2323-RF'}
-          </Text>
-
-          <View style={[styles.infoGrid, { borderBottomColor: theme.divider }]}>
-            <View style={styles.infoRow}>
-              <Text style={[styles.infoLabel, { color: theme.text }]}>Viaje completado</Text>
-              <Text style={[styles.infoValue, { color: theme.textMuted }]}>GoCab#2252031636</Text>
-            </View>
-            <View style={styles.infoRow}>
-              <Text style={[styles.infoLabel, { color: theme.text }]}>Fecha</Text>
-              <Text style={[styles.infoValue, { color: theme.textMuted }]}>Lunes, 22 mayo 2023</Text>
-            </View>
+          {/* Pregunta sobre el conductor */}
+          <View style={styles.driverSection}>
+            <UserNetworkAvatar imageUrl={user.imageUrl} radius={26} />
+            <Text style={[styles.driverQuestion, { color: theme.text }]}>
+              ¿Cómo te fue con {firstName}?
+            </Text>
           </View>
 
-          <View style={styles.ratingBlock}>
-            <Text style={[styles.ratingTitle, { color: theme.text }]}>¿Como estuvo tu viaje?</Text>
-            <Text style={[styles.ratingSubtitle, { color: theme.textMuted }]}>Dale de una a cinco estrellas a tu viaje</Text>
-            <View style={styles.starsRow}>
-              {[1, 2, 3, 4, 5].map((star) => (
-                <TouchableOpacity key={star} onPress={() => setRating(star)} activeOpacity={0.8}>
+          {/* Estrellas */}
+          <View
+            style={styles.starsRow}
+            accessibilityRole="radiogroup"
+            accessibilityLabel={`Calificación actual: ${rating} de 5 estrellas`}
+          >
+            {[1, 2, 3, 4, 5].map((star) => {
+              const isFilled = star <= rating;
+              return (
+                <TouchableOpacity
+                  key={star}
+                  onPress={() => handleSelectStar(star)}
+                  activeOpacity={0.7}
+                  style={styles.starTouchable}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${star} estrella${star > 1 ? 's' : ''}`}
+                >
                   <Ionicons
-                    name={star <= rating ? 'star' : 'star-outline'}
-                    size={34}
-                    color={star <= rating ? '#f3c623' : theme.textDisabled}
-                    style={styles.starIcon}
+                    name={isFilled ? 'star' : 'star-outline'}
+                    size={38}
+                    color={isFilled ? Colors.star : theme.divider}
                   />
                 </TouchableOpacity>
-              ))}
-            </View>
+              );
+            })}
           </View>
 
-          <View style={[styles.detailCard, { backgroundColor: theme.surface, borderColor: theme.divider }]}>
-            <View style={styles.detailHeader}>
-              <Text style={[styles.detailTitle, { color: theme.text }]}>Detalle del viaje</Text>
-              <View style={styles.coinsBadge}>
-                <Ionicons name="leaf-outline" size={12} color="#1e7d4d" />
-                <Text style={styles.coinsText}>+3023 coins</Text>
-              </View>
-            </View>
-
-            <View style={styles.detailRow}>
-              <Text style={[styles.detailLabel, { color: theme.text }]}>Recojo</Text>
-              <Text style={[styles.detailValue, { color: theme.textMuted }]}>{origin || 'Ubicacion de origen'}</Text>
-            </View>
-            <View style={styles.detailRow}>
-              <Text style={[styles.detailLabel, { color: theme.text }]}>Destino</Text>
-              <Text style={[styles.detailValue, { color: theme.textMuted }]}>{destination || 'Ubicacion de destino'}</Text>
-            </View>
-            <View style={styles.detailRow}>
-              <Text style={[styles.detailLabel, { color: theme.text }]}>Metodo de pago</Text>
-              <Text style={[styles.detailValue, { color: theme.textMuted }]}>{paymentMethod || 'Efectivo'}</Text>
-            </View>
-
-            <View style={styles.tagWrap}>
-              {aspectosCalificacion.slice(0, 4).map((a) => {
-                const isSelected = selected.has(a.id);
+          {/* Aspectos de calificación */}
+          <View style={styles.aspectsSection}>
+            <Text style={[styles.aspectsTitle, { color: theme.text }]}>¿Qué te gustó?</Text>
+            <View style={styles.chipsContainer}>
+              {aspectosCalificacion.map((aspecto) => {
+                const isSelected = selected.has(aspecto.id);
                 return (
                   <TouchableOpacity
-                    key={a.id}
-                    style={[styles.tagChip, { backgroundColor: theme.surfaceMuted }, isSelected && { backgroundColor: theme.accent }]}
-                    onPress={() => toggleAspecto(a.id)}
-                    activeOpacity={0.85}
+                    key={aspecto.id}
+                    onPress={() => toggleAspecto(aspecto.id)}
+                    activeOpacity={0.8}
+                    style={[
+                      styles.chip,
+                      {
+                        backgroundColor: isSelected ? Colors.accentLime : theme.surfaceMuted,
+                        borderColor: isSelected ? Colors.accentLime : theme.divider,
+                      },
+                    ]}
+                    accessibilityRole="checkbox"
+                    accessibilityState={{ checked: isSelected }}
+                    accessibilityLabel={aspecto.valor}
                   >
-                    <Text style={[styles.tagChipText, { color: theme.text }, isSelected && styles.tagChipTextSelected]}>
-                      {a.valor}
+                    {isSelected && (
+                      <Ionicons
+                        name="checkmark"
+                        size={14}
+                        color={Colors.onAccentLime}
+                        style={styles.chipCheck}
+                      />
+                    )}
+                    <Text
+                      style={[
+                        styles.chipText,
+                        {
+                          color: isSelected ? Colors.onAccentLime : theme.text,
+                          fontFamily: isSelected ? FontFamily.semibold : FontFamily.regular,
+                        },
+                      ]}
+                    >
+                      {aspecto.valor}
                     </Text>
                   </TouchableOpacity>
                 );
               })}
             </View>
           </View>
-        </ScrollView>
 
-        <View style={[styles.footer, { backgroundColor: theme.background, borderTopColor: theme.divider }]}>
-          <TouchableOpacity style={[styles.primaryButtonSingle, { backgroundColor: theme.accent }]} onPress={handleSend} activeOpacity={0.85}>
-            <Text style={styles.primaryButtonText}>Calificar</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
+          {/* Comentario opcional */}
+          <View style={styles.commentSection}>
+            <TextInput
+              style={[
+                styles.commentInput,
+                {
+                  backgroundColor: theme.surface,
+                  borderColor: theme.divider,
+                  color: theme.text,
+                },
+              ]}
+              placeholder="Comentario opcional"
+              placeholderTextColor={theme.textDisabled}
+              value={comment}
+              onChangeText={setComment}
+              maxLength={200}
+              multiline
+              numberOfLines={3}
+              accessibilityLabel="Comentario opcional sobre el viaje"
+            />
+          </View>
+
+          {/* Botones de acción */}
+          <View style={styles.actionButtons}>
+            <AppButton
+              label="Enviar calificación"
+              variant="sig"
+              size="md"
+              onPress={handleSend}
+              accessibilityLabel="Enviar calificación del viaje"
+            />
+            <TouchableOpacity
+              onPress={handleSkip}
+              style={styles.skipButton}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel="Omitir calificación"
+            >
+              <Text style={[styles.skipButtonText, { color: theme.textMuted }]}>Omitir</Text>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
@@ -199,229 +277,123 @@ export function CalificacionModal({
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: Colors.white,
   },
-  topHandle: {
-    alignSelf: 'center',
-    width: 56,
-    height: 4,
-    borderRadius: 4,
-    backgroundColor: '#d7dee9',
-    marginTop: Spacing.sm,
-    marginBottom: Spacing.md,
-  },
-  header: {
+  topBar: {
     paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.xl,
+    paddingBottom: Spacing.sm,
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: Spacing.md,
+    justifyContent: 'flex-end',
   },
-  headerButton: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    borderWidth: 1,
-    borderColor: '#e7ebf2',
+  closeButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  headerTitle: {
-    color: '#111827',
-    fontFamily: FontFamily.bold,
-    fontSize: FontSize.lg,
-  },
-  noticeBanner: {
-    backgroundColor: '#3151ff',
-    paddingHorizontal: Spacing.md,
-    paddingVertical: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-  },
-  noticeText: {
-    color: Colors.white,
-    fontFamily: FontFamily.bold,
-    fontSize: 12,
   },
   scrollContent: {
     paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.lg,
-    paddingBottom: Spacing.lg,
+    paddingBottom: Spacing['3xl'],
   },
-  heroSection: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: Spacing.sm,
-  },
-  heroCar: {
-    width: 144,
-    height: 72,
-  },
-  heroAvatarWrap: {
-    position: 'absolute',
-    right: '34%',
-    bottom: 0,
-    borderWidth: 2,
-    borderColor: Colors.white,
-    borderRadius: BorderRadius.full,
-  },
-  userName: {
-    textAlign: 'center',
-    color: '#111827',
-    fontFamily: FontFamily.bold,
-    fontSize: FontSize['2xl'],
-  },
-  userVehicleMeta: {
-    textAlign: 'center',
-    color: '#5b6778',
-    fontFamily: FontFamily.regular,
-    fontSize: FontSize.sm,
-    marginTop: 4,
-    marginBottom: Spacing.md,
-  },
-  infoGrid: {
-    borderBottomWidth: 1,
-    borderBottomColor: '#edf1f6',
-    paddingBottom: Spacing.md,
-    marginBottom: Spacing.lg,
-    gap: 10,
-  },
-  infoRow: {
+  doneCard: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    padding: Spacing.md,
+    borderRadius: BorderRadius.xl,
+    borderWidth: 1,
+    marginBottom: Spacing.xl,
+    gap: Spacing.md,
+  },
+  doneIconWrap: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  doneTextWrap: {
+    flex: 1,
+  },
+  doneTitle: {
+    fontFamily: FontFamily.semibold,
+    fontSize: FontSize.md,
+    lineHeight: 22,
+  },
+  doneSubtitle: {
+    fontFamily: FontFamily.regular,
+    fontSize: FontSize.xs,
+    marginTop: 2,
+  },
+  driverSection: {
+    alignItems: 'center',
+    marginBottom: Spacing.md,
     gap: Spacing.sm,
   },
-  infoLabel: {
-    color: '#111827',
-    fontFamily: FontFamily.regular,
-    fontSize: FontSize.sm,
-  },
-  infoValue: {
-    flex: 1,
-    textAlign: 'right',
-    color: '#4b5563',
-    fontFamily: FontFamily.regular,
-    fontSize: FontSize.sm,
-  },
-  ratingBlock: {
-    alignItems: 'center',
-    marginBottom: Spacing.lg,
-  },
-  ratingTitle: {
-    color: '#111827',
+  driverQuestion: {
     fontFamily: FontFamily.bold,
-    fontSize: FontSize.xl,
-    marginBottom: 4,
-  },
-  ratingSubtitle: {
-    color: '#6b7280',
-    fontFamily: FontFamily.regular,
-    fontSize: FontSize.sm,
-    marginBottom: Spacing.md,
+    fontSize: FontSize['2xl'],
+    textAlign: 'center',
+    letterSpacing: -0.2,
   },
   starsRow: {
     flexDirection: 'row',
+    justifyContent: 'center',
     alignItems: 'center',
+    gap: Spacing.sm,
+    marginVertical: Spacing.md,
   },
-  starIcon: {
-    marginHorizontal: 5,
+  starTouchable: {
+    padding: Spacing.xs,
   },
-  detailCard: {
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#edf1f6',
-    backgroundColor: '#ffffff',
-    padding: Spacing.md,
-    ...Shadow.sm,
+  aspectsSection: {
+    marginTop: Spacing.md,
+    marginBottom: Spacing.lg,
   },
-  detailHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+  aspectsTitle: {
+    fontFamily: FontFamily.semibold,
+    fontSize: FontSize.sm,
     marginBottom: Spacing.sm,
   },
-  detailTitle: {
-    color: '#111827',
-    fontFamily: FontFamily.bold,
-    fontSize: FontSize.md,
-  },
-  coinsBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#edf9f1',
-    paddingHorizontal: 8,
-    paddingVertical: 5,
-    borderRadius: BorderRadius.full,
-  },
-  coinsText: {
-    color: '#1e7d4d',
-    fontFamily: FontFamily.bold,
-    fontSize: 11,
-  },
-  detailRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    gap: Spacing.md,
-    paddingVertical: 6,
-  },
-  detailLabel: {
-    color: '#111827',
-    fontFamily: FontFamily.bold,
-    fontSize: FontSize.sm,
-    width: 92,
-  },
-  detailValue: {
-    flex: 1,
-    textAlign: 'right',
-    color: '#475569',
-    fontFamily: FontFamily.regular,
-    fontSize: FontSize.sm,
-  },
-  tagWrap: {
+  chipsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
-    marginTop: Spacing.md,
+    gap: Spacing.xs,
   },
-  tagChip: {
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-    borderRadius: BorderRadius.full,
-    backgroundColor: '#f3f6fb',
-  },
-  tagChipSelected: {
-    backgroundColor: '#3151ff',
-  },
-  tagChipText: {
-    color: '#334155',
-    fontFamily: FontFamily.bold,
-    fontSize: 12,
-  },
-  tagChipTextSelected: {
-    color: Colors.white,
-  },
-  footer: {
-    paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.sm,
-    paddingBottom: Spacing.lg,
-    borderTopWidth: 1,
-    borderTopColor: '#edf1f6',
-  },
-  primaryButtonSingle: {
-    borderRadius: BorderRadius.full,
-    backgroundColor: '#3151ff',
-    paddingVertical: 14,
+  chip: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: BorderRadius.full,
+    borderWidth: 1,
   },
-  primaryButtonText: {
-    color: Colors.white,
-    fontFamily: FontFamily.bold,
-    fontSize: FontSize.md,
+  chipCheck: {
+    marginRight: 4,
+  },
+  chipText: {
+    fontSize: FontSize.sm,
+  },
+  commentSection: {
+    marginBottom: Spacing.xl,
+  },
+  commentInput: {
+    borderWidth: 1,
+    borderRadius: BorderRadius.lg,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.md,
+    fontFamily: FontFamily.regular,
+    fontSize: FontSize.sm,
+    minHeight: 76,
+    textAlignVertical: 'top',
+  },
+  actionButtons: {
+    gap: Spacing.md,
+    alignItems: 'center',
+  },
+  skipButton: {
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.lg,
+  },
+  skipButtonText: {
+    fontFamily: FontFamily.medium,
+    fontSize: FontSize.sm,
   },
 });
