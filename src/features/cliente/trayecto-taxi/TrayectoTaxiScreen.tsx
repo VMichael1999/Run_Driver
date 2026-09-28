@@ -572,39 +572,17 @@ export function TrayectoTaxiScreen() {
           </View>
 
 
-          {/* 3 Botones de acción (Escribir, Compartir viaje, SOS) */}
+          {/* Compartir viaje. Escribir ya está en la fila del conductor y SOS, arriba en el mapa. */}
           <View style={styles.actionPillsRow}>
-            <TouchableOpacity
-              style={[styles.actionPill, { backgroundColor: theme.surfaceMuted }]}
-              onPress={handleChatDriver}
-              activeOpacity={0.8}
-              accessibilityRole="button"
-              accessibilityLabel="Escribir al conductor"
-            >
-              <Ionicons name="chatbubble-outline" size={16} color={theme.text} />
-              <Text style={[styles.actionPillText, { color: theme.text }]}>Escribir</Text>
-            </TouchableOpacity>
-
             <TouchableOpacity
               style={[styles.actionPill, { backgroundColor: theme.surfaceMuted }]}
               onPress={handleShareTrip}
               activeOpacity={0.8}
               accessibilityRole="button"
-              accessibilityLabel="Compartir viaje en tiempo real"
+              accessibilityLabel="Compartir los datos del viaje con un contacto"
             >
               <Ionicons name="share-social-outline" size={16} color={theme.text} />
               <Text style={[styles.actionPillText, { color: theme.text }]}>Compartir viaje</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.actionPill, { backgroundColor: Colors.dangerSoft }]}
-              onPress={handleSOS}
-              activeOpacity={0.8}
-              accessibilityRole="button"
-              accessibilityLabel="Emergencia SOS"
-            >
-              <Ionicons name="shield-outline" size={16} color={Colors.danger} />
-              <Text style={[styles.actionPillText, { color: Colors.danger }]}>SOS</Text>
             </TouchableOpacity>
           </View>
 
