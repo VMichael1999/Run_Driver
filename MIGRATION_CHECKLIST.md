@@ -23,6 +23,17 @@
   - [x] Favoritas (`FavoritasScreen.tsx`), Programar Viaje (`ProgramarViajeScreen.tsx`), Perfil (`PerfilScreen.tsx`).
   - [x] Login (`LoginScreen.tsx`) y Verificación OTP (`LoginVerificacionScreen.tsx`).
   - [x] Chat (`ChatScreen.tsx`), Historial (`HistorialViajeScreen.tsx`), Configuración (`ConfiguracionScreen.tsx`).
+- [x] **Limpieza post-rediseño:**
+  - [x] Sin `textTransform: 'uppercase'` ni letter-spacing en etiquetas.
+  - [x] Tunki eliminado de datos y del tipo `PaymentMode`.
+  - [x] Tildes corregidas en toda la UI (verificación, cupones, país, drawer).
+  - [x] 0 colores literales fuera de `src/theme`; tokens `scrim`, `onDark*`, `warning` propio.
+  - [x] 0 `fontSize` numéricos fuera de `src/theme` (excepto `PlacaVehiculo`, que replica la placa real); mínimo `FontSize['2xs']` = 11.
+  - [x] `accessibilityRole` en todos los elementos tocables.
+  - [x] `expo-splash-screen` mientras cargan las fuentes.
+  - [ ] Migrar `Animated`/`LayoutAnimation` a Reanimated y respetar `useReducedMotion()`.
+  - [ ] Alinear dependencias al SDK 54 (`npx expo install --check`).
+  - [ ] Registrar `ComponentCatalogScreen` en navegación solo en `__DEV__`.
 
 ## ✅ Ya migrado
 
