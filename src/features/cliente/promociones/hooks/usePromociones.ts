@@ -19,9 +19,9 @@ interface UsePromocionesResult {
 }
 
 const COUPON_ERROR_MESSAGES: Record<CouponValidationError, string> = {
-  invalid_code: 'El codigo no es valido.',
-  expired: 'El codigo expiro.',
-  already_used: 'Ya usaste este codigo.',
+  invalid_code: 'El código no es válido.',
+  expired: 'El código expiró.',
+  already_used: 'Ya usaste este código.',
 };
 
 export function usePromociones(options: UsePromocionesOptions = {}): UsePromocionesResult {
@@ -55,7 +55,7 @@ export function usePromociones(options: UsePromocionesOptions = {}): UsePromocio
         setError(null);
         return { ok: true, error: null };
       }
-      const message = result.error ? COUPON_ERROR_MESSAGES[result.error] : 'No se pudo aplicar el codigo';
+      const message = result.error ? COUPON_ERROR_MESSAGES[result.error] : 'No se pudo aplicar el código';
       setError(message);
       return { ok: false, error: result.error };
     },

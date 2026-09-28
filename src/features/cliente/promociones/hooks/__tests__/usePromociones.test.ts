@@ -71,7 +71,7 @@ describe('usePromociones', () => {
     });
 
     expect(result.current.appliedCoupon).toBeNull();
-    expect(result.current.error).toBe('El codigo no es valido.');
+    expect(result.current.error).toBe('El código no es válido.');
   });
 
   it('limpia el cupon aplicado con removeCoupon', async () => {

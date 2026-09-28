@@ -23,7 +23,7 @@ export function VerificacionScreen() {
 
   return (
     <View style={[styles.container, { paddingBottom: insets.bottom }]}>
-      <BackAppBar title="Verificacion" />
+      <BackAppBar title="Verificación" />
 
       <View style={styles.progress}>
         <Text style={styles.progressText}>

@@ -17,7 +17,7 @@ export function VerificacionInformacionBasicaScreen() {
 
   return (
     <View style={styles.container}>
-      <BackAppBar title="Informacion basica" />
+      <BackAppBar title="Información básica" />
       <ScrollView contentContainerStyle={styles.content}>
         <ImagePickerCard
           title="Foto del conductor"
@@ -36,7 +36,7 @@ export function VerificacionInformacionBasicaScreen() {
           maxTime={new Date(new Date().getFullYear() - 18, 11, 31)}
           onConfirm={setBirthDate}
         />
-        <TextFormFieldCustom labelText="Correo electronico" placeholder="correo@ejemplo.com" keyboardType="email-address" />
+        <TextFormFieldCustom labelText="Correo electrónico" placeholder="correo@ejemplo.com" keyboardType="email-address" />
         <RoundedButton label="Siguiente" onPress={() => Alert.alert('Listo', 'Paso completado en modo demo.')} />
         <VerificationHelpCard />
       </ScrollView>

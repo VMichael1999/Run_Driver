@@ -16,7 +16,7 @@ export function VerificacionContactoEmergenciaScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         <ExpandedCard>
           <Text style={styles.title}>Persona de emergencia (opcional)</Text>
-          <TextFormFieldCustom labelText="Numero de telefono" placeholder="999 999 999" keyboardType="phone-pad" maxLength={10} />
+          <TextFormFieldCustom labelText="Número de teléfono" placeholder="999 999 999" keyboardType="phone-pad" maxLength={10} />
           <Text style={styles.body}>
             Un contacto de emergencia puede ser cualquier persona de confianza que pueda recibir informacion critica sobre tu ubicacion o situacion si ocurre una emergencia.
           </Text>
