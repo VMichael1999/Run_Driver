@@ -13,21 +13,24 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import * as Haptics from 'expo-haptics';
 import type { AuthStackParamList } from '@navigation/types';
 import { useLogin } from './hooks/useLogin';
-import { RoundedButton } from '@shared/components/button/RoundedButton';
+import { AppButton } from '@shared/components/ui/AppButton';
 import { CountryBottomSheet } from './components/CountryBottomSheet';
 import { TermsPoliciesCard } from './components/TermsPoliciesCard';
 import { paises } from '@data/paises';
 import { Colors } from '@theme/colors';
+import { useAppTheme } from '@theme/useAppTheme';
 import { FontFamily, FontSize } from '@theme/fonts';
-import { Spacing, BorderRadius } from '@theme/spacing';
+import { Spacing, BorderRadius, Shadow } from '@theme/spacing';
 
 type Nav = NativeStackNavigationProp<AuthStackParamList, 'Login'>;
 
 export function LoginScreen() {
   const navigation = useNavigation<Nav>();
   const insets = useSafeAreaInsets();
+  const theme = useAppTheme();
   const [countrySheetVisible, setCountrySheetVisible] = useState(false);
   const [selectedCountry, setSelectedCountry] = useState(paises[0]);
   const [termsAccepted, setTermsAccepted] = useState(false);
@@ -35,65 +38,130 @@ export function LoginScreen() {
 
   const handleSubmit = async () => {
     if (!termsAccepted) return;
+    Haptics.selectionAsync();
     const success = await submitPhone();
     if (success) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       navigation.navigate('LoginVerificacion', {
         phone,
         countryCode: selectedCountry.code || countryCode,
       });
+    } else {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     }
   };
 
+  const toggleTerms = () => {
+    Haptics.selectionAsync();
+    setTermsAccepted((v) => !v);
+  };
+
   return (
-    <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardAvoidingView
+      style={[styles.flex, { backgroundColor: theme.background }]}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
       <ScrollView
         contentContainerStyle={[
           styles.container,
-          { paddingTop: insets.top + Spacing['3xl'], paddingBottom: insets.bottom + Spacing.xl },
+          {
+            paddingTop: insets.top + Spacing['2xl'],
+            paddingBottom: insets.bottom + Spacing.xl,
+          },
         ]}
         keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.title}>Introduce tu numero de telefono</Text>
-        <Text style={styles.subtitle}>Te enviaremos un codigo de verificacion a tu numero de telefono</Text>
+        <Text style={[styles.title, { color: theme.text }]}>
+          Introduce tu número de teléfono
+        </Text>
+        <Text style={[styles.subtitle, { color: theme.textMuted }]}>
+          Te enviaremos un código de verificación a tu número de teléfono.
+        </Text>
 
-        <View style={styles.phoneRow}>
-          <TouchableOpacity style={styles.countryPicker} activeOpacity={0.8} onPress={() => setCountrySheetVisible(true)}>
+        <View
+          style={[
+            styles.phoneRow,
+            { backgroundColor: theme.surface, borderColor: theme.divider },
+          ]}
+        >
+          <TouchableOpacity
+            style={[styles.countryPicker, { backgroundColor: theme.surfaceMuted, borderRightColor: theme.divider }]}
+            activeOpacity={0.8}
+            onPress={() => setCountrySheetVisible(true)}
+            accessibilityRole="button"
+            accessibilityLabel={`País seleccionado: ${selectedCountry.value}, código ${selectedCountry.code}`}
+          >
             <Text style={styles.countryFlag}>🇵🇪</Text>
-            <Text style={styles.countryCode}>{selectedCountry.code}</Text>
-            <Text style={styles.countryChevron}>⌄</Text>
+            <Text style={[styles.countryCode, { color: theme.text }]}>
+              {selectedCountry.code}
+            </Text>
+            <Text style={[styles.countryChevron, { color: theme.textMuted }]}>⌄</Text>
           </TouchableOpacity>
+
           <TextInput
-            style={styles.phoneInput}
+            style={[styles.phoneInput, { color: theme.text }]}
             value={phone}
             onChangeText={setPhone}
             keyboardType="phone-pad"
             maxLength={9}
             placeholder="999 999 999"
-            placeholderTextColor={Colors.textDisabled}
+            placeholderTextColor={theme.textDisabled}
+            accessibilityLabel="Número de teléfono"
           />
         </View>
 
         {error ? <Text style={styles.error}>{error}</Text> : null}
 
-        <TouchableOpacity style={styles.checkboxRow} onPress={() => setTermsAccepted((v) => !v)} activeOpacity={0.7}>
-          <View style={[styles.checkbox, termsAccepted && styles.checkboxActive]}>
-            {termsAccepted && <Text style={styles.checkmark}>✓</Text>}
+        <TouchableOpacity
+          style={styles.checkboxRow}
+          onPress={toggleTerms}
+          activeOpacity={0.7}
+          accessibilityRole="checkbox"
+          accessibilityState={{ checked: termsAccepted }}
+          accessibilityLabel="Acepto continuar con este número"
+        >
+          <View
+            style={[
+              styles.checkbox,
+              { borderColor: termsAccepted ? Colors.accentLime : theme.divider },
+              termsAccepted && { backgroundColor: Colors.accentLime },
+            ]}
+          >
+            {termsAccepted && (
+              <Text style={[styles.checkmark, { color: Colors.onAccentLime }]}>✓</Text>
+            )}
           </View>
-          <Text style={styles.termsLabel}>Acepto continuar con este numero</Text>
+          <Text style={[styles.termsLabel, { color: theme.textMuted }]}>
+            Acepto continuar con este número
+          </Text>
         </TouchableOpacity>
 
-        <RoundedButton
-          label="Enviar codigo"
+        <AppButton
+          label="Enviar código"
+          variant="sig"
+          size="md"
           onPress={handleSubmit}
           disabled={!termsAccepted || phone.length < 7}
           loading={isLoading}
           style={styles.button}
+          accessibilityLabel="Enviar código de verificación"
         />
 
         <View style={styles.termsCard}>
           <TermsPoliciesCard
-            onTerminos={() => Alert.alert('Terminos', 'Contenido pendiente de migrar.')}
-            onPoliticas={() => Alert.alert('Politicas', 'Contenido pendiente de migrar.')}
+            onTerminos={() =>
+              Alert.alert(
+                'Términos de uso',
+                'Al utilizar RunSubasta aceptas las condiciones del servicio de transporte en Lima.'
+              )
+            }
+            onPoliticas={() =>
+              Alert.alert(
+                'Política de privacidad',
+                'Tus datos y ubicación se protegen bajo la Ley de Protección de Datos Personales del Perú.'
+              )
+            }
           />
         </View>
       </ScrollView>
@@ -109,59 +177,63 @@ export function LoginScreen() {
 }
 
 const styles = StyleSheet.create({
-  flex: { flex: 1, backgroundColor: Colors.white },
-  container: { paddingHorizontal: Spacing['2xl'], flexGrow: 1 },
+  flex: {
+    flex: 1,
+  },
+  container: {
+    paddingHorizontal: Spacing['2xl'],
+    flexGrow: 1,
+  },
   title: {
     fontSize: FontSize['3xl'],
     fontFamily: FontFamily.bold,
-    color: Colors.textPrimary,
-    marginBottom: Spacing.md,
+    marginBottom: Spacing.sm,
     textAlign: 'center',
+    letterSpacing: -0.2,
   },
   subtitle: {
-    fontSize: FontSize.md,
+    fontSize: FontSize.sm,
     fontFamily: FontFamily.regular,
-    color: Colors.textSecondary,
-    marginBottom: Spacing['3xl'],
+    marginBottom: Spacing['2xl'],
     textAlign: 'center',
+    lineHeight: 20,
   },
   phoneRow: {
     flexDirection: 'row',
     borderWidth: 1.5,
-    borderColor: Colors.divider,
-    borderRadius: BorderRadius.md,
+    borderRadius: BorderRadius.xl,
     overflow: 'hidden',
     marginBottom: Spacing.md,
+    height: 54,
+    ...Shadow.sm,
   },
   countryPicker: {
     paddingHorizontal: Spacing.md,
     justifyContent: 'center',
     borderRightWidth: 1,
-    borderRightColor: Colors.divider,
-    backgroundColor: Colors.backgroundLight,
     flexDirection: 'row',
     alignItems: 'center',
   },
-  countryFlag: { marginRight: Spacing.xs, fontSize: 16 },
+  countryFlag: {
+    marginRight: Spacing.xs,
+    fontSize: 18,
+  },
   countryCode: {
     fontSize: FontSize.md,
     fontFamily: FontFamily.bold,
-    color: Colors.textPrimary,
   },
   countryChevron: {
     marginLeft: Spacing.xs,
-    color: Colors.textSecondary,
+    fontSize: FontSize.sm,
   },
   phoneInput: {
     flex: 1,
     paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.md,
     fontSize: FontSize.md,
-    fontFamily: FontFamily.regular,
-    color: Colors.textPrimary,
+    fontFamily: FontFamily.semibold,
   },
   error: {
-    fontSize: FontSize.sm,
+    fontSize: FontSize.xs,
     fontFamily: FontFamily.regular,
     color: Colors.error,
     marginBottom: Spacing.md,
@@ -169,32 +241,31 @@ const styles = StyleSheet.create({
   checkboxRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: Spacing.lg,
+    marginBottom: Spacing.xl,
   },
   checkbox: {
     width: 22,
     height: 22,
     borderRadius: 6,
     borderWidth: 1.5,
-    borderColor: Colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: Spacing.sm,
   },
-  checkboxActive: {
-    backgroundColor: Colors.primary,
-  },
   checkmark: {
-    color: Colors.white,
     fontSize: FontSize.sm,
     fontFamily: FontFamily.bold,
   },
   termsLabel: {
     fontSize: FontSize.sm,
     fontFamily: FontFamily.regular,
-    color: Colors.textSecondary,
     flex: 1,
   },
-  button: { marginTop: Spacing.md },
-  termsCard: { marginTop: Spacing.lg },
+  button: {
+    marginTop: Spacing.xs,
+  },
+  termsCard: {
+    marginTop: Spacing['2xl'],
+    paddingHorizontal: Spacing.md,
+  },
 });

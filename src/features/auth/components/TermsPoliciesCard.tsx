@@ -1,6 +1,7 @@
 import React from 'react';
 import { Text, StyleSheet } from 'react-native';
 import { Colors } from '@theme/colors';
+import { useAppTheme } from '@theme/useAppTheme';
 import { FontFamily, FontSize } from '@theme/fonts';
 
 interface Props {
@@ -9,15 +10,17 @@ interface Props {
 }
 
 export function TermsPoliciesCard({ onTerminos, onPoliticas }: Props) {
+  const theme = useAppTheme();
+
   return (
-    <Text style={styles.text}>
-      Al unirte a nuestra aplicacion, estas aceptando nuestros{' '}
-      <Text style={styles.link} onPress={onTerminos}>
-        Terminos de Uso
+    <Text style={[styles.text, { color: theme.textMuted }]}>
+      Al unirte a nuestra aplicación, estás aceptando nuestros{' '}
+      <Text style={[styles.link, { color: theme.text }]} onPress={onTerminos}>
+        Términos de uso
       </Text>{' '}
       y{' '}
-      <Text style={styles.link} onPress={onPoliticas}>
-        Politica de Privacidad
+      <Text style={[styles.link, { color: theme.text }]} onPress={onPoliticas}>
+        Política de privacidad
       </Text>
       .
     </Text>
@@ -27,14 +30,12 @@ export function TermsPoliciesCard({ onTerminos, onPoliticas }: Props) {
 const styles = StyleSheet.create({
   text: {
     textAlign: 'center',
-    color: Colors.textSecondary,
     fontFamily: FontFamily.regular,
-    fontSize: FontSize.sm,
-    lineHeight: 20,
+    fontSize: FontSize.xs,
+    lineHeight: 18,
   },
   link: {
-    color: '#2563eb',
     textDecorationLine: 'underline',
-    fontFamily: FontFamily.bold,
+    fontFamily: FontFamily.semibold,
   },
 });
