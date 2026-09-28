@@ -32,6 +32,13 @@ describe('useTripHistoryStore', () => {
     expect(trip.discount?.label).toBe('RUN10');
   });
 
+  it('guarda la propina aparte del precio del viaje', () => {
+    act(() => useTripHistoryStore.getState().addCompletedTrip({ request: REQUEST, driver: DRIVER }, { tip: 2 }));
+    const [trip] = useTripHistoryStore.getState().trips;
+    expect(trip.price).toBe(20);
+    expect(trip.tip).toBe(2);
+  });
+
   it('sin descuento guarda el precio del conductor', () => {
     act(() => useTripHistoryStore.getState().addCompletedTrip({ request: REQUEST, driver: DRIVER }));
     const [trip] = useTripHistoryStore.getState().trips;

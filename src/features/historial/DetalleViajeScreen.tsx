@@ -199,9 +199,17 @@ export function DetalleViajeScreen() {
                   </View>
                 </>
               ) : null}
+              {trip.tip ? (
+                <View style={styles.priceRow}>
+                  <Text style={[styles.body, { color: theme.textMuted }]}>Propina</Text>
+                  <Text style={[styles.body, { color: theme.text }]}>{money(trip.currency, trip.tip)}</Text>
+                </View>
+              ) : null}
               <View style={styles.priceRow}>
                 <Text style={[styles.total, { color: theme.text }]}>Pagaste</Text>
-                <Text style={[styles.total, { color: theme.text }]}>{money(trip.currency, trip.price)}</Text>
+                <Text style={[styles.total, { color: theme.text }]}>
+                  {money(trip.currency, trip.price + (trip.tip ?? 0))}
+                </Text>
               </View>
             </>
           )}

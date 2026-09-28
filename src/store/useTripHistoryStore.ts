@@ -5,10 +5,10 @@ import { applyDiscount } from '@features/cliente/promociones/utils/descuentos';
 
 interface TripHistoryState {
   trips: TripHistoryItem[];
-  addCompletedTrip: (trip: TaxiTrip) => void;
+  addCompletedTrip: (trip: TaxiTrip, extras?: { tip?: number }) => void;
 }
 
-function buildCompletedTrip(trip: TaxiTrip): TripHistoryItem {
+function buildCompletedTrip(trip: TaxiTrip, tip?: number): TripHistoryItem {
   const { request, driver, discount = null } = trip;
 
   return {
@@ -34,6 +34,7 @@ function buildCompletedTrip(trip: TaxiTrip): TripHistoryItem {
     currency: driver.currency,
     status: 'completed',
     ...(discount ? { originalPrice: driver.price, discount } : {}),
+    ...(tip ? { tip } : {}),
     vehicle: { model: driver.vehicleModel, color: driver.vehicleColor, plate: driver.vehiclePlate },
     paymentMode: request.paymentMethod.mode,
     route: {
@@ -46,8 +47,8 @@ function buildCompletedTrip(trip: TaxiTrip): TripHistoryItem {
 
 export const useTripHistoryStore = create<TripHistoryState>((set) => ({
   trips: [],
-  addCompletedTrip: (trip) => {
-    const historyItem = buildCompletedTrip(trip);
+  addCompletedTrip: (trip, extras) => {
+    const historyItem = buildCompletedTrip(trip, extras?.tip);
     set((state) => ({ trips: [historyItem, ...state.trips] }));
   },
 }));
