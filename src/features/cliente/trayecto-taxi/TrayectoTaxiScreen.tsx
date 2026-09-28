@@ -30,6 +30,7 @@ import { useThemeStore } from '@store/useThemeStore';
 import { CalificacionModal, type Calificacion } from '@shared/components/card/CalificacionModal';
 import { UserNetworkAvatar } from '@shared/components/avatar/UserNetworkAvatar';
 import { PlacaVehiculo } from '@shared/components/ui/PlacaVehiculo';
+import { VehiculoIlustracion } from '@shared/components/ui/VehiculoIlustracion';
 import { AppButton } from '@shared/components/ui/AppButton';
 import { LegacyImages } from '@shared/assets/legacyAssets';
 import { calculateBearing } from '@shared/utils/mapUtils';
@@ -42,6 +43,7 @@ import { Spacing, BorderRadius, Shadow } from '@theme/spacing';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 const COLLAPSED_HEIGHT = 440;
+const VEHICLE_ART_WIDTH = 176;
 const EXPANDED_HEIGHT = SCREEN_HEIGHT * 0.62;
 
 type Nav = NativeStackNavigationProp<ClienteStackParamList, 'TrayectoTaxi'>;
@@ -502,14 +504,18 @@ export function TrayectoTaxiScreen() {
           contentContainerStyle={styles.panelScrollContent}
           showsVerticalScrollIndicator={false}
         >
-          {/* Identificación del auto: PLACA GRANDE (ABC-123) */}
-          <View style={[styles.vehicleSection, { borderBottomColor: theme.divider }]}>
-            <PlacaVehiculo plate={driver.vehiclePlate} size="lg" />
+          {/* Identificación del auto: modelo, color y calificación a la izquierda; el auto en su color a la
+              derecha, con la placa como badge en su esquina inferior (sigue legible: es lo que se busca en la calle). */}
+          <View
+            style={[styles.vehicleSection, { borderBottomColor: theme.divider }]}
+            accessible
+            accessibilityLabel={`Tu auto: ${driver.vehicleModel} color ${driver.vehicleColor.toLowerCase()}, placa ${driver.vehiclePlate}. Calificación ${driver.rating.toFixed(1)}`}
+          >
             <View style={styles.vehicleInfoWrap}>
-              <Text style={[styles.vehicleModelText, { color: theme.text }]} numberOfLines={1}>
+              <Text style={[styles.vehicleModelText, { color: theme.text }]} numberOfLines={2}>
                 {driver.vehicleModel}
               </Text>
-              <Text style={[styles.vehicleColorText, { color: theme.textMuted }]}>
+              <Text style={[styles.vehicleColorText, { color: theme.textMuted }]} numberOfLines={1}>
                 Color {driver.vehicleColor.toLowerCase()}
               </Text>
               <View style={styles.driverRatingInline}>
@@ -521,6 +527,10 @@ export function TrayectoTaxiScreen() {
                   · 1,274 viajes
                 </Text>
               </View>
+            </View>
+            <View style={styles.vehicleArt}>
+              <VehiculoIlustracion color={driver.vehicleColor} plate={driver.vehiclePlate} width={VEHICLE_ART_WIDTH} />
+              <PlacaVehiculo plate={driver.vehiclePlate} size="md" style={[styles.plateBadge, Shadow.raise]} />
             </View>
           </View>
 
@@ -562,39 +572,17 @@ export function TrayectoTaxiScreen() {
           </View>
 
 
-          {/* 3 Botones de acción (Escribir, Compartir viaje, SOS) */}
+          {/* Compartir viaje. Escribir ya está en la fila del conductor y SOS, arriba en el mapa. */}
           <View style={styles.actionPillsRow}>
-            <TouchableOpacity
-              style={[styles.actionPill, { backgroundColor: theme.surfaceMuted }]}
-              onPress={handleChatDriver}
-              activeOpacity={0.8}
-              accessibilityRole="button"
-              accessibilityLabel="Escribir al conductor"
-            >
-              <Ionicons name="chatbubble-outline" size={16} color={theme.text} />
-              <Text style={[styles.actionPillText, { color: theme.text }]}>Escribir</Text>
-            </TouchableOpacity>
-
             <TouchableOpacity
               style={[styles.actionPill, { backgroundColor: theme.surfaceMuted }]}
               onPress={handleShareTrip}
               activeOpacity={0.8}
               accessibilityRole="button"
-              accessibilityLabel="Compartir viaje en tiempo real"
+              accessibilityLabel="Compartir los datos del viaje con un contacto"
             >
               <Ionicons name="share-social-outline" size={16} color={theme.text} />
               <Text style={[styles.actionPillText, { color: theme.text }]}>Compartir viaje</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.actionPill, { backgroundColor: Colors.dangerSoft }]}
-              onPress={handleSOS}
-              activeOpacity={0.8}
-              accessibilityRole="button"
-              accessibilityLabel="Emergencia SOS"
-            >
-              <Ionicons name="shield-outline" size={16} color={Colors.danger} />
-              <Text style={[styles.actionPillText, { color: Colors.danger }]}>SOS</Text>
             </TouchableOpacity>
           </View>
 
@@ -856,12 +844,23 @@ const styles = StyleSheet.create({
   vehicleSection: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: Spacing.md,
+    paddingVertical: Spacing.sm,
     borderBottomWidth: 1,
-    gap: Spacing.lg,
+    gap: Spacing.md,
   },
   vehicleInfoWrap: {
     flex: 1,
+    gap: 2,
+  },
+  vehicleArt: {
+    width: VEHICLE_ART_WIDTH,
+    // Deja lugar para que la placa sobresalga un poco por debajo del auto.
+    paddingBottom: 12,
+  },
+  plateBadge: {
+    position: 'absolute',
+    right: 0,
+    bottom: 0,
   },
   vehicleModelText: {
     fontFamily: FontFamily.bold,
@@ -869,8 +868,7 @@ const styles = StyleSheet.create({
   },
   vehicleColorText: {
     fontFamily: FontFamily.regular,
-    fontSize: FontSize.sm,
-    marginTop: 1,
+    fontSize: FontSize.md,
   },
   driverRatingInline: {
     flexDirection: 'row',
