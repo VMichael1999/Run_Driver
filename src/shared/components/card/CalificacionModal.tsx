@@ -10,15 +10,15 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Svg, { Path } from 'react-native-svg';
 import * as Haptics from 'expo-haptics';
-import { UserNetworkAvatar } from '../avatar/UserNetworkAvatar';
 import { AppButton } from '../ui/AppButton';
+import { AppIcon } from '../ui/AppIcon';
 import { aspectosCalificacion, type Aspecto } from '@data/aspectosCalificacion';
 import { Colors } from '@theme/colors';
 import { useAppTheme } from '@theme/useAppTheme';
 import { FontFamily, FontSize } from '@theme/fonts';
-import { Spacing, BorderRadius } from '@theme/spacing';
 
 export interface CalificacionUser {
   nombres: string;
@@ -49,6 +49,19 @@ interface Props {
   vehicleImageSource?: any;
 }
 
+const STAR_PATH = 'M12 2.8l2.8 5.9 6.4.8-4.7 4.4 1.2 6.4L12 17.2l-5.7 3.1 1.2-6.4L2.8 9.5l6.4-.8z';
+
+function initials(name: string) {
+  return name
+    .replace('.', '')
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join('');
+}
+
+/** Pantalla "Calificar conductor" del mockup: primero confirma la llegada y el pago, después pregunta. */
 export function CalificacionModal({
   visible,
   user,
@@ -61,6 +74,7 @@ export function CalificacionModal({
   durationMinutes = 19,
 }: Props) {
   const theme = useAppTheme();
+  const insets = useSafeAreaInsets();
   const [rating, setRating] = useState(5);
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [comment, setComment] = useState('');
@@ -113,27 +127,18 @@ export function CalificacionModal({
         style={[styles.screen, { backgroundColor: theme.background }]}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <View style={styles.topBar}>
-          <TouchableOpacity
-            style={[styles.closeButton, { backgroundColor: theme.surfaceMuted }]}
-            onPress={onClose}
-            activeOpacity={0.8}
-            accessibilityRole="button"
-            accessibilityLabel="Cerrar calificación"
-          >
-            <Ionicons name="close" size={20} color={theme.text} />
-          </TouchableOpacity>
-        </View>
-
         <ScrollView
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={[
+            styles.pad,
+            { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 22 },
+          ]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
           {/* Confirmación de llegada y pago */}
-          <View style={[styles.doneCard, { backgroundColor: theme.surface, borderColor: theme.divider }]}>
-            <View style={styles.doneIconWrap}>
-              <Ionicons name="checkmark-circle" size={32} color={Colors.success} />
+          <View style={styles.doneHead}>
+            <View style={[styles.okCircle, { backgroundColor: theme.onlineSoft }]}>
+              <AppIcon name="check" color={theme.online} />
             </View>
             <View style={styles.doneTextWrap}>
               <Text style={[styles.doneTitle, { color: theme.text }]} numberOfLines={2}>
@@ -146,18 +151,18 @@ export function CalificacionModal({
           </View>
 
           {/* Pregunta sobre el conductor */}
-          <View style={styles.driverSection}>
-            <UserNetworkAvatar imageUrl={user.imageUrl} radius={26} />
-            <Text style={[styles.driverQuestion, { color: theme.text }]}>
-              ¿Cómo te fue con {firstName}?
-            </Text>
+          <View style={styles.pax}>
+            <View style={[styles.avatar, { backgroundColor: theme.text }]}>
+              <Text style={[styles.avatarText, { color: theme.surface }]}>{initials(user.nombres)}</Text>
+            </View>
+            <Text style={[styles.question, { color: theme.text }]}>¿Cómo te fue con {firstName}?</Text>
           </View>
 
           {/* Estrellas */}
           <View
             style={styles.starsRow}
             accessibilityRole="radiogroup"
-            accessibilityLabel={`Calificación actual: ${rating} de 5 estrellas`}
+            accessibilityLabel={`Calificación: ${rating} de 5`}
           >
             {[1, 2, 3, 4, 5].map((star) => {
               const isFilled = star <= rating;
@@ -166,15 +171,19 @@ export function CalificacionModal({
                   key={star}
                   onPress={() => handleSelectStar(star)}
                   activeOpacity={0.7}
-                  style={styles.starTouchable}
-                  accessibilityRole="button"
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: star === rating }}
                   accessibilityLabel={`${star} estrella${star > 1 ? 's' : ''}`}
                 >
-                  <Ionicons
-                    name={isFilled ? 'star' : 'star-outline'}
-                    size={38}
-                    color={isFilled ? Colors.star : theme.divider}
-                  />
+                  <Svg width={48} height={48} viewBox="0 0 24 24">
+                    <Path
+                      d={STAR_PATH}
+                      fill={isFilled ? theme.sig : 'none'}
+                      stroke={isFilled ? Colors.accentLimeEdge : theme.line}
+                      strokeWidth={isFilled ? 1 : 1.6}
+                      strokeLinejoin="round"
+                    />
+                  </Svg>
                 </TouchableOpacity>
               );
             })}
@@ -183,7 +192,7 @@ export function CalificacionModal({
           {/* Aspectos de calificación */}
           <View style={styles.aspectsSection}>
             <Text style={[styles.aspectsTitle, { color: theme.text }]}>¿Qué te gustó?</Text>
-            <View style={styles.chipsContainer}>
+            <View style={styles.chips}>
               {aspectosCalificacion.map((aspecto) => {
                 const isSelected = selected.has(aspecto.id);
                 return (
@@ -193,30 +202,20 @@ export function CalificacionModal({
                     activeOpacity={0.8}
                     style={[
                       styles.chip,
-                      {
-                        backgroundColor: isSelected ? Colors.accentLime : theme.surfaceMuted,
-                        borderColor: isSelected ? Colors.accentLime : theme.divider,
-                      },
+                      isSelected
+                        ? { backgroundColor: theme.text, borderColor: theme.text }
+                        : { borderColor: theme.line },
                     ]}
                     accessibilityRole="checkbox"
                     accessibilityState={{ checked: isSelected }}
                     accessibilityLabel={aspecto.valor}
                   >
-                    {isSelected && (
-                      <Ionicons
-                        name="checkmark"
-                        size={14}
-                        color={Colors.onAccentLime}
-                        style={styles.chipCheck}
-                      />
-                    )}
                     <Text
                       style={[
                         styles.chipText,
-                        {
-                          color: isSelected ? Colors.onAccentLime : theme.text,
-                          fontFamily: isSelected ? FontFamily.semibold : FontFamily.regular,
-                        },
+                        isSelected
+                          ? { color: theme.surface, fontFamily: FontFamily.semibold }
+                          : { color: theme.text },
                       ]}
                     >
                       {aspecto.valor}
@@ -228,46 +227,35 @@ export function CalificacionModal({
           </View>
 
           {/* Comentario opcional */}
-          <View style={styles.commentSection}>
-            <TextInput
-              style={[
-                styles.commentInput,
-                {
-                  backgroundColor: theme.surface,
-                  borderColor: theme.divider,
-                  color: theme.text,
-                },
-              ]}
-              placeholder="Comentario opcional"
-              placeholderTextColor={theme.textDisabled}
-              value={comment}
-              onChangeText={setComment}
-              maxLength={200}
-              multiline
-              numberOfLines={3}
-              accessibilityLabel="Comentario opcional sobre el viaje"
-            />
-          </View>
+          <TextInput
+            style={[
+              styles.commentInput,
+              { backgroundColor: theme.surface, borderColor: theme.line, color: theme.text },
+            ]}
+            placeholder="Comentario opcional"
+            placeholderTextColor={theme.textMuted}
+            value={comment}
+            onChangeText={setComment}
+            maxLength={200}
+            multiline
+            accessibilityLabel="Comentario opcional sobre el viaje"
+          />
 
-          {/* Botones de acción */}
-          <View style={styles.actionButtons}>
-            <AppButton
-              label="Enviar calificación"
-              variant="sig"
-              size="md"
-              onPress={handleSend}
-              accessibilityLabel="Enviar calificación del viaje"
-            />
-            <TouchableOpacity
-              onPress={handleSkip}
-              style={styles.skipButton}
-              activeOpacity={0.7}
-              accessibilityRole="button"
-              accessibilityLabel="Omitir calificación"
-            >
-              <Text style={[styles.skipButtonText, { color: theme.textMuted }]}>Omitir</Text>
-            </TouchableOpacity>
-          </View>
+          <AppButton
+            label="Enviar calificación"
+            onPress={handleSend}
+            style={styles.sendButton}
+            accessibilityLabel="Enviar calificación del viaje"
+          />
+          <TouchableOpacity
+            onPress={handleSkip}
+            style={styles.skipButton}
+            activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel="Omitir calificación"
+          >
+            <Text style={[styles.skipButtonText, { color: theme.textMuted }]}>Omitir</Text>
+          </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
     </Modal>
@@ -278,36 +266,21 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
   },
-  topBar: {
-    paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.xl,
-    paddingBottom: Spacing.sm,
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
+  pad: {
+    paddingHorizontal: 18,
+    gap: 16,
   },
-  closeButton: {
+  doneHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  okCircle: {
     width: 36,
     height: 36,
     borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  scrollContent: {
-    paddingHorizontal: Spacing.lg,
-    paddingBottom: Spacing['3xl'],
-  },
-  doneCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: Spacing.md,
-    borderRadius: BorderRadius.xl,
-    borderWidth: 1,
-    marginBottom: Spacing.xl,
-    gap: Spacing.md,
-  },
-  doneIconWrap: {
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   doneTextWrap: {
     flex: 1,
@@ -315,85 +288,84 @@ const styles = StyleSheet.create({
   doneTitle: {
     fontFamily: FontFamily.semibold,
     fontSize: FontSize.md,
-    lineHeight: 22,
   },
   doneSubtitle: {
     fontFamily: FontFamily.regular,
     fontSize: FontSize.xs,
     marginTop: 2,
   },
-  driverSection: {
+  pax: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: Spacing.md,
-    gap: Spacing.sm,
+    gap: 10,
   },
-  driverQuestion: {
+  avatar: {
+    width: 52,
+    height: 52,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarText: {
     fontFamily: FontFamily.bold,
-    fontSize: FontSize['2xl'],
-    textAlign: 'center',
+    fontSize: FontSize.lead,
+  },
+  question: {
+    flex: 1,
+    fontFamily: FontFamily.bold,
+    fontSize: FontSize.xl,
     letterSpacing: -0.2,
   },
   starsRow: {
     flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: Spacing.sm,
-    marginVertical: Spacing.md,
-  },
-  starTouchable: {
-    padding: Spacing.xs,
+    justifyContent: 'space-between',
   },
   aspectsSection: {
-    marginTop: Spacing.md,
-    marginBottom: Spacing.lg,
+    gap: 10,
   },
   aspectsTitle: {
     fontFamily: FontFamily.semibold,
     fontSize: FontSize.sm,
-    marginBottom: Spacing.sm,
   },
-  chipsContainer: {
+  chips: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: Spacing.xs,
+    gap: 8,
   },
   chip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    borderRadius: BorderRadius.full,
-    borderWidth: 1,
-  },
-  chipCheck: {
-    marginRight: 4,
+    paddingHorizontal: 13,
+    paddingVertical: 9,
+    borderRadius: 12,
+    borderWidth: 1.5,
   },
   chipText: {
-    fontSize: FontSize.sm,
-  },
-  commentSection: {
-    marginBottom: Spacing.xl,
-  },
-  commentInput: {
-    borderWidth: 1,
-    borderRadius: BorderRadius.lg,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.md,
-    fontFamily: FontFamily.regular,
-    fontSize: FontSize.sm,
-    minHeight: 76,
-    textAlignVertical: 'top',
-  },
-  actionButtons: {
-    gap: Spacing.md,
-    alignItems: 'center',
-  },
-  skipButton: {
-    paddingVertical: Spacing.sm,
-    paddingHorizontal: Spacing.lg,
-  },
-  skipButtonText: {
     fontFamily: FontFamily.medium,
     fontSize: FontSize.sm,
+  },
+  commentInput: {
+    borderWidth: 1.5,
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingTop: 12,
+    paddingBottom: 12,
+    fontFamily: FontFamily.regular,
+    fontSize: FontSize.sm,
+    minHeight: 56,
+    textAlignVertical: 'top',
+  },
+  sendButton: {
+    height: 56,
+    borderRadius: 16,
+  },
+  skipButton: {
+    alignSelf: 'center',
+    minHeight: 48,
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+  },
+  skipButtonText: {
+    fontFamily: FontFamily.semibold,
+    fontSize: FontSize.sm,
+    textDecorationLine: 'underline',
   },
 });

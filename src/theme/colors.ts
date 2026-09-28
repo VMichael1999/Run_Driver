@@ -6,6 +6,8 @@ export const Colors = {
   accent: '#5A6900',
   accentLime: '#D4E838',
   onAccentLime: '#111519',
+  // Borde de la estrella llena sobre lima (mockup: #7F8F12).
+  accentLimeEdge: '#7F8F12',
 
   // Surfaces & Backgrounds
   backgroundLight: '#EDF0F2',
