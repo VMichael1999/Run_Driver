@@ -34,6 +34,13 @@ function buildCompletedTrip(trip: TaxiTrip): TripHistoryItem {
     currency: driver.currency,
     status: 'completed',
     ...(discount ? { originalPrice: driver.price, discount } : {}),
+    vehicle: { model: driver.vehicleModel, color: driver.vehicleColor, plate: driver.vehiclePlate },
+    paymentMode: request.paymentMethod.mode,
+    route: {
+      origin: request.origin.position,
+      destination: request.destination.position,
+      points: request.routePoints ?? [],
+    },
   };
 }
 

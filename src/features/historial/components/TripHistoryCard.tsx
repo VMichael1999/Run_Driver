@@ -13,6 +13,8 @@ import { Spacing, BorderRadius, Shadow } from '@theme/spacing';
 interface Props {
   trip: TripHistoryItem;
   onPressMenu?: (trip: TripHistoryItem) => void;
+  /** Abre el detalle del viaje. */
+  onPress?: (trip: TripHistoryItem) => void;
 }
 
 function formatTripDate(date: Date): string {
@@ -24,11 +26,20 @@ function formatTripDate(date: Date): string {
   return `${day} ${month} ${year}, ${hour}:${minute}`;
 }
 
-export function TripHistoryCard({ trip, onPressMenu }: Props) {
+export function TripHistoryCard({ trip, onPressMenu, onPress }: Props) {
   const theme = useAppTheme();
 
   return (
-    <View style={[styles.card, { backgroundColor: theme.surface }]}>
+    <TouchableOpacity
+      style={[styles.card, { backgroundColor: theme.surface }]}
+      onPress={() => onPress?.(trip)}
+      disabled={!onPress}
+      activeOpacity={0.85}
+      accessibilityRole="button"
+      accessibilityLabel={`Viaje del ${formatTripDate(trip.date)} con ${trip.driver.name}, ${trip.currency} ${trip.price.toFixed(
+        2,
+      )}. Ver detalle`}
+    >
       <View style={styles.headerRow}>
         <Text style={[styles.dateLabel, { color: theme.text }]}>{formatTripDate(trip.date)}</Text>
         <TouchableOpacity
@@ -63,7 +74,7 @@ export function TripHistoryCard({ trip, onPressMenu }: Props) {
         </Text>
         <TripStatusPill status={trip.status} />
       </View>
-    </View>
+    </TouchableOpacity>
   );
 }
 

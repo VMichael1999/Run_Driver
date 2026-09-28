@@ -12,6 +12,7 @@ import { ExperienciaScreen } from '@features/conductor/experiencia/ExperienciaSc
 import { IngresosScreen } from '@features/conductor/ingresos/IngresosScreen';
 import { ChatScreen } from '@features/chat/ChatScreen';
 import { HistorialViajeScreen } from '@features/historial/HistorialViajeScreen';
+import { DetalleViajeScreen } from '@features/historial/DetalleViajeScreen';
 import { ConfiguracionScreen } from '@features/configuracion/ConfiguracionScreen';
 import { VerificacionScreen } from '@features/conductor/verificacion/VerificacionScreen';
 import { VerificacionInformacionBasicaScreen } from '@features/conductor/verificacion/VerificacionInformacionBasicaScreen';
@@ -53,6 +54,7 @@ export function ConductorNavigator() {
       <Stack.Screen name="ConfirmarPuntoPartida" component={ConfirmarPuntoPartidaScreen} />
       <Stack.Screen name="Chat" component={ChatScreen} />
       <Stack.Screen name="HistorialViaje" component={HistorialViajeScreen} />
+      <Stack.Screen name="DetalleViaje" component={DetalleViajeScreen} />
       <Stack.Screen name="Configuracion" component={ConfiguracionScreen} />
       <Stack.Screen name="Verificacion" component={VerificacionScreen} />
       <Stack.Screen name="VerificacionInformacionBasica" component={VerificacionInformacionBasicaScreen} />

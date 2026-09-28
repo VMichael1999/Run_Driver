@@ -3,9 +3,9 @@ import { FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { TripHistoryCard } from './components/TripHistoryCard';
-import { MOCK_TRIP_HISTORY } from './data/mockHistory';
-import { useTripHistoryStore } from '@store/useTripHistoryStore';
+import { useTripHistory } from './hooks/useTripHistory';
 import { Colors } from '@theme/colors';
 import { useAppTheme } from '@theme/useAppTheme';
 import { FontFamily, FontSize } from '@theme/fonts';
@@ -13,10 +13,10 @@ import { Spacing } from '@theme/spacing';
 
 export function HistorialViajeScreen() {
   const insets = useSafeAreaInsets();
-  const navigation = useNavigation();
+  // La pantalla vive en los stacks de cliente y conductor; ambos tienen DetalleViaje.
+  const navigation = useNavigation<NativeStackNavigationProp<{ DetalleViaje: { tripId: string } }>>();
   const theme = useAppTheme();
-  const trips = useTripHistoryStore((state) => state.trips);
-  const historyItems = React.useMemo(() => [...trips, ...MOCK_TRIP_HISTORY], [trips]);
+  const historyItems = useTripHistory();
 
   return (
     <View style={[styles.container, { paddingBottom: insets.bottom, backgroundColor: theme.background }]}>
@@ -38,7 +38,9 @@ export function HistorialViajeScreen() {
         data={historyItems}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.list}
-        renderItem={({ item }) => <TripHistoryCard trip={item} />}
+        renderItem={({ item }) => (
+          <TripHistoryCard trip={item} onPress={(trip) => navigation.navigate('DetalleViaje', { tripId: trip.id })} />
+        )}
         ItemSeparatorComponent={() => <View style={styles.separator} />}
         ListEmptyComponent={
           <View style={styles.empty}>
