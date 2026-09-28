@@ -25,6 +25,7 @@ export type ClienteStackParamList = {
   TrayectoTaxi: undefined;
   Chat: { userId: string; userName: string };
   HistorialViaje: undefined;
+  DetalleViaje: { tripId: string };
   Configuracion: undefined;
   Perfil: undefined;
   /** forRide: elige el método del viaje en curso y vuelve; sin él, cambia la preferencia. */
@@ -50,6 +51,7 @@ export type ConductorStackParamList = {
   ConfirmarPuntoPartida: { routePoints?: { latitude: number; longitude: number }[] };
   Chat: { userId: string; userName: string };
   HistorialViaje: undefined;
+  DetalleViaje: { tripId: string };
   Configuracion: undefined;
   Verificacion: undefined;
   VerificacionInformacionBasica: undefined;

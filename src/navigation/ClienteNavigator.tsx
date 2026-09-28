@@ -8,6 +8,7 @@ import { SolicitudTaxiScreen } from '@features/cliente/solicitud-taxi/SolicitudT
 import { TrayectoTaxiScreen } from '@features/cliente/trayecto-taxi/TrayectoTaxiScreen';
 import { ChatScreen } from '@features/chat/ChatScreen';
 import { HistorialViajeScreen } from '@features/historial/HistorialViajeScreen';
+import { DetalleViajeScreen } from '@features/historial/DetalleViajeScreen';
 import { ConfiguracionScreen } from '@features/configuracion/ConfiguracionScreen';
 import { PerfilScreen } from '@features/cliente/perfil';
 import { MetodosPagoScreen } from '@features/cliente/metodos-pago';
@@ -27,6 +28,7 @@ export function ClienteNavigator() {
       <Stack.Screen name="TrayectoTaxi" component={TrayectoTaxiScreen} />
       <Stack.Screen name="Chat" component={ChatScreen} />
       <Stack.Screen name="HistorialViaje" component={HistorialViajeScreen} />
+      <Stack.Screen name="DetalleViaje" component={DetalleViajeScreen} />
       <Stack.Screen name="Configuracion" component={ConfiguracionScreen} />
       <Stack.Screen name="Perfil" component={PerfilScreen} />
       <Stack.Screen name="MetodosPago" component={MetodosPagoScreen} />
