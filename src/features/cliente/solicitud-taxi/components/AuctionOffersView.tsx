@@ -21,7 +21,7 @@ import Animated, {
   withSpring,
   withTiming,
 } from 'react-native-reanimated';
-import type { DriverAlert, PaymentMode } from '@shared/types';
+import type { DriverAlert, PaymentMode, TripDiscount } from '@shared/types';
 import { Colors } from '@theme/colors';
 import { useAppTheme } from '@theme/useAppTheme';
 import { FontFamily, FontSize } from '@theme/fonts';
@@ -60,6 +60,8 @@ interface AuctionOffersViewProps {
   destinationName: string;
   /** Método con el que se lanzó la búsqueda; no se puede cambiar mientras se busca. */
   paymentMode: PaymentMode;
+  /** Descuento del pasajero; las ofertas muestran lo que paga con él. */
+  discount?: TripDiscount | null;
   /** Acepta sola la primera oferta que iguale el precio pedido. */
   autoAccept: boolean;
   onToggleAutoAccept: (value: boolean) => void;
@@ -147,6 +149,7 @@ export function AuctionOffersView({
   originName,
   destinationName,
   paymentMode,
+  discount,
   autoAccept,
   onToggleAutoAccept,
   onCancelRequest,
@@ -269,6 +272,7 @@ export function AuctionOffersView({
               startTime={item.startTime}
               totalDurationSeconds={item.totalDuration}
               offeredFare={requestedFare}
+              discount={discount}
               onAccept={() => onAcceptOffer(item.id)}
               onReject={() => onRejectOffer(item.id)}
               onExpired={() => onExpireOffer(item.id)}

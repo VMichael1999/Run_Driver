@@ -1,6 +1,7 @@
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import type { DriverAlert } from '@shared/types';
+import type { DriverAlert, TripDiscount } from '@shared/types';
+import { applyDiscount } from '@features/cliente/promociones/utils/descuentos';
 import { useAppTheme } from '@theme/useAppTheme';
 import { FontFamily, FontSize } from '@theme/fonts';
 import { BorderRadius } from '@theme/spacing';
@@ -12,6 +13,8 @@ interface DriverOfferCardProps {
   startTime: Date;
   totalDurationSeconds?: number;
   offeredFare: number;
+  /** Si hay descuento, la tarjeta muestra lo que paga el pasajero; el conductor cobra `driver.price`. */
+  discount?: TripDiscount | null;
   onAccept: () => void;
   onReject: () => void;
   /** La oferta venció: la lista la retira. */
@@ -34,6 +37,7 @@ export function DriverOfferCard({
   startTime,
   totalDurationSeconds = 25,
   offeredFare,
+  discount,
   onAccept,
   onReject,
   onExpired,
@@ -54,7 +58,8 @@ export function DriverOfferCard({
 
   const diff = Number((driver.price - offeredFare).toFixed(2));
   const isYourPrice = Math.abs(diff) < 0.01;
-  const priceLabel = `${driver.currency} ${driver.price.toFixed(2)}`;
+  const offerLabel = `${driver.currency} ${driver.price.toFixed(2)}`;
+  const priceLabel = `${driver.currency} ${applyDiscount(driver.price, discount).toFixed(2)}`;
 
   return (
     <View
@@ -74,6 +79,9 @@ export function DriverOfferCard({
           </Text>
         </View>
         <View style={styles.priceBlock}>
+          {discount ? (
+            <Text style={[styles.priceBefore, { color: theme.textMuted }]}>{offerLabel}</Text>
+          ) : null}
           <Text style={[styles.price, { color: theme.text }]}>{priceLabel}</Text>
           <View
             style={[
@@ -110,7 +118,9 @@ export function DriverOfferCard({
         <CountdownButton
           style={styles.accept}
           label={`Aceptar ${priceLabel}`}
-          accessibilityLabel={`Aceptar oferta de ${driver.driverName} por ${priceLabel}. Vence en ${secondsLeft} segundos`}
+          accessibilityLabel={`Aceptar oferta de ${driver.driverName} por ${offerLabel}${
+            discount ? `, pagas ${priceLabel}` : ''
+          }. Vence en ${secondsLeft} segundos`}
           onPress={onAccept}
           startedAt={startedAt}
           durationMs={durationMs}
@@ -162,6 +172,11 @@ const styles = StyleSheet.create({
   price: {
     fontFamily: FontFamily.bold,
     fontSize: FontSize.xl,
+  },
+  priceBefore: {
+    fontFamily: FontFamily.regular,
+    fontSize: FontSize.xs,
+    textDecorationLine: 'line-through',
   },
   tag: {
     paddingHorizontal: 7,
