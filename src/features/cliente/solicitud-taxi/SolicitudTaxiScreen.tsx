@@ -3,7 +3,6 @@ import {
   View,
   StyleSheet,
   TouchableOpacity,
-  Platform,
   Alert,
   Animated,
   Image,
@@ -175,17 +174,33 @@ export function SolicitudTaxiScreen() {
     }).start();
   }, [pinLift]);
 
-  // Encuadrar ruta en el mapa
+  // Encuadra la ruta en el espacio del mapa que deja libre la hoja inferior.
+  const lastDragFitRef = useRef(0);
+  const fitRoute = useCallback(
+    (sheetHeight: number, settled = true) => {
+      if (!request?.origin || !request?.destination || isAuctionPickupMode) return;
+      // Durante el arrastre se reencuadra sin animación y como máximo cada 120 ms, para que las
+      // animaciones no se encadenen; al soltar, un único encuadre animado.
+      if (!settled) {
+        const now = Date.now();
+        if (now - lastDragFitRef.current < 120) return;
+        lastDragFitRef.current = now;
+      }
+      mapRef.current?.fitToCoordinates(
+        [request.origin.position, request.destination.position, ...(request.routePoints ?? [])],
+        {
+          // mapPadding ya reserva la altura mínima de la hoja; aquí solo se suma lo que crece al arrastrarla.
+          edgePadding: { top: 24, right: 40, bottom: Math.max(0, sheetHeight - sheetHeights.collapsed) + 16, left: 40 },
+          animated: settled,
+        },
+      );
+    },
+    [request, isAuctionPickupMode, sheetHeights.collapsed],
+  );
+
   useEffect(() => {
-    if (!request?.origin || !request?.destination || isAuctionPickupMode) return;
-    mapRef.current?.fitToCoordinates(
-      [request.origin.position, request.destination.position, ...(request.routePoints ?? [])],
-      {
-        edgePadding: { top: insets.top + 70, right: 50, bottom: sheetHeights.collapsed + 24, left: 50 },
-        animated: true,
-      },
-    );
-  }, [request, insets.top, isAuctionPickupMode, sheetHeights.collapsed]);
+    fitRoute(sheetHeights.collapsed);
+  }, [fitRoute, sheetHeights.collapsed]);
 
   // Submit desde el sheet de selección de servicio
   const handleServiceSubmit = () => {
@@ -264,9 +279,10 @@ export function SolicitudTaxiScreen() {
       <MapView
         ref={mapRef}
         style={StyleSheet.absoluteFillObject}
-        provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
+        provider={PROVIDER_GOOGLE}
         customMapStyle={isDark ? MapStyleNight : MapStyleLight}
-        mapType={Platform.OS === 'ios' ? 'mutedStandard' : 'standard'}
+        // En modo recogida el pin fijo está en el centro de la pantalla, así que no se desplaza el centro del mapa.
+        mapPadding={isAuctionPickupMode ? { top: 0, right: 0, bottom: 0, left: 0 } : { top: insets.top + 8, right: 0, bottom: sheetHeights.collapsed, left: 0 }}
         userInterfaceStyle={isDark ? 'dark' : 'light'}
         initialRegion={LIMA_REGION}
         showsUserLocation={false}
@@ -304,8 +320,21 @@ export function SolicitudTaxiScreen() {
 
         {request?.routePoints && request.routePoints.length > 1 && !isAuctionPickupMode ? (
           <>
-            <Polyline coordinates={request.routePoints} strokeWidth={10} strokeColor={theme.routeCase} lineJoin="round" />
-            <Polyline coordinates={request.routePoints} strokeWidth={5} strokeColor={theme.route} lineJoin="round" />
+            {/* strokeColors además de strokeColor: en iOS con Google Maps solo strokeColors pinta la línea. */}
+            <Polyline
+              coordinates={request.routePoints}
+              strokeWidth={10}
+              strokeColor={theme.routeCase}
+              strokeColors={[theme.routeCase]}
+              lineJoin="round"
+            />
+            <Polyline
+              coordinates={request.routePoints}
+              strokeWidth={5}
+              strokeColor={theme.route}
+              strokeColors={[theme.route]}
+              lineJoin="round"
+            />
           </>
         ) : null}
       </MapView>
@@ -382,6 +411,7 @@ export function SolicitudTaxiScreen() {
           durationMin={durationMin}
           onSubmit={handleServiceSubmit}
           onSchedulePress={() => setScheduleModalVisible(true)}
+          onHeightChange={fitRoute}
         />
       )}
 

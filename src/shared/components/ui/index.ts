@@ -16,3 +16,4 @@ export { AuctionProgressBar } from './AuctionProgressBar';
 export type { AuctionProgressBarProps } from './AuctionProgressBar';
 export { AppIcon, StarIcon } from './AppIcon';
 export type { AppIconName } from './AppIcon';
+export { PaymentRow } from './PaymentRow';
