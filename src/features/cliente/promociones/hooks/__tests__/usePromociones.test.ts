@@ -12,6 +12,7 @@ function buildService(overrides: Partial<PromotionsService> = {}): PromotionsSer
         description: 'desc',
         discountPercent: 10,
         validUntil: '2030-01-01',
+        rule: 'weekend',
       },
     ]),
     validateCoupon: jest.fn().mockResolvedValue({

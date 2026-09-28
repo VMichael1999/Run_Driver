@@ -11,6 +11,7 @@ const STATIC_PROMOTIONS: Promotion[] = [
     description: 'Para nuevos clientes en su primera carrera.',
     discountPercent: 50,
     validUntil: '2026-12-31',
+    rule: 'first_trip',
   },
   {
     id: 'p-002',
@@ -18,6 +19,7 @@ const STATIC_PROMOTIONS: Promotion[] = [
     description: 'Sábados y domingos, en viajes dentro de Lima.',
     discountPercent: 15,
     validUntil: '2026-09-30',
+    rule: 'weekend',
   },
 ];
 
