@@ -168,9 +168,11 @@ export function ConfirmarPuntoPartidaScreen({ route, navigation }: Props) {
           onPress={() => void handleConfirm()}
           activeOpacity={0.88}
           disabled={isConfirming}
+          accessibilityRole="button"
+          accessibilityLabel="Confirmar punto de origen"
         >
           <Text style={styles.confirmButtonText}>
-            {isConfirming ? 'CONFIRMANDO...' : 'CONFIRMAR'}
+            {isConfirming ? 'Confirmando...' : 'Confirmar origen'}
           </Text>
         </TouchableOpacity>
       </View>
@@ -284,7 +286,6 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.lg,
   },
   confirmButton: {
-    backgroundColor: '#1d5fa8',
     borderRadius: BorderRadius.full,
     paddingVertical: 16,
     alignItems: 'center',

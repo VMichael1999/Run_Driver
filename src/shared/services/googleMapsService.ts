@@ -69,7 +69,7 @@ export async function getPlaceDetails(placeId: string, sessionToken: string): Pr
   }
 
   const result = response.data.result;
-  const name = result.name || result.formatted_address || 'Ubicacion seleccionada';
+  const name = result.name || result.formatted_address || 'Ubicación seleccionada';
   const formatted = result.formatted_address || '';
 
   return {

@@ -44,7 +44,9 @@ export function TripHistoryCard({ trip, onPressMenu }: Props) {
         <UserNetworkAvatar imageUrl={trip.driver.avatarUrl} radius={22} />
         <View style={styles.driverInfo}>
           <Text style={[styles.driverName, { color: theme.text }]}>{trip.driver.name}</Text>
-          <Text style={[styles.driverMeta, { color: theme.textMuted }]}>Antiguedad: {trip.driver.yearsAtCompany} ano</Text>
+          <Text style={[styles.driverMeta, { color: theme.textMuted }]}>
+            Antigüedad: {trip.driver.yearsAtCompany} {trip.driver.yearsAtCompany === 1 ? 'año' : 'años'}
+          </Text>
           <Text style={[styles.driverMeta, { color: theme.textMuted }]}>Viajes: {trip.driver.rideCount}</Text>
         </View>
       </View>

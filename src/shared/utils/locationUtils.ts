@@ -6,11 +6,11 @@ export async function getPlaceNameFromCoordinates(latitude: number, longitude: n
   const first = reverse[0];
 
   if (!first) {
-    return 'Ubicacion seleccionada';
+    return 'Ubicación seleccionada';
   }
 
   const parts = [first.street, first.streetNumber, first.district, first.city].filter(Boolean);
-  return parts.length > 0 ? parts.join(' ') : 'Ubicacion seleccionada';
+  return parts.length > 0 ? parts.join(' ') : 'Ubicación seleccionada';
 }
 
 export async function getCurrentLocationMarker(): Promise<LocationMarker | null> {
@@ -23,7 +23,7 @@ export async function getCurrentLocationMarker(): Promise<LocationMarker | null>
     accuracy: Location.Accuracy.High,
   });
 
-  let placeName = 'Mi ubicacion actual';
+  let placeName = 'Mi ubicación actual';
 
   try {
     placeName = await getPlaceNameFromCoordinates(position.coords.latitude, position.coords.longitude);
@@ -56,7 +56,7 @@ export async function getQuickCurrentLocationMarker(): Promise<LocationMarker | 
   }
 
   return {
-    placeName: 'Mi ubicacion actual',
+    placeName: 'Mi ubicación actual',
     position: {
       latitude: lastKnown.coords.latitude,
       longitude: lastKnown.coords.longitude,
