@@ -76,6 +76,9 @@ export function SearchAddressScreen({ route, navigation }: Props) {
 
   const [query, setQuery] = React.useState('');
   const [loading, setLoading] = React.useState(false);
+  // "Agregar parada" abre el buscador en la misma pantalla, en el lugar de la nueva parada.
+  const [addingStop, setAddingStop] = React.useState(false);
+  const activeTarget = addingStop ? 'extra-stop' : target;
   const [items, setItems] = React.useState<PlaceSuggestion[]>([]);
   const sessionTokenRef = React.useRef(createPlacesSessionToken());
   const timeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -87,6 +90,22 @@ export function SearchAddressScreen({ route, navigation }: Props) {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
     };
   }, []);
+
+  const clearSearch = () => {
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    setQuery('');
+    setItems([]);
+  };
+
+  const toggleAddingStop = (value: boolean) => {
+    clearSearch();
+    setAddingStop(value);
+  };
+
+  // Al volver del mapa con la parada ya elegida, el buscador regresa al destino.
+  React.useEffect(() => {
+    setAddingStop(false);
+  }, [extraStops.length]);
 
   const onQueryChanged = (value: string) => {
     setQuery(value);
@@ -115,6 +134,12 @@ export function SearchAddressScreen({ route, navigation }: Props) {
       if (saveFavorite) {
         addFavorite(place);
         navigation.popToTop();
+        return;
+      }
+
+      if (addingStop) {
+        addExtraStop(place);
+        clearSearch();
         return;
       }
 
@@ -158,9 +183,9 @@ export function SearchAddressScreen({ route, navigation }: Props) {
     : 'Tu viaje';
   const placeholder = saveFavorite
     ? 'Escribe la dirección'
-    : target === 'origin'
+    : activeTarget === 'origin'
     ? '¿Desde dónde sales?'
-    : target === 'extra-stop'
+    : activeTarget === 'extra-stop'
     ? '¿Dónde será la parada?'
     : '¿A dónde vas?';
 
@@ -216,6 +241,70 @@ export function SearchAddressScreen({ route, navigation }: Props) {
     </TouchableOpacity>
   );
 
+  // Cada fila lleva su punto; los tramos de arriba y abajo unen los puntos sin cortes.
+  const addressRow = (key: string, color: string, isFirst: boolean, isLast: boolean, field: React.ReactNode) => (
+    <View key={key} style={styles.addrRow}>
+      <View style={styles.rail}>
+        <View style={[styles.railSegment, { backgroundColor: isFirst ? 'transparent' : theme.line }]} />
+        <View style={styles.railRing}>
+          <View style={[styles.railDot, { backgroundColor: color }]} />
+        </View>
+        <View style={[styles.railSegment, { backgroundColor: isLast ? 'transparent' : theme.line }]} />
+      </View>
+      <View style={styles.field}>{field}</View>
+    </View>
+  );
+
+  // Desde, paradas, la parada que se está escribiendo y hacia.
+  const addressRows: { key: string; color: string; field: React.ReactNode }[] = [
+    {
+      key: 'origin',
+      color: Colors.pinOrigin,
+      field:
+        target === 'origin'
+          ? activeInput
+          : staticField('Desde', originName, () => navigation.push('SearchAddress', { target: 'origin' })),
+    },
+    ...extraStops.map((stop, idx) => ({
+      key: `stop-${stop.placeName}-${idx}`,
+      color: theme.textMuted,
+      field: staticField(`Parada ${idx + 1}`, stop.placeName, undefined, () => removeExtraStop(idx)),
+    })),
+    ...(addingStop
+      ? [
+          {
+            key: 'new-stop',
+            color: theme.textMuted,
+            field: (
+              <View style={styles.stopInputRow}>
+                <View style={styles.flex}>{activeInput}</View>
+                <TouchableOpacity
+                  onPress={() => toggleAddingStop(false)}
+                  hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                  accessibilityRole="button"
+                  accessibilityLabel="Cancelar parada"
+                >
+                  <Text style={[styles.linkText, { color: theme.textMuted }]}>Cancelar</Text>
+                </TouchableOpacity>
+              </View>
+            ),
+          },
+        ]
+      : []),
+    ...(target === 'origin' && !destination
+      ? []
+      : [
+          {
+            key: 'destination',
+            color: Colors.pinDestination,
+            field:
+              target === 'origin' || addingStop
+                ? staticField('Hacia', destination?.placeName ?? '¿A dónde vas?', addingStop ? () => toggleAddingStop(false) : undefined)
+                : activeInput,
+          },
+        ]),
+  ];
+
   const header = (
     <View style={styles.pad}>
       <View style={styles.hdr}>
@@ -235,37 +324,16 @@ export function SearchAddressScreen({ route, navigation }: Props) {
         activeInput
       ) : (
         <View style={styles.addr}>
-          <View style={styles.rail}>
-            <View style={styles.railRing}>
-              <View style={[styles.railDot, { backgroundColor: Colors.pinOrigin }]} />
-            </View>
-            <View style={[styles.railLine, { backgroundColor: theme.line }]} />
-            <View style={styles.railRing}>
-              <View style={[styles.railDot, { backgroundColor: Colors.pinDestination }]} />
-            </View>
-          </View>
-          <View style={styles.fields}>
-            {target === 'origin'
-              ? activeInput
-              : staticField('Desde', originName, () => navigation.push('SearchAddress', { target: 'origin' }))}
-            {extraStops.map((stop, idx) => (
-              <React.Fragment key={`${stop.placeName}-${idx}`}>
-                {staticField(`Parada ${idx + 1}`, stop.placeName, undefined, () => removeExtraStop(idx))}
-              </React.Fragment>
-            ))}
-            {target === 'origin'
-              ? destination
-                ? staticField('Hacia', destination.placeName)
-                : null
-              : activeInput}
-          </View>
+          {addressRows.map((row, index) =>
+            addressRow(row.key, row.color, index === 0, index === addressRows.length - 1, row.field),
+          )}
         </View>
       )}
 
-      {!saveFavorite && !editing && target !== 'extra-stop' && extraStops.length < MAX_EXTRA_STOPS ? (
+      {!saveFavorite && !editing && !addingStop && target !== 'extra-stop' && extraStops.length < MAX_EXTRA_STOPS ? (
         <TouchableOpacity
           style={styles.linkRow}
-          onPress={() => navigation.push('SearchAddress', { target: 'extra-stop' })}
+          onPress={() => toggleAddingStop(true)}
           activeOpacity={0.75}
           accessibilityRole="button"
           accessibilityLabel="Agregar parada"
@@ -320,7 +388,7 @@ export function SearchAddressScreen({ route, navigation }: Props) {
         ListFooterComponent={
           <TouchableOpacity
             style={[styles.linkRow, items.length > 0 && styles.mapLink]}
-            onPress={() => navigation.navigate('SelectAddressOnMap', { target, saveFavorite, editing, scheduledTripId })}
+            onPress={() => navigation.navigate('SelectAddressOnMap', { target: activeTarget, saveFavorite, editing, scheduledTripId })}
             activeOpacity={0.75}
             accessibilityRole="button"
             accessibilityLabel="Elegir en el mapa"
@@ -363,14 +431,33 @@ const styles = StyleSheet.create({
     letterSpacing: -0.48,
   },
   addr: {
+    paddingHorizontal: 18,
+  },
+  // Campo de 48 + 8 de separación; el punto queda centrado y los tramos cubren la separación.
+  addrRow: {
     flexDirection: 'row',
     gap: 10,
-    paddingHorizontal: 18,
+    height: 56,
   },
   rail: {
     width: 16,
     alignItems: 'center',
-    paddingTop: 16,
+  },
+  railSegment: {
+    width: 2,
+    flex: 1,
+  },
+  field: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  stopInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  flex: {
+    flex: 1,
   },
   // Punto de 10 px con aro de 3 px, como los pines del mapa
   railRing: {
@@ -385,16 +472,6 @@ const styles = StyleSheet.create({
     width: 10,
     height: 10,
     borderRadius: 5,
-  },
-  railLine: {
-    width: 2,
-    flex: 1,
-    minHeight: 24,
-    marginVertical: 6,
-  },
-  fields: {
-    flex: 1,
-    gap: 8,
   },
   inp: {
     height: 48,

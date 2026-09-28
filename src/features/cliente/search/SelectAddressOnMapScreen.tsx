@@ -159,7 +159,9 @@ export function SelectAddressOnMapScreen({ route, navigation }: Props) {
       if (target === 'extra-stop') {
         if (scheduledTripId) addScheduledStop(scheduledTripId, selectedLocation);
         else addExtraStop(selectedLocation);
-        returnToOpener();
+        // Desde "Tu viaje" se vuelve a esa misma búsqueda, que sigue con el destino.
+        if (editing || scheduledTripId) returnToOpener();
+        else navigation.goBack();
         return;
       }
 
