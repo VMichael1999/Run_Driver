@@ -8,4 +8,5 @@ export { ServiceSelectionSheet, useServiceSheetHeights } from './ServiceSelectio
 export type { VehicleServiceOption } from './ServiceSelectionSheet';
 export { AuctionOffersView } from './AuctionOffersView';
 export type { AuctionOfferItem } from './AuctionOffersView';
-export { useAuctionSimulation, SEARCH_WINDOW_SECONDS } from '../hooks/useAuctionSimulation';
+export { useAuctionSimulation, SEARCH_WINDOW_SECONDS } from '../hooks/useAuctionSimulation';export { RouteStopsCard } from './RouteStopsCard';
+export { RideSearchView } from './RideSearchView';
