@@ -72,7 +72,6 @@ export function TrayectoTaxiScreen() {
 
   const [tripPhase, setTripPhase] = React.useState<TripPhase>('arriving');
   const [ratingVisible, setRatingVisible] = React.useState(false);
-  const [tripProgress, setTripProgress] = React.useState(0.25);
 
   const driver = activeTrip?.driver;
   const request = activeTrip?.request;
@@ -145,20 +144,6 @@ export function TrayectoTaxiScreen() {
 
     return () => clearTimeout(timeout);
   }, [fitRouteToMap]);
-
-  // Simulate progress when on trip
-  React.useEffect(() => {
-    if (tripPhase !== 'on_trip') return;
-
-    const interval = setInterval(() => {
-      setTripProgress((prev) => {
-        if (prev >= 0.95) return 0.95;
-        return prev + 0.05;
-      });
-    }, 4000);
-
-    return () => clearInterval(interval);
-  }, [tripPhase]);
 
   const panResponder = React.useMemo(
     () =>
@@ -319,7 +304,6 @@ export function TrayectoTaxiScreen() {
   const handleStartRide = () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setTripPhase('on_trip');
-    setTripProgress(0.3);
   };
 
   // End Trip & Open Rating
@@ -561,28 +545,6 @@ export function TrayectoTaxiScreen() {
             </View>
           </View>
 
-          {/* Barra de progreso en viaje (Pantalla 9) */}
-          {tripPhase === 'on_trip' && (
-            <View style={styles.progressContainer}>
-              <View style={[styles.progressTrack, { backgroundColor: theme.divider }]}>
-                <View
-                  style={[
-                    styles.progressBar,
-                    {
-                      width: `${Math.round(tripProgress * 100)}%`,
-                      backgroundColor: Colors.accentLime,
-                    },
-                  ]}
-                />
-              </View>
-              <View style={styles.progressLabels}>
-                <Text style={[styles.progressText, { color: theme.textMuted }]}>En camino</Text>
-                <Text style={[styles.progressText, { color: theme.textMuted }]}>
-                  {Math.round(tripProgress * 100)} % completado
-                </Text>
-              </View>
-            </View>
-          )}
 
           {/* 3 Botones de acción (Escribir, Compartir viaje, SOS) */}
           <View style={styles.actionPillsRow}>
@@ -935,27 +897,6 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  progressContainer: {
-    marginVertical: Spacing.sm,
-  },
-  progressTrack: {
-    height: 6,
-    borderRadius: 3,
-    overflow: 'hidden',
-  },
-  progressBar: {
-    height: '100%',
-    borderRadius: 3,
-  },
-  progressLabels: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 4,
-  },
-  progressText: {
-    fontFamily: FontFamily.regular,
-    fontSize: FontSize.xs,
   },
   actionPillsRow: {
     flexDirection: 'row',
