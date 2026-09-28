@@ -7,7 +7,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   Image,
-  Platform,
   useWindowDimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -222,9 +221,10 @@ export function ClienteHomeScreen() {
           <MapView
             ref={mapRef}
             style={StyleSheet.absoluteFill}
-            provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
+            provider={PROVIDER_GOOGLE}
             customMapStyle={isDark ? MapStyleNight : MapStyleLight}
-            mapType={Platform.OS === 'ios' ? 'mutedStandard' : 'standard'}
+            // La hoja inferior se monta 24 px sobre el mapa; el padding deja visible el logo de Google.
+            mapPadding={{ top: insets.top + 56, right: 0, bottom: 24, left: 0 }}
             userInterfaceStyle={isDark ? 'dark' : 'light'}
             initialRegion={LIMA_REGION}
             rotateEnabled={false}

@@ -9,7 +9,6 @@ import {
   Animated,
   Dimensions,
   PanResponder,
-  Platform,
   ScrollView,
   Share,
   Linking,
@@ -348,7 +347,7 @@ export function TrayectoTaxiScreen() {
       <MapView
         ref={mapRef}
         style={StyleSheet.absoluteFillObject}
-        provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
+        provider={PROVIDER_GOOGLE}
         initialRegion={region}
         showsUserLocation={false}
         showsMyLocationButton={false}

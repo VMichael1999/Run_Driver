@@ -1,7 +1,7 @@
 import type { MapStyleElement } from 'react-native-maps';
 
 // Estilo de Google Maps con la paleta del mapa del diseño (--map-* en docs/rediseno-runsubasta.html).
-// En iOS con Apple Maps no aplica; ahí se usa mapType "mutedStandard".
+// Se usa con PROVIDER_GOOGLE en iOS y Android.
 function buildMapStyle(c: {
   bg: string;
   block: string;
