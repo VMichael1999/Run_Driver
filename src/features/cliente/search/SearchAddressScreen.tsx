@@ -8,10 +8,9 @@ import {
   FlatList,
   ActivityIndicator,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { ClienteStackParamList } from '@navigation/types';
-import { BackAppBar } from '@shared/components/appbar/BackAppBar';
 import {
   autocompletePlaces,
   createPlacesSessionToken,
@@ -19,18 +18,42 @@ import {
   type PlaceSuggestion,
 } from '@shared/services/googleMapsService';
 import { getRoutePolyline } from '@shared/services/googleMapsService';
+import { AppIcon } from '@shared/components/ui/AppIcon';
+import { formatDistance } from '@shared/utils/mapUtils';
 import { useRideDraftStore } from '@store/useRideDraftStore';
 import { useFavoriteAddressesStore } from '@store/useFavoriteAddressesStore';
 import { useTaxiStore } from '@store/useTaxiStore';
 import { Colors } from '@theme/colors';
 import { useAppTheme } from '@theme/useAppTheme';
 import { FontFamily, FontSize } from '@theme/fonts';
-import { BorderRadius, Shadow, Spacing } from '@theme/spacing';
+import { BorderRadius } from '@theme/spacing';
 
 type Props = NativeStackScreenProps<ClienteStackParamList, 'SearchAddress'>;
 
+// Subraya en lima la parte del resultado que coincide con lo escrito.
+function HighlightedTitle({ title, query, color, highlight }: { title: string; query: string; color: string; highlight: string }) {
+  const needle = query.trim().toLowerCase();
+  const start = needle ? title.toLowerCase().indexOf(needle) : -1;
+  if (start < 0) {
+    return (
+      <Text style={[styles.resultTitle, { color }]} numberOfLines={1}>
+        {title}
+      </Text>
+    );
+  }
+  const end = start + needle.length;
+  return (
+    <Text style={[styles.resultTitle, { color }]} numberOfLines={1}>
+      {title.slice(0, start)}
+      <Text style={[styles.match, { textDecorationColor: highlight }]}>{title.slice(start, end)}</Text>
+      {title.slice(end)}
+    </Text>
+  );
+}
+
 export function SearchAddressScreen({ route, navigation }: Props) {
   const theme = useAppTheme();
+  const insets = useSafeAreaInsets();
   const target = route.params.target;
   const saveFavorite = route.params.saveFavorite === true;
 
@@ -73,7 +96,7 @@ export function SearchAddressScreen({ route, navigation }: Props) {
     timeoutRef.current = setTimeout(async () => {
       try {
         setLoading(true);
-        const result = await autocompletePlaces(value.trim(), sessionTokenRef.current, biasLocation);
+        const result = await autocompletePlaces(value.trim(), sessionTokenRef.current, biasLocation, origin?.position);
         setItems(result);
       } finally {
         setLoading(false);
@@ -122,206 +145,184 @@ export function SearchAddressScreen({ route, navigation }: Props) {
   };
 
   const originName = origin?.placeName ?? 'Mi ubicación actual';
+  const title = saveFavorite
+    ? 'Agregar favorita'
+    : target === 'origin'
+    ? 'Punto de partida'
+    : target === 'extra-stop'
+    ? 'Agregar parada'
+    : 'Tu viaje';
+  const placeholder = saveFavorite
+    ? 'Escribe la dirección'
+    : target === 'origin'
+    ? '¿Desde dónde sales?'
+    : target === 'extra-stop'
+    ? '¿Dónde será la parada?'
+    : '¿A dónde vas?';
+
+  const activeInput = (
+    <View style={[styles.inp, styles.inpActive, { backgroundColor: theme.surface, borderColor: theme.text }]}>
+      <TextInput
+        value={query}
+        onChangeText={onQueryChanged}
+        placeholder={placeholder}
+        placeholderTextColor={theme.textMuted}
+        style={[styles.input, { color: theme.text }]}
+        autoFocus
+        selectionColor={theme.text}
+        accessibilityLabel={placeholder}
+      />
+      {loading ? <ActivityIndicator size="small" color={theme.text} /> : null}
+      {!loading && query.length > 0 ? (
+        <TouchableOpacity
+          onPress={() => onQueryChanged('')}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          accessibilityRole="button"
+          accessibilityLabel="Borrar texto"
+        >
+          <AppIcon name="close" size="s" color={theme.textMuted} />
+        </TouchableOpacity>
+      ) : null}
+    </View>
+  );
+
+  const staticField = (label: string, value: string, onPress?: () => void, onRemove?: () => void) => (
+    <TouchableOpacity
+      style={[styles.inp, { backgroundColor: theme.background }]}
+      onPress={onPress}
+      disabled={!onPress}
+      activeOpacity={0.8}
+      accessibilityRole="button"
+      accessibilityLabel={`${label} ${value}`}
+    >
+      <Text style={[styles.inpLabel, { color: theme.textMuted }]}>{label}</Text>
+      <Text style={[styles.inpValue, { color: theme.text }]} numberOfLines={1}>
+        {value}
+      </Text>
+      {onRemove ? (
+        <TouchableOpacity
+          onPress={onRemove}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          accessibilityRole="button"
+          accessibilityLabel={`Quitar ${label.toLowerCase()}`}
+        >
+          <AppIcon name="close" size="s" color={theme.textMuted} />
+        </TouchableOpacity>
+      ) : null}
+    </TouchableOpacity>
+  );
+
+  const header = (
+    <View style={styles.pad}>
+      <View style={styles.hdr}>
+        <TouchableOpacity
+          style={[styles.backButton, { backgroundColor: theme.surface, borderColor: theme.line }]}
+          onPress={() => navigation.goBack()}
+          accessibilityRole="button"
+          accessibilityLabel="Volver"
+        >
+          <AppIcon name="back" color={theme.text} />
+        </TouchableOpacity>
+        <Text style={[styles.hdrTitle, { color: theme.text }]}>{title}</Text>
+      </View>
+
+      {saveFavorite ? (
+        activeInput
+      ) : (
+        <View style={styles.addr}>
+          <View style={styles.rail}>
+            <View style={styles.railRing}>
+              <View style={[styles.railDot, { backgroundColor: Colors.pinOrigin }]} />
+            </View>
+            <View style={[styles.railLine, { backgroundColor: theme.line }]} />
+            <View style={styles.railRing}>
+              <View style={[styles.railDot, { backgroundColor: Colors.pinDestination }]} />
+            </View>
+          </View>
+          <View style={styles.fields}>
+            {target === 'origin'
+              ? activeInput
+              : staticField('Desde', originName, () => navigation.push('SearchAddress', { target: 'origin' }))}
+            {extraStops.map((stop, idx) =>
+              staticField(`Parada ${idx + 1}`, stop.placeName, undefined, () => removeExtraStop(idx)),
+            )}
+            {target === 'origin'
+              ? destination
+                ? staticField('Hacia', destination.placeName)
+                : null
+              : activeInput}
+          </View>
+        </View>
+      )}
+
+      {!saveFavorite && target !== 'extra-stop' && extraStops.length < 2 ? (
+        <TouchableOpacity
+          style={styles.linkRow}
+          onPress={() => navigation.push('SearchAddress', { target: 'extra-stop' })}
+          activeOpacity={0.75}
+          accessibilityRole="button"
+          accessibilityLabel="Agregar parada"
+        >
+          <AppIcon name="plus" color={theme.text} />
+          <Text style={[styles.linkText, { color: theme.text }]}>Agregar parada</Text>
+        </TouchableOpacity>
+      ) : null}
+    </View>
+  );
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.background }]}>
-      <BackAppBar
-        title={
-          saveFavorite
-            ? 'Agregar favorita'
-            : target === 'origin'
-            ? 'Punto de partida'
-            : target === 'extra-stop'
-            ? 'Agregar parada'
-            : 'Tu viaje'
-        }
-      />
-
-      <View style={styles.content}>
-        {/* Itinerario: Origen, Paradas y Destino */}
-        {!saveFavorite ? (
-          <View style={[styles.itineraryCard, { backgroundColor: theme.surface }, Shadow.raise]}>
-            {/* Origen */}
-            <TouchableOpacity
-              style={styles.itineraryRow}
-              onPress={() => {
-                if (target !== 'origin') {
-                  navigation.push('SearchAddress', { target: 'origin' });
-                }
-              }}
-              activeOpacity={0.8}
-              accessible
-              accessibilityRole="button"
-              accessibilityLabel={`Punto de partida: ${originName}`}
-            >
-              <View style={[styles.dotCircle, { backgroundColor: theme.origin }]} />
-              <View style={styles.itineraryTextWrap}>
-                <Text style={[styles.itineraryLabel, { color: theme.textMuted }]}>Desde</Text>
-                <Text style={[styles.itineraryValue, { color: theme.text }]} numberOfLines={1}>
-                  {originName}
-                </Text>
-              </View>
-            </TouchableOpacity>
-
-            {/* Paradas extra */}
-            {extraStops.map((stop, idx) => (
-              <View key={`stop-${idx}`} style={styles.itineraryRow}>
-                <View style={[styles.stopCircle, { borderColor: theme.textMuted }]} />
-                <View style={styles.itineraryTextWrap}>
-                  <Text style={[styles.itineraryLabel, { color: theme.textMuted }]}>Parada {idx + 1}</Text>
-                  <Text style={[styles.itineraryValue, { color: theme.text }]} numberOfLines={1}>
-                    {stop.placeName}
-                  </Text>
-                </View>
-                <TouchableOpacity
-                  onPress={() => removeExtraStop(idx)}
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Eliminar parada ${idx + 1}`}
-                >
-                  <Ionicons name="close-circle-outline" size={18} color={theme.textMuted} />
-                </TouchableOpacity>
-              </View>
-            ))}
-
-            <View style={[styles.railLine, { backgroundColor: theme.line }]} />
-
-            {/* Destino con input de búsqueda */}
-            <View style={styles.itineraryRow}>
-              <View style={[styles.squarePoint, { backgroundColor: theme.destination }]} />
-              <View style={styles.inputWrap}>
-                <Text style={[styles.itineraryLabel, { color: theme.textMuted }]}>
-                  {target === 'extra-stop' ? 'Nueva parada' : 'Hacia'}
-                </Text>
-                <TextInput
-                  value={query}
-                  onChangeText={onQueryChanged}
-                  placeholder={
-                    target === 'origin'
-                      ? 'Escribe tu punto de partida'
-                      : target === 'extra-stop'
-                      ? '¿Dónde será la parada?'
-                      : '¿A dónde quieres ir?'
-                  }
-                  placeholderTextColor={theme.textDisabled}
-                  style={[styles.input, { color: theme.text }]}
-                  autoFocus
-                  accessible
-                  accessibilityLabel="Campo para ingresar dirección de destino"
-                />
-              </View>
-
-              {query.length > 0 ? (
-                <TouchableOpacity
-                  onPress={() => onQueryChanged('')}
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                  accessible
-                  accessibilityRole="button"
-                  accessibilityLabel="Limpiar texto"
-                >
-                  <Ionicons name="close-circle" size={18} color={theme.textMuted} />
-                </TouchableOpacity>
-              ) : null}
-
-              {loading ? <ActivityIndicator size="small" color={theme.primary} /> : null}
+    <View style={[styles.container, { backgroundColor: theme.background, paddingTop: insets.top }]}>
+      <FlatList
+        data={items}
+        keyExtractor={(item) => item.placeId}
+        ListHeaderComponent={header}
+        contentContainerStyle={{ paddingBottom: insets.bottom + 22 }}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        renderItem={({ item }) => (
+          <TouchableOpacity
+            style={[styles.res, { borderBottomColor: theme.line }]}
+            onPress={() => void onSelectItem(item)}
+            activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel={`${item.title}, ${item.subtitle}`}
+          >
+            <View style={[styles.resIcon, { backgroundColor: theme.background }]}>
+              <AppIcon name="pin" color={theme.textMuted} />
             </View>
-
-            {/* Botón para agregar parada */}
-            {target !== 'extra-stop' && extraStops.length < 2 ? (
-              <TouchableOpacity
-                style={styles.addStopLink}
-                onPress={() => navigation.push('SearchAddress', { target: 'extra-stop' })}
-                activeOpacity={0.75}
-                accessible
-                accessibilityRole="button"
-                accessibilityLabel="Agregar una parada intermedia"
-              >
-                <Ionicons name="add-circle-outline" size={16} color={theme.text} />
-                <Text style={[styles.addStopText, { color: theme.text }]}>Agregar parada</Text>
-              </TouchableOpacity>
-            ) : null}
-          </View>
-        ) : (
-          /* Buscar favorita simple */
-          <View style={[styles.searchBox, { backgroundColor: theme.surface, borderColor: theme.line }, Shadow.raise]}>
-            <Ionicons name="search" size={18} color={theme.textMuted} />
-            <TextInput
-              value={query}
-              onChangeText={onQueryChanged}
-              placeholder="Escribe la dirección favorita"
-              placeholderTextColor={theme.textDisabled}
-              style={[styles.input, { color: theme.text }]}
-              autoFocus
-            />
-            {loading ? <ActivityIndicator size="small" color={theme.primary} /> : null}
-          </View>
-        )}
-
-        {/* Acción: Seleccionar en el mapa */}
-        <TouchableOpacity
-          style={[styles.mapAction, { backgroundColor: theme.surface, borderColor: theme.line }, Shadow.raise]}
-          onPress={() => navigation.navigate('SelectAddressOnMap', { target, saveFavorite })}
-          activeOpacity={0.85}
-          accessible
-          accessibilityRole="button"
-          accessibilityLabel="Elegir ubicación directamente en el mapa"
-        >
-          <View style={[styles.mapActionIcon, { backgroundColor: theme.surfaceMuted }]}>
-            <Ionicons name="map-outline" size={18} color={theme.text} />
-          </View>
-          <Text style={[styles.mapActionText, { color: theme.text }]}>Elegir en el mapa</Text>
-          <Ionicons name="chevron-forward" size={16} color={theme.textMuted} />
-        </TouchableOpacity>
-
-        {/* Resultados de búsqueda */}
-        <FlatList
-          data={items}
-          keyExtractor={(item) => item.placeId}
-          contentContainerStyle={styles.list}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-          renderItem={({ item }) => (
-            <TouchableOpacity
-              style={[styles.resultCard, { backgroundColor: theme.surface, borderColor: theme.line }, Shadow.sm]}
-              onPress={() => void onSelectItem(item)}
-              activeOpacity={0.8}
-              accessible
-              accessibilityRole="button"
-              accessibilityLabel={`Seleccionar ${item.title}, ${item.subtitle}`}
-            >
-              <View style={[styles.resultIconWrap, { backgroundColor: theme.surfaceMuted }]}>
-                <Ionicons name="location-outline" size={18} color={theme.text} />
-              </View>
-              <View style={styles.resultTextWrap}>
-                <Text style={[styles.resultTitle, { color: theme.text }]} numberOfLines={1}>
-                  {item.title}
-                </Text>
-                <Text style={[styles.resultSubtitle, { color: theme.textMuted }]} numberOfLines={1}>
+            <View style={styles.resText}>
+              <HighlightedTitle title={item.title} query={query} color={theme.text} highlight={theme.sig} />
+              {item.subtitle ? (
+                <Text style={[styles.resSubtitle, { color: theme.textMuted }]} numberOfLines={1}>
                   {item.subtitle}
                 </Text>
-              </View>
-              <Ionicons name="arrow-forward" size={14} color={theme.textMuted} style={{ alignSelf: 'center' }} />
-            </TouchableOpacity>
-          )}
-          ListEmptyComponent={
-            query.trim().length < 3 ? (
-              <View style={styles.emptyState}>
-                <Ionicons name="compass-outline" size={32} color={theme.textMuted} style={{ marginBottom: 8 }} />
-                <Text style={[styles.emptyText, { color: theme.textMuted }]}>
-                  Escribe al menos 3 letras para ver sugerencias de direcciones en Lima.
-                </Text>
-              </View>
-            ) : !loading ? (
-              <View style={styles.emptyState}>
-                <Ionicons name="search-outline" size={32} color={theme.textMuted} style={{ marginBottom: 8 }} />
-                <Text style={[styles.emptyText, { color: theme.textMuted }]}>
-                  No encontramos resultados para esa dirección. Prueba eligiendo en el mapa.
-                </Text>
-              </View>
-            ) : null
-          }
-        />
-      </View>
+              ) : null}
+            </View>
+            {item.distanceMeters !== undefined ? (
+              <Text style={[styles.km, { color: theme.textMuted }]}>{formatDistance(item.distanceMeters / 1000)}</Text>
+            ) : null}
+          </TouchableOpacity>
+        )}
+        ListEmptyComponent={
+          query.trim().length >= 3 && !loading ? (
+            <Text style={[styles.emptyText, { color: theme.textMuted }]}>
+              No encontramos esa dirección. Prueba eligiéndola en el mapa.
+            </Text>
+          ) : null
+        }
+        ListFooterComponent={
+          <TouchableOpacity
+            style={[styles.linkRow, items.length > 0 && styles.mapLink]}
+            onPress={() => navigation.navigate('SelectAddressOnMap', { target, saveFavorite })}
+            activeOpacity={0.75}
+            accessibilityRole="button"
+            accessibilityLabel="Elegir en el mapa"
+          >
+            <AppIcon name="map" color={theme.text} />
+            <Text style={[styles.linkText, { color: theme.text }]}>Elegir en el mapa</Text>
+          </TouchableOpacity>
+        }
+      />
     </View>
   );
 }
@@ -330,154 +331,144 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  content: {
-    flex: 1,
-    paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.md,
+  pad: {
+    paddingTop: 10,
+    paddingBottom: 16,
+    gap: 16,
   },
-  itineraryCard: {
-    borderRadius: BorderRadius['2xl'],
-    padding: Spacing.md,
-    gap: Spacing.md,
-    position: 'relative',
-    marginBottom: Spacing.md,
-  },
-  railLine: {
-    position: 'absolute',
-    left: 21,
-    top: 32,
-    bottom: 46,
-    width: 2,
-    zIndex: 1,
-  },
-  itineraryRow: {
+  hdr: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.md,
-    zIndex: 2,
+    gap: 10,
+    paddingHorizontal: 18,
   },
-  dotCircle: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
+  backButton: {
+    width: 44,
+    height: 44,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  stopCircle: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    borderWidth: 2,
+  hdrTitle: {
+    fontFamily: FontFamily.bold,
+    fontSize: FontSize['2xl'],
+    letterSpacing: -0.48,
   },
-  squarePoint: {
-    width: 12,
-    height: 12,
-    borderRadius: 3,
+  addr: {
+    flexDirection: 'row',
+    gap: 10,
+    paddingHorizontal: 18,
   },
-  itineraryTextWrap: {
+  rail: {
+    width: 16,
+    alignItems: 'center',
+    paddingTop: 16,
+  },
+  // Punto de 10 px con aro de 3 px, como los pines del mapa
+  railRing: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: Colors.pinRing,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  railDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  railLine: {
+    width: 2,
     flex: 1,
-    gap: 2,
+    minHeight: 24,
+    marginVertical: 6,
   },
-  itineraryLabel: {
-    fontFamily: FontFamily.semibold,
-    fontSize: FontSize['2xs'],
-  },
-  itineraryValue: {
-    fontFamily: FontFamily.semibold,
-    fontSize: FontSize.md - 1,
-  },
-  inputWrap: {
+  fields: {
     flex: 1,
-    gap: 2,
+    gap: 8,
+  },
+  inp: {
+    height: 48,
+    borderRadius: 13,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    gap: 8,
+  },
+  inpActive: {
+    borderWidth: 1.5,
+    marginHorizontal: 0,
+  },
+  inpLabel: {
+    fontFamily: FontFamily.medium,
+    fontSize: FontSize.xs,
+  },
+  inpValue: {
+    flex: 1,
+    fontFamily: FontFamily.regular,
+    fontSize: FontSize.body,
   },
   input: {
-    fontFamily: FontFamily.bold,
-    fontSize: FontSize.md,
+    flex: 1,
+    fontFamily: FontFamily.semibold,
+    fontSize: FontSize.body,
     padding: 0,
     margin: 0,
   },
-  addStopLink: {
+  linkRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    paddingTop: 4,
-    borderTopWidth: 1,
-    borderTopColor: Colors.divider,
+    gap: 10,
+    paddingVertical: 6,
+    paddingHorizontal: 18,
   },
-  addStopText: {
-    fontFamily: FontFamily.semibold,
-    fontSize: FontSize.xs,
+  mapLink: {
+    marginTop: 16,
   },
-  searchBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-    borderRadius: BorderRadius.xl,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: 12,
-    borderWidth: 1,
-    marginBottom: Spacing.md,
-  },
-  mapAction: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: BorderRadius.xl,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: 12,
-    borderWidth: 1,
-    marginBottom: Spacing.md,
-    gap: Spacing.sm,
-  },
-  mapActionIcon: {
-    width: 34,
-    height: 34,
-    borderRadius: BorderRadius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  mapActionText: {
-    flex: 1,
+  linkText: {
     fontFamily: FontFamily.semibold,
     fontSize: FontSize.sm,
   },
-  list: {
-    gap: Spacing.sm,
-    paddingBottom: Spacing['3xl'],
-  },
-  resultCard: {
+  res: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: BorderRadius.lg,
-    padding: Spacing.md,
-    gap: Spacing.md,
-    borderWidth: 1,
+    gap: 10,
+    paddingVertical: 10,
+    marginHorizontal: 18,
+    borderBottomWidth: 1,
   },
-  resultIconWrap: {
+  resIcon: {
     width: 36,
     height: 36,
-    borderRadius: BorderRadius.md,
+    borderRadius: 11,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  resultTextWrap: {
+  resText: {
     flex: 1,
-    gap: 2,
   },
   resultTitle: {
-    fontFamily: FontFamily.bold,
-    fontSize: FontSize.sm,
+    fontFamily: FontFamily.semibold,
+    fontSize: FontSize.body,
   },
-  resultSubtitle: {
+  match: {
+    textDecorationLine: 'underline',
+    textDecorationStyle: 'solid',
+  },
+  resSubtitle: {
+    fontFamily: FontFamily.regular,
+    fontSize: FontSize.caption,
+  },
+  km: {
     fontFamily: FontFamily.regular,
     fontSize: FontSize.xs,
-  },
-  emptyState: {
-    paddingTop: Spacing['3xl'],
-    alignItems: 'center',
-    paddingHorizontal: Spacing.xl,
   },
   emptyText: {
     fontFamily: FontFamily.regular,
-    fontSize: FontSize.sm,
-    textAlign: 'center',
-    lineHeight: 20,
+    fontSize: FontSize.meta,
+    paddingHorizontal: 18,
+    paddingTop: 16,
   },
 });

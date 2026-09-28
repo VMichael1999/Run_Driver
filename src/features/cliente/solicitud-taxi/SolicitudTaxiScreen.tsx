@@ -50,7 +50,7 @@ const VEHICLE_SERVICES: VehicleServiceOption[] = [
     currency: 'S/',
     etaMinutes: 4,
     seats: 4,
-    image: require('../../../../assets/servicios/Subasta.png'),
+    image: require('../../../../assets/servicios/recorte/subasta.png'),
     isAuction: true,
   },
   {
@@ -61,7 +61,7 @@ const VEHICLE_SERVICES: VehicleServiceOption[] = [
     currency: 'S/',
     etaMinutes: 4,
     seats: 4,
-    image: require('../../../../assets/servicios/XLCAB GO.png'),
+    image: require('../../../../assets/servicios/recorte/xlcab-go.png'),
   },
   {
     id: 'confort',
@@ -71,7 +71,7 @@ const VEHICLE_SERVICES: VehicleServiceOption[] = [
     currency: 'S/',
     etaMinutes: 5,
     seats: 4,
-    image: require('../../../../assets/servicios/Confort.png'),
+    image: require('../../../../assets/servicios/recorte/confort.png'),
   },
   {
     id: 'premium',
@@ -81,7 +81,7 @@ const VEHICLE_SERVICES: VehicleServiceOption[] = [
     currency: 'S/',
     etaMinutes: 8,
     seats: 4,
-    image: require('../../../../assets/servicios/Premiun.png'),
+    image: require('../../../../assets/servicios/recorte/premium.png'),
   },
   {
     id: 'xl',
@@ -91,7 +91,7 @@ const VEHICLE_SERVICES: VehicleServiceOption[] = [
     currency: 'S/',
     etaMinutes: 10,
     seats: 6,
-    image: require('../../../../assets/servicios/XL.png'),
+    image: require('../../../../assets/servicios/recorte/xl.png'),
   },
   {
     id: 'pet',
@@ -101,7 +101,7 @@ const VEHICLE_SERVICES: VehicleServiceOption[] = [
     currency: 'S/',
     etaMinutes: 7,
     seats: 4,
-    image: require('../../../../assets/servicios/Pet.png'),
+    image: require('../../../../assets/servicios/recorte/pet.png'),
   },
   {
     id: 'espera_ahorra',
@@ -111,7 +111,7 @@ const VEHICLE_SERVICES: VehicleServiceOption[] = [
     currency: 'S/',
     etaMinutes: 6,
     seats: 4,
-    image: require('../../../../assets/servicios/Espera y Ahorra.png'),
+    image: require('../../../../assets/servicios/recorte/espera-ahorra.png'),
   },
 ];
 

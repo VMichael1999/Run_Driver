@@ -8,10 +8,8 @@ import {
   TouchableOpacity,
   Image,
   Platform,
-  ScrollView,
   useWindowDimensions,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MapView, { Marker, PROVIDER_GOOGLE, type Region } from 'react-native-maps';
 import { useNavigation } from '@react-navigation/native';
@@ -21,14 +19,15 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useClienteHome } from './hooks/useClienteHome';
 import { SwipeableFavoriteItem } from './components/SwipeableFavoriteItem';
 import { AppDrawer } from '@shared/components/drawer/AppDrawer';
+import { AppIcon, type AppIconName } from '@shared/components/ui/AppIcon';
 import { useAuthStore } from '@store/useAuthStore';
+import { useThemeStore } from '@store/useThemeStore';
 import { useFavoriteAddressesStore } from '@store/useFavoriteAddressesStore';
 import { getCurrentLocationMarker, getQuickCurrentLocationMarker } from '@shared/utils/locationUtils';
-import { Colors } from '@theme/colors';
 import { useAppTheme } from '@theme/useAppTheme';
+import { MapStyleLight, MapStyleNight } from '@theme/mapStyles';
 import { FontFamily, FontSize } from '@theme/fonts';
 import { Spacing, BorderRadius, Shadow } from '@theme/spacing';
-import { StatusPill } from '@shared/components/ui/StatusPill';
 
 type Nav = NativeStackNavigationProp<ClienteStackParamList, 'ClienteHome'>;
 
@@ -39,12 +38,13 @@ const LIMA_REGION: Region = {
   longitudeDelta: 0.04,
 };
 
+const ORIGIN_PIN = require('../../../../assets/legacy/images/location_origen.png');
+
 interface HomeServiceAction {
   id: 'ride' | 'rental' | 'outstation';
   label: string;
   subtitle: string;
   image: ReturnType<typeof require>;
-  isAuction?: boolean;
 }
 
 const homeServiceActions: HomeServiceAction[] = [
@@ -52,36 +52,40 @@ const homeServiceActions: HomeServiceAction[] = [
     id: 'ride',
     label: 'Viaje',
     subtitle: 'Precio fijo',
-    image: require('../../../../assets/servicios/Confort.png'),
+    image: require('../../../../assets/servicios/recorte/confort.png'),
   },
   {
     id: 'rental',
     label: 'Subasta',
     subtitle: 'Tú propones',
-    image: require('../../../../assets/servicios/Subasta.png'),
-    isAuction: true,
+    image: require('../../../../assets/servicios/recorte/subasta.png'),
   },
   {
     id: 'outstation',
     label: 'Programar',
     subtitle: 'Para más tarde',
-    image: require('../../../../assets/servicios/Espera y Ahorra.png'),
+    image: require('../../../../assets/servicios/recorte/espera-ahorra.png'),
   },
+];
+
+// Sin favoritos guardados se muestran Casa y Trabajo como accesos para guardarlos.
+const FAVORITE_PLACEHOLDERS: { label: string; icon: AppIconName }[] = [
+  { label: 'Casa', icon: 'home' },
+  { label: 'Trabajo', icon: 'brief' },
 ];
 
 export function ClienteHomeScreen() {
   const navigation = useNavigation<Nav>();
   const insets = useSafeAreaInsets();
   const theme = useAppTheme();
+  const isDark = useThemeStore((s) => s.isDark);
   const { width } = useWindowDimensions();
   const mapRef = React.useRef<MapView | null>(null);
-  const [homeScrollEnabled, setHomeScrollEnabled] = React.useState(true);
   const [isCenteringMap, setIsCenteringMap] = React.useState(false);
   const [selectedFavoriteId, setSelectedFavoriteId] = React.useState<string | null>(null);
 
   const {
     origin,
-    selectedHomeTab,
     setSelectedHomeTab,
     requestTaxi,
     isRouting,
@@ -177,6 +181,10 @@ export function ClienteHomeScreen() {
     navigation.navigate('SearchAddress', { target: 'destination' });
   };
 
+  const handleAddFavorite = () => {
+    navigation.navigate('SearchAddress', { target: 'destination', saveFavorite: true });
+  };
+
   const handleServiceCardPress = (action: HomeServiceAction) => {
     setSelectedHomeTab(action.id);
     if (action.id === 'outstation') {
@@ -186,226 +194,187 @@ export function ClienteHomeScreen() {
     }
   };
 
+  const handleCenterMap = async () => {
+    if (isCenteringMap) return;
+    setIsCenteringMap(true);
+    try {
+      const current = await getQuickCurrentLocationMarker();
+      if (!current) return;
+      mapRef.current?.animateToRegion(
+        {
+          latitude: current.position.latitude,
+          longitude: current.position.longitude,
+          latitudeDelta: 0.02,
+          longitudeDelta: 0.02,
+        },
+        260,
+      );
+    } finally {
+      setIsCenteringMap(false);
+    }
+  };
+
   return (
     <View style={[styles.root, { backgroundColor: theme.drawer }]}>
       <Animated.View style={[styles.scene, { backgroundColor: theme.background }, animatedSceneStyle]}>
-        <ScrollView
-          style={[styles.container, { backgroundColor: theme.background }]}
-          contentContainerStyle={{
-            paddingTop: insets.top + Spacing.sm,
-            paddingBottom: insets.bottom + Spacing['2xl'],
-          }}
-          scrollEnabled={homeScrollEnabled}
-          showsVerticalScrollIndicator={false}
-        >
-          {/* Top Bar: Drawer trigger & Status/Promo Pill */}
-          <View style={styles.topBar}>
+        {/* Mapa a pantalla completa con la barra superior flotando encima */}
+        <View style={styles.mapArea}>
+          <MapView
+            ref={mapRef}
+            style={StyleSheet.absoluteFill}
+            provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
+            customMapStyle={isDark ? MapStyleNight : MapStyleLight}
+            mapType={Platform.OS === 'ios' ? 'mutedStandard' : 'standard'}
+            userInterfaceStyle={isDark ? 'dark' : 'light'}
+            initialRegion={LIMA_REGION}
+            rotateEnabled={false}
+            pitchEnabled={false}
+            showsUserLocation={false}
+            showsMyLocationButton={false}
+            showsCompass={false}
+            showsPointsOfInterest={false}
+            showsBuildings={false}
+            showsIndoors={false}
+            toolbarEnabled={false}
+          >
+            {origin ? (
+              <Marker coordinate={origin.position} anchor={{ x: 0.5, y: 1 }}>
+                <Image source={ORIGIN_PIN} style={styles.originPin} resizeMode="contain" />
+              </Marker>
+            ) : null}
+          </MapView>
+
+          <View style={[styles.topBar, { top: insets.top + 6 }]}>
             <TouchableOpacity
-              style={[styles.menuButton, { backgroundColor: theme.surface }, Shadow.raise]}
+              style={[styles.roundButton, { backgroundColor: theme.surface }, Shadow.raise]}
               activeOpacity={0.8}
               onPress={() => setDrawerOpen(true)}
-              accessible
               accessibilityRole="button"
-              accessibilityLabel="Abrir menú lateral"
+              accessibilityLabel="Abrir menú"
             >
-              <Ionicons name="menu" size={22} color={theme.text} />
+              <AppIcon name="menu" color={theme.text} />
             </TouchableOpacity>
 
-            <StatusPill
-              label="Hoy 15% menos"
-              status="online"
-              onPress={() => navigation.navigate('Promociones')}
-            />
-
             <TouchableOpacity
-              style={[styles.menuButton, { backgroundColor: theme.surface }, Shadow.raise]}
-              activeOpacity={0.8}
-              onPress={() => navigation.navigate('Perfil')}
-              accessible
-              accessibilityRole="button"
-              accessibilityLabel="Ver mi perfil"
-            >
-              <Ionicons name="person-outline" size={20} color={theme.text} />
-            </TouchableOpacity>
-          </View>
-
-          {/* Map Preview Card */}
-          <View style={[styles.mapCard, { backgroundColor: theme.surface }, Shadow.raise]}>
-            <MapView
-              ref={mapRef}
-              style={styles.map}
-              provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
-              initialRegion={LIMA_REGION}
-              scrollEnabled
-              zoomEnabled
-              rotateEnabled={false}
-              pitchEnabled={false}
-              showsUserLocation
-              showsMyLocationButton={false}
-              onTouchStart={() => setHomeScrollEnabled(false)}
-              onTouchEnd={() => setHomeScrollEnabled(true)}
-              onTouchCancel={() => setHomeScrollEnabled(true)}
-            >
-              {origin ? (
-                <Marker coordinate={origin.position} anchor={{ x: 0.5, y: 0.5 }}>
-                  <View style={styles.originMarker}>
-                    <View style={styles.originMarkerDot} />
-                  </View>
-                </Marker>
-              ) : null}
-            </MapView>
-
-            <TouchableOpacity
-              style={[styles.mapFab, { backgroundColor: theme.surface }, Shadow.raise]}
-              onPress={async () => {
-                if (isCenteringMap) return;
-                setIsCenteringMap(true);
-                try {
-                  const current = await getQuickCurrentLocationMarker();
-                  if (!current) return;
-                  mapRef.current?.animateToRegion(
-                    {
-                      latitude: current.position.latitude,
-                      longitude: current.position.longitude,
-                      latitudeDelta: 0.02,
-                      longitudeDelta: 0.02,
-                    },
-                    260,
-                  );
-                } finally {
-                  setIsCenteringMap(false);
-                }
-              }}
+              style={[styles.promoPill, { backgroundColor: theme.surface }, Shadow.raise]}
               activeOpacity={0.85}
-              disabled={isCenteringMap}
-              accessible
+              onPress={() => navigation.navigate('Promociones')}
               accessibilityRole="button"
-              accessibilityLabel="Centrar mapa en mi ubicación actual"
+              accessibilityLabel="Hoy 15 % menos. Ver promociones"
+            >
+              <AppIcon name="tag" size="s" color={theme.online} />
+              <Text style={[styles.promoPillText, { color: theme.text }]}>Hoy 15 % menos</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.roundButton, { backgroundColor: theme.surface }, Shadow.raise]}
+              activeOpacity={0.8}
+              onPress={() => void handleCenterMap()}
+              disabled={isCenteringMap}
+              accessibilityRole="button"
+              accessibilityLabel="Centrar mapa"
+              accessibilityState={{ busy: isCenteringMap }}
             >
               {isCenteringMap ? (
                 <ActivityIndicator size="small" color={theme.text} />
               ) : (
-                <Ionicons name="navigate" size={18} color={theme.text} />
+                <AppIcon name="nav" color={theme.text} />
               )}
             </TouchableOpacity>
           </View>
+        </View>
 
-          {/* Floating Search Sheet — "¿A dónde vas?" */}
-          <View style={[styles.searchPanel, { backgroundColor: theme.surface }, Shadow.raise]}>
-            <TouchableOpacity
-              style={[styles.searchTrigger, { backgroundColor: theme.surfaceMuted, borderColor: theme.line }]}
-              onPress={handleSearchPress}
-              activeOpacity={0.85}
-              accessible
-              accessibilityRole="button"
-              accessibilityLabel="¿A dónde vas? Toca para buscar dirección de destino"
-            >
-              <View style={styles.searchPrompt}>
-                <Ionicons name="search" size={20} color={theme.text} />
-                <Text style={[styles.searchPromptText, { color: theme.text }]}>¿A dónde vas?</Text>
-              </View>
+        {/* Hoja inferior que se monta 24 px sobre el mapa */}
+        <View
+          style={[
+            styles.sheet,
+            { backgroundColor: theme.surface, paddingBottom: 18 + insets.bottom },
+            Shadow.sheet,
+          ]}
+        >
+          <View style={[styles.handle, { backgroundColor: theme.line }]} />
 
-              <View style={[styles.nowPill, { backgroundColor: theme.surface, borderColor: theme.line }]}>
-                <Ionicons name="time-outline" size={14} color={theme.textMuted} />
-                <Text style={[styles.nowPillText, { color: theme.text }]}>Ahora</Text>
-              </View>
-            </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.where, { backgroundColor: theme.background }]}
+            onPress={handleSearchPress}
+            activeOpacity={0.85}
+            accessibilityRole="button"
+            accessibilityLabel="¿A dónde vas? Buscar destino"
+          >
+            <AppIcon name="search" color={theme.textMuted} />
+            <Text style={[styles.whereText, { color: theme.text }]}>¿A dónde vas?</Text>
+            <View style={[styles.whenPill, { backgroundColor: theme.surface }]}>
+              <AppIcon name="time" size="s" color={theme.text} />
+              <Text style={[styles.whenText, { color: theme.text }]}>Ahora</Text>
+            </View>
+          </TouchableOpacity>
 
-            {/* Favoritos / Destinos frecuentes */}
-            <View style={styles.favoritesSection}>
-              <View style={styles.favoritesHeader}>
-                <Text style={[styles.favoritesTitle, { color: theme.textMuted }]}>Destinos frecuentes</Text>
-                <TouchableOpacity
-                  onPress={() => navigation.navigate('SearchAddress', { target: 'destination', saveFavorite: true })}
-                  activeOpacity={0.7}
-                  accessible
-                  accessibilityRole="button"
-                  accessibilityLabel="Agregar nueva dirección favorita"
-                >
-                  <Text style={[styles.addFavoriteLink, { color: theme.text }]}>+ Agregar</Text>
-                </TouchableOpacity>
-              </View>
-
-              {favorites.length > 0 ? (
-                <View style={styles.favoriteList}>
-                  {favorites.slice(0, 3).map((favorite) => (
-                    <SwipeableFavoriteItem
-                      key={favorite.id}
-                      id={favorite.id}
-                      placeName={favorite.placeName}
-                      loading={selectedFavoriteId === favorite.id}
-                      disabled={selectedFavoriteId !== null || isRouting}
-                      onPress={async () => {
-                        if (selectedFavoriteId) return;
-                        setSelectedFavoriteId(favorite.id);
-                        try {
-                          const selectedOrigin = origin ?? (await getQuickCurrentLocationMarker());
-                          if (!selectedOrigin) return;
-                          setOrigin(selectedOrigin);
-                          setDestination(favorite);
-                          const didCreate = await requestTaxi(favorite, selectedOrigin);
-                          if (didCreate) {
-                            navigation.navigate('SolicitudTaxi');
-                          }
-                        } finally {
-                          setSelectedFavoriteId(null);
+          <View>
+            {favorites.length > 0
+              ? favorites.slice(0, 2).map((favorite, index) => (
+                  <SwipeableFavoriteItem
+                    key={favorite.id}
+                    id={favorite.id}
+                    placeName={favorite.placeName}
+                    showDivider={index > 0}
+                    loading={selectedFavoriteId === favorite.id}
+                    disabled={selectedFavoriteId !== null || isRouting}
+                    onPress={async () => {
+                      if (selectedFavoriteId) return;
+                      setSelectedFavoriteId(favorite.id);
+                      try {
+                        const selectedOrigin = origin ?? (await getQuickCurrentLocationMarker());
+                        if (!selectedOrigin) return;
+                        setOrigin(selectedOrigin);
+                        setDestination(favorite);
+                        const didCreate = await requestTaxi(favorite, selectedOrigin);
+                        if (didCreate) {
+                          navigation.navigate('SolicitudTaxi');
                         }
-                      }}
-                      onDelete={removeFavorite}
-                    />
-                  ))}
-                </View>
-              ) : (
-                <TouchableOpacity
-                  style={[styles.emptyFavoriteRow, { backgroundColor: theme.surfaceMuted }]}
-                  onPress={() => navigation.navigate('SearchAddress', { target: 'destination', saveFavorite: true })}
-                  activeOpacity={0.8}
-                  accessibilityRole="button"
-                  accessibilityLabel="Guardar un destino frecuente"
-                >
-                  <Ionicons name="bookmark-outline" size={18} color={theme.textMuted} />
-                  <Text style={[styles.emptyFavoriteText, { color: theme.textMuted }]}>
-                    Guarda Casa o Trabajo para viajar en un solo toque
-                  </Text>
-                </TouchableOpacity>
-              )}
-            </View>
-
-            {/* Las 3 tarjetas de servicio diferenciadas (Resuelve #4 y #11) */}
-            <View style={styles.servicesGrid}>
-              {homeServiceActions.map((action) => {
-                const isSelected = selectedHomeTab === action.id;
-                return (
+                      } finally {
+                        setSelectedFavoriteId(null);
+                      }
+                    }}
+                    onDelete={removeFavorite}
+                  />
+                ))
+              : FAVORITE_PLACEHOLDERS.map((item, index) => (
                   <TouchableOpacity
-                    key={action.id}
-                    style={[
-                      styles.serviceTile,
-                      {
-                        backgroundColor: isSelected ? theme.surfaceMuted : theme.surface,
-                        borderColor: action.isAuction ? theme.sig : theme.line,
-                        borderWidth: action.isAuction ? 2 : 1,
-                      },
-                    ]}
-                    onPress={() => handleServiceCardPress(action)}
-                    activeOpacity={0.85}
-                    accessible
+                    key={item.label}
+                    style={[styles.favRow, index > 0 && { borderTopWidth: 1, borderTopColor: theme.line }]}
+                    onPress={handleAddFavorite}
+                    activeOpacity={0.8}
                     accessibilityRole="button"
-                    accessibilityLabel={`Servicio ${action.label}: ${action.subtitle}`}
+                    accessibilityLabel={`Guardar dirección de ${item.label}`}
                   >
-                    {action.isAuction ? (
-                      <View style={[styles.auctionBadge, { backgroundColor: theme.sig }]}>
-                        <Text style={[styles.auctionBadgeText, { color: theme.onSig }]}>Popular</Text>
-                      </View>
-                    ) : null}
-                    <Image source={action.image} style={styles.serviceImage} resizeMode="contain" />
-                    <Text style={[styles.serviceLabel, { color: theme.text }]}>{action.label}</Text>
-                    <Text style={[styles.serviceSubtitle, { color: theme.textMuted }]}>{action.subtitle}</Text>
+                    <View style={[styles.favIcon, { backgroundColor: theme.background }]}>
+                      <AppIcon name={item.icon} color={theme.text} />
+                    </View>
+                    <View style={styles.favText}>
+                      <Text style={[styles.favTitle, { color: theme.text }]}>{item.label}</Text>
+                      <Text style={[styles.favSubtitle, { color: theme.textMuted }]}>Agrega tu dirección</Text>
+                    </View>
                   </TouchableOpacity>
-                );
-              })}
-            </View>
+                ))}
           </View>
-        </ScrollView>
+
+          <View style={styles.tiles}>
+            {homeServiceActions.map((action) => (
+              <TouchableOpacity
+                key={action.id}
+                style={[styles.tile, { backgroundColor: theme.background }]}
+                onPress={() => handleServiceCardPress(action)}
+                activeOpacity={0.85}
+                accessibilityRole="button"
+                accessibilityLabel={`${action.label}: ${action.subtitle}`}
+              >
+                <Image source={action.image} style={styles.tileImage} resizeMode="contain" />
+                <Text style={[styles.tileLabel, { color: theme.text }]}>{action.label}</Text>
+                <Text style={[styles.tileSubtitle, { color: theme.textMuted }]}>{action.subtitle}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
       </Animated.View>
 
       <AppDrawer
@@ -427,165 +396,129 @@ const styles = StyleSheet.create({
     flex: 1,
     overflow: 'hidden',
   },
-  container: {
+  mapArea: {
     flex: 1,
   },
+  originPin: {
+    width: 30,
+    height: 37,
+  },
   topBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: Spacing.lg,
-    marginBottom: Spacing.sm,
-  },
-  menuButton: {
-    width: 44,
-    height: 44,
-    borderRadius: BorderRadius.lg,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  mapCard: {
-    marginHorizontal: Spacing.lg,
-    borderRadius: BorderRadius['2xl'],
-    padding: Spacing.xs,
-    marginBottom: Spacing.md,
-  },
-  map: {
-    height: 240,
-    borderRadius: BorderRadius.xl,
-  },
-  mapFab: {
     position: 'absolute',
-    right: 18,
-    bottom: 18,
+    left: 12,
+    right: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: Spacing.sm,
+  },
+  roundButton: {
     width: 44,
     height: 44,
     borderRadius: BorderRadius.lg,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  originMarker: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: Colors.originHalo,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  originMarkerDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: Colors.online,
-  },
-  searchPanel: {
-    marginHorizontal: Spacing.lg,
-    borderRadius: BorderRadius['2xl'],
-    padding: Spacing.lg,
-    gap: Spacing.lg,
-  },
-  searchTrigger: {
+  promoPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: 14,
+    gap: 7,
+    height: 36,
+    paddingLeft: 12,
+    paddingRight: 14,
+    borderRadius: BorderRadius.full,
+  },
+  promoPillText: {
+    fontFamily: FontFamily.semibold,
+    fontSize: FontSize.label,
+  },
+  sheet: {
+    marginTop: -24,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingTop: 10,
+    paddingHorizontal: 14,
+    gap: 12,
+  },
+  handle: {
+    alignSelf: 'center',
+    width: 40,
+    height: 4,
+    borderRadius: 4,
+  },
+  where: {
+    height: 54,
     borderRadius: BorderRadius.xl,
-    borderWidth: 1,
-  },
-  searchPrompt: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.md,
+    gap: 10,
+    paddingHorizontal: 14,
   },
-  searchPromptText: {
-    fontFamily: FontFamily.bold,
-    fontSize: FontSize.lg,
-    letterSpacing: -0.3,
+  whereText: {
+    flex: 1,
+    fontFamily: FontFamily.semibold,
+    fontSize: FontSize.lead,
   },
-  nowPill: {
+  whenPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 5,
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: BorderRadius.full,
-    borderWidth: 1,
   },
-  nowPillText: {
+  whenText: {
     fontFamily: FontFamily.semibold,
-    fontSize: FontSize.xs,
+    fontSize: FontSize.meta,
   },
-  favoritesSection: {
-    gap: Spacing.sm,
-  },
-  favoritesHeader: {
+  favRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    gap: 12,
+    paddingVertical: 8,
     paddingHorizontal: 2,
   },
-  favoritesTitle: {
-    fontFamily: FontFamily.semibold,
-    fontSize: FontSize.xs,
-  },
-  addFavoriteLink: {
-    fontFamily: FontFamily.semibold,
-    fontSize: FontSize.xs,
-  },
-  favoriteList: {
-    marginTop: Spacing.xs,
-  },
-  emptyFavoriteRow: {
-    flexDirection: 'row',
+  favIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: BorderRadius.md,
     alignItems: 'center',
-    gap: Spacing.sm,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: 12,
-    borderRadius: BorderRadius.lg,
-  },
-  emptyFavoriteText: {
-    fontFamily: FontFamily.regular,
-    fontSize: FontSize.xs,
-    flex: 1,
-  },
-  servicesGrid: {
-    flexDirection: 'row',
-    gap: Spacing.sm,
-  },
-  serviceTile: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: Spacing.md,
-    paddingHorizontal: Spacing.xs,
-    borderRadius: BorderRadius.xl,
-    position: 'relative',
-    minHeight: 110,
     justifyContent: 'center',
   },
-  auctionBadge: {
-    position: 'absolute',
-    top: -8,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: BorderRadius.full,
+  favText: {
+    flex: 1,
   },
-  auctionBadgeText: {
-    fontFamily: FontFamily.bold,
-    fontSize: FontSize['2xs'],
+  favTitle: {
+    fontFamily: FontFamily.semibold,
+    fontSize: FontSize.body,
   },
-  serviceImage: {
-    width: 60,
-    height: 38,
-    marginBottom: 6,
+  favSubtitle: {
+    fontFamily: FontFamily.regular,
+    fontSize: FontSize.caption,
   },
-  serviceLabel: {
-    fontFamily: FontFamily.bold,
-    fontSize: FontSize.sm,
+  tiles: {
+    flexDirection: 'row',
+    gap: 8,
   },
-  serviceSubtitle: {
+  tile: {
+    flex: 1,
+    alignItems: 'center',
+    gap: 2,
+    paddingTop: 6,
+    paddingHorizontal: 6,
+    paddingBottom: 8,
+    borderRadius: BorderRadius.lg,
+  },
+  tileImage: {
+    width: '100%',
+    height: 52,
+  },
+  tileLabel: {
+    fontFamily: FontFamily.semibold,
+    fontSize: FontSize.meta,
+  },
+  tileSubtitle: {
     fontFamily: FontFamily.regular,
     fontSize: FontSize['2xs'],
-    marginTop: 1,
   },
 });

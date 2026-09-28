@@ -6,6 +6,7 @@ import { Colors } from '@theme/colors';
 import { useAppTheme } from '@theme/useAppTheme';
 import { FontFamily, FontSize } from '@theme/fonts';
 import { Spacing, BorderRadius } from '@theme/spacing';
+import { AppIcon, type AppIconName } from '@shared/components/ui/AppIcon';
 
 interface SwipeableFavoriteItemProps {
   id: string;
@@ -15,6 +16,7 @@ interface SwipeableFavoriteItemProps {
   onDelete: (id: string) => void;
   loading?: boolean;
   disabled?: boolean;
+  showDivider?: boolean;
 }
 
 export function SwipeableFavoriteItem({
@@ -25,17 +27,16 @@ export function SwipeableFavoriteItem({
   onDelete,
   loading = false,
   disabled = false,
+  showDivider = false,
 }: SwipeableFavoriteItemProps) {
   const theme = useAppTheme();
   const swipeableRef = React.useRef<Swipeable | null>(null);
 
-  const getIconName = (): keyof typeof Ionicons.glyphMap => {
+  const getIconName = (): AppIconName => {
     const lower = placeName.toLowerCase();
-    if (lower.includes('casa') || lower.includes('hogar')) return 'home-outline';
-    if (lower.includes('trabajo') || lower.includes('oficina')) return 'briefcase-outline';
-    if (lower.includes('aeropuerto')) return 'airplane-outline';
-    if (lower.includes('gym') || lower.includes('gimnasio')) return 'barbell-outline';
-    return 'location-outline';
+    if (lower.includes('casa') || lower.includes('hogar')) return 'home';
+    if (lower.includes('trabajo') || lower.includes('oficina')) return 'brief';
+    return 'pin';
   };
 
   const renderRightActions = (
@@ -77,7 +78,8 @@ export function SwipeableFavoriteItem({
       <TouchableOpacity
         style={[
           styles.item,
-          { backgroundColor: theme.surfaceMuted, borderColor: theme.line },
+          { backgroundColor: theme.surface },
+          showDivider && { borderTopWidth: 1, borderTopColor: theme.line },
           disabled && styles.itemDisabled,
         ]}
         onPress={onPress}
@@ -87,8 +89,8 @@ export function SwipeableFavoriteItem({
         accessibilityRole="button"
         accessibilityLabel={`Seleccionar destino favorito ${placeName}`}
       >
-        <View style={[styles.iconWrap, { backgroundColor: theme.surface }]}>
-          <Ionicons name={getIconName()} size={18} color={theme.text} />
+        <View style={[styles.iconWrap, { backgroundColor: theme.background }]}>
+          <AppIcon name={getIconName()} color={theme.text} />
         </View>
 
         <View style={styles.textWrap}>
@@ -112,34 +114,30 @@ const styles = StyleSheet.create({
   item: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: BorderRadius.lg,
-    borderWidth: 1,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: 12,
-    gap: Spacing.md,
-    marginBottom: Spacing.sm,
+    paddingHorizontal: 2,
+    paddingVertical: 8,
+    gap: 12,
   },
   itemDisabled: {
     opacity: 0.6,
   },
   iconWrap: {
-    width: 38,
-    height: 38,
+    width: 40,
+    height: 40,
     borderRadius: BorderRadius.md,
     alignItems: 'center',
     justifyContent: 'center',
   },
   textWrap: {
     flex: 1,
-    gap: 2,
   },
   title: {
     fontFamily: FontFamily.semibold,
-    fontSize: FontSize.sm,
+    fontSize: FontSize.body,
   },
   subtitle: {
     fontFamily: FontFamily.regular,
-    fontSize: FontSize.xs,
+    fontSize: FontSize.caption,
   },
   deleteAction: {
     width: 70,
