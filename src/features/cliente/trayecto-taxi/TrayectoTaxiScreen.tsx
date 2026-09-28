@@ -43,6 +43,7 @@ import { Spacing, BorderRadius, Shadow } from '@theme/spacing';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 const COLLAPSED_HEIGHT = 440;
+const VEHICLE_ART_WIDTH = 176;
 const EXPANDED_HEIGHT = SCREEN_HEIGHT * 0.62;
 
 type Nav = NativeStackNavigationProp<ClienteStackParamList, 'TrayectoTaxi'>;
@@ -503,21 +504,19 @@ export function TrayectoTaxiScreen() {
           contentContainerStyle={styles.panelScrollContent}
           showsVerticalScrollIndicator={false}
         >
-          {/* Identificación del auto: dibujo con su color, placa grande (ABC-123) y modelo, centrados */}
+          {/* Identificación del auto: modelo, color y calificación a la izquierda; el auto en su color a la
+              derecha, con la placa como badge en su esquina inferior (sigue legible: es lo que se busca en la calle). */}
           <View
             style={[styles.vehicleSection, { borderBottomColor: theme.divider }]}
             accessible
             accessibilityLabel={`Tu auto: ${driver.vehicleModel} color ${driver.vehicleColor.toLowerCase()}, placa ${driver.vehiclePlate}. Calificación ${driver.rating.toFixed(1)}`}
           >
-            <VehiculoIlustracion color={driver.vehicleColor} plate={driver.vehiclePlate} width={210} />
-            <PlacaVehiculo plate={driver.vehiclePlate} size="lg" />
             <View style={styles.vehicleInfoWrap}>
-              <Text style={[styles.vehicleModelText, { color: theme.text }]} numberOfLines={1}>
+              <Text style={[styles.vehicleModelText, { color: theme.text }]} numberOfLines={2}>
                 {driver.vehicleModel}
-                <Text style={[styles.vehicleColorText, { color: theme.textMuted }]}>
-                  {' · '}
-                  {driver.vehicleColor.toLowerCase()}
-                </Text>
+              </Text>
+              <Text style={[styles.vehicleColorText, { color: theme.textMuted }]} numberOfLines={1}>
+                Color {driver.vehicleColor.toLowerCase()}
               </Text>
               <View style={styles.driverRatingInline}>
                 <Ionicons name="star" size={13} color={Colors.star} />
@@ -528,6 +527,10 @@ export function TrayectoTaxiScreen() {
                   · 1,274 viajes
                 </Text>
               </View>
+            </View>
+            <View style={styles.vehicleArt}>
+              <VehiculoIlustracion color={driver.vehicleColor} plate={driver.vehiclePlate} width={VEHICLE_ART_WIDTH} />
+              <PlacaVehiculo plate={driver.vehiclePlate} size="md" style={[styles.plateBadge, Shadow.raise]} />
             </View>
           </View>
 
@@ -861,15 +864,25 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.xl,
   },
   vehicleSection: {
+    flexDirection: 'row',
     alignItems: 'center',
-    paddingTop: Spacing.xs,
-    paddingBottom: Spacing.md,
+    paddingVertical: Spacing.sm,
     borderBottomWidth: 1,
-    gap: Spacing.sm,
+    gap: Spacing.md,
   },
   vehicleInfoWrap: {
-    alignItems: 'center',
+    flex: 1,
     gap: 2,
+  },
+  vehicleArt: {
+    width: VEHICLE_ART_WIDTH,
+    // Deja lugar para que la placa sobresalga un poco por debajo del auto.
+    paddingBottom: 12,
+  },
+  plateBadge: {
+    position: 'absolute',
+    right: 0,
+    bottom: 0,
   },
   vehicleModelText: {
     fontFamily: FontFamily.bold,
