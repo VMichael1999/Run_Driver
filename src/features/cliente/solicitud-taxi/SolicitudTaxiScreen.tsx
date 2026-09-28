@@ -18,6 +18,7 @@ import { useThemeStore } from '@store/useThemeStore';
 import { AppIcon } from '@shared/components/ui/AppIcon';
 import { getMapStyle } from '@theme/mapStyles';
 import { useRideDraftStore } from '@store/useRideDraftStore';
+import { useDescuentoVigente } from '@features/cliente/promociones/hooks/useDescuentoVigente';
 import { Colors } from '@theme/colors';
 import { useAppTheme } from '@theme/useAppTheme';
 import { BorderRadius, Shadow } from '@theme/spacing';
@@ -128,7 +129,9 @@ export function SolicitudTaxiScreen() {
   const insets = useSafeAreaInsets();
   const theme = useAppTheme();
   const isDark = useThemeStore((s) => s.isDark);
-  const sheetHeights = useServiceSheetHeights();
+  // Se fija al aceptar el viaje; el conductor cobra su precio y la diferencia la pone la empresa.
+  const discount = useDescuentoVigente();
+  const sheetHeights = useServiceSheetHeights(undefined, Boolean(discount));
   const mapRef = useRef<MapView | null>(null);
 
   // Stores
@@ -234,7 +237,7 @@ export function SolicitudTaxiScreen() {
         currency: selected.currency,
         etaMinutes: selected.etaMinutes,
         distanceKm: 1.2,
-      });
+      }, discount);
       navigation.replace('TrayectoTaxi');
     }
   };
@@ -439,6 +442,7 @@ export function SolicitudTaxiScreen() {
           durationMin={durationMin}
           onSubmit={handleServiceSubmit}
           onSchedulePress={() => setScheduleModalVisible(true)}
+          discount={discount}
           onHeightChange={fitRoute}
         />
       )}
