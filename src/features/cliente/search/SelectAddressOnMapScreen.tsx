@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
   ActivityIndicator,
   Animated,
 } from 'react-native';
@@ -17,22 +16,25 @@ import { useRideDraftStore } from '@store/useRideDraftStore';
 import { useFavoriteAddressesStore } from '@store/useFavoriteAddressesStore';
 import { useTaxiStore } from '@store/useTaxiStore';
 import { getCurrentLocationMarker, getPlaceNameFromCoordinates } from '@shared/utils/locationUtils';
-import { Colors } from '@theme/colors';
+import { useAppTheme } from '@theme/useAppTheme';
 import { FontFamily, FontSize } from '@theme/fonts';
 import { BorderRadius, Shadow, Spacing } from '@theme/spacing';
+import { AppButton } from '@shared/components/ui/AppButton';
 
 type Props = NativeStackScreenProps<ClienteStackParamList, 'SelectAddressOnMap'>;
 
 const LIMA_REGION: Region = {
-  latitude: -11.9897,
-  longitude: -77.0666,
+  latitude: -12.0464,
+  longitude: -77.0428,
   latitudeDelta: 0.02,
   longitudeDelta: 0.02,
 };
 
 export function SelectAddressOnMapScreen({ route, navigation }: Props) {
+  const theme = useAppTheme();
   const target = route.params.target;
   const saveFavorite = route.params.saveFavorite === true;
+
   const origin = useRideDraftStore((s) => s.origin);
   const setOrigin = useRideDraftStore((s) => s.setOrigin);
   const setDestination = useRideDraftStore((s) => s.setDestination);
@@ -56,7 +58,7 @@ export function SelectAddressOnMapScreen({ route, navigation }: Props) {
   }, [origin]);
 
   const [selectedRegion, setSelectedRegion] = React.useState<Region>(initialRegion);
-  const [selectedAddress, setSelectedAddress] = React.useState('Buscando direccion...');
+  const [selectedAddress, setSelectedAddress] = React.useState('Buscando dirección...');
   const [isResolving, setIsResolving] = React.useState(false);
   const [isConfirming, setIsConfirming] = React.useState(false);
   const pinLift = React.useRef(new Animated.Value(0)).current;
@@ -75,7 +77,7 @@ export function SelectAddressOnMapScreen({ route, navigation }: Props) {
       const placeName = await getPlaceNameFromCoordinates(region.latitude, region.longitude);
       setSelectedAddress(placeName);
     } catch {
-      setSelectedAddress('Ubicacion seleccionada');
+      setSelectedAddress('Ubicación seleccionada');
     } finally {
       setIsResolving(false);
     }
@@ -173,8 +175,18 @@ export function SelectAddressOnMapScreen({ route, navigation }: Props) {
   };
 
   return (
-    <View style={styles.container}>
-      <BackAppBar title={saveFavorite ? 'Agregar favorita' : target === 'origin' ? 'Elegir origen' : target === 'extra-stop' ? 'Elegir parada' : 'Elegir destino'} />
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
+      <BackAppBar
+        title={
+          saveFavorite
+            ? 'Agregar favorita'
+            : target === 'origin'
+            ? 'Elegir origen'
+            : target === 'extra-stop'
+            ? 'Elegir parada'
+            : 'Elegir en el mapa'
+        }
+      />
 
       <View style={styles.mapWrap}>
         <MapView
@@ -194,30 +206,40 @@ export function SelectAddressOnMapScreen({ route, navigation }: Props) {
           showsMyLocationButton={false}
         />
 
+        {/* Pin central con animación de elevación */}
         <View pointerEvents="none" style={styles.pinCenterWrap}>
           <Animated.View style={[styles.pinMarkerWrap, { transform: [{ translateY: pinLift }] }]}>
-            <View style={styles.pinHead} />
-            <View style={styles.pinStem} />
+            <View style={[styles.pinHead, { backgroundColor: theme.primary, borderColor: theme.surface }]}>
+              <View style={[styles.pinDot, { backgroundColor: theme.sig }]} />
+            </View>
+            <View style={[styles.pinStem, { backgroundColor: theme.primary }]} />
           </Animated.View>
           <View style={styles.pinShadowDot} />
         </View>
 
-        <View style={styles.addressCard}>
-          <View style={styles.addressIconWrap}>
-            <Ionicons name="location" size={16} color={Colors.primary} />
+        {/* Tarjeta de dirección seleccionada */}
+        <View style={styles.bottomCardWrap}>
+          <View style={[styles.addressCard, { backgroundColor: theme.surface, borderColor: theme.line }, Shadow.raise]}>
+            <View style={[styles.addressIconWrap, { backgroundColor: theme.surfaceMuted }]}>
+              <Ionicons name="location" size={18} color={theme.text} />
+            </View>
+            <View style={styles.addressTextWrap}>
+              <Text style={[styles.addressLabel, { color: theme.textMuted }]}>Ubicación seleccionada</Text>
+              <Text style={[styles.addressValue, { color: theme.text }]} numberOfLines={2}>
+                {selectedAddress}
+              </Text>
+            </View>
+            {isResolving ? <ActivityIndicator size="small" color={theme.primary} /> : null}
           </View>
-          <View style={styles.addressTextWrap}>
-            <Text style={styles.addressLabel}>Ubicacion seleccionada</Text>
-            <Text style={styles.addressValue} numberOfLines={2}>
-              {selectedAddress}
-            </Text>
-          </View>
-          {isResolving ? <ActivityIndicator size="small" color={Colors.primary} /> : null}
-        </View>
 
-        <TouchableOpacity style={styles.confirmButton} onPress={() => void confirmSelection()} activeOpacity={0.88} disabled={isConfirming}>
-          <Text style={styles.confirmButtonText}>{isConfirming ? 'Confirmando...' : 'Confirmar direccion'}</Text>
-        </TouchableOpacity>
+          <AppButton
+            label={isConfirming ? 'Confirmando...' : 'Confirmar dirección'}
+            onPress={() => void confirmSelection()}
+            disabled={isConfirming || isResolving}
+            loading={isConfirming}
+            variant="primary"
+          />
+        </View>
       </View>
     </View>
   );
@@ -226,7 +248,6 @@ export function SelectAddressOnMapScreen({ route, navigation }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f4f7fb',
   },
   mapWrap: {
     flex: 1,
@@ -238,91 +259,73 @@ const styles = StyleSheet.create({
     marginLeft: -18,
     marginTop: -55,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   pinMarkerWrap: {
     alignItems: 'center',
   },
   pinHead: {
-    backgroundColor: Colors.white,
     width: 36,
     height: 36,
     borderRadius: 18,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.12,
-    shadowRadius: 4,
-    elevation: 5,
-    borderWidth: 12,
-    borderColor: Colors.primary,
+    borderWidth: 3,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...Shadow.md,
+  },
+  pinDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
   },
   pinStem: {
-    width: 4,
-    height: 20,
-    backgroundColor: Colors.primary,
-    borderBottomLeftRadius: 2,
-    borderBottomRightRadius: 2,
+    width: 3,
+    height: 14,
+    marginTop: -1,
+    borderRadius: 1.5,
   },
   pinShadowDot: {
-    width: 5,
-    height: 5,
-    borderRadius: 999,
-    backgroundColor: Colors.black,
-    shadowColor: Colors.black,
-    shadowOffset: { width: 0, height: -1 },
-    shadowOpacity: 0.38,
-    shadowRadius: 0,
-    elevation: 1,
+    width: 12,
+    height: 4,
+    borderRadius: 6,
+    backgroundColor: 'rgba(0,0,0,0.25)',
+    marginTop: 2,
   },
-  addressCard: {
+  bottomCardWrap: {
     position: 'absolute',
     left: Spacing.lg,
     right: Spacing.lg,
-    bottom: 108,
-    backgroundColor: Colors.white,
-    borderRadius: 18,
-    padding: Spacing.md,
+    bottom: Spacing['2xl'],
+    gap: Spacing.md,
+  },
+  addressCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    ...Shadow.md,
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.md,
+    gap: Spacing.md,
+    borderWidth: 1,
   },
   addressIconWrap: {
     width: 36,
     height: 36,
-    borderRadius: 18,
-    backgroundColor: '#eaf2ff',
+    borderRadius: BorderRadius.md,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: Spacing.sm,
   },
   addressTextWrap: {
     flex: 1,
+    gap: 2,
   },
   addressLabel: {
-    color: '#64748b',
-    fontFamily: FontFamily.regular,
-    fontSize: FontSize.sm,
-    marginBottom: 2,
+    fontFamily: FontFamily.semibold,
+    fontSize: 10,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   addressValue: {
-    color: '#1f2937',
     fontFamily: FontFamily.bold,
     fontSize: FontSize.md,
-  },
-  confirmButton: {
-    position: 'absolute',
-    left: Spacing.lg,
-    right: Spacing.lg,
-    bottom: Spacing.lg,
-    backgroundColor: '#1d5fa8',
-    borderRadius: BorderRadius.full,
-    paddingVertical: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...Shadow.md,
-  },
-  confirmButtonText: {
-    color: Colors.white,
-    fontFamily: FontFamily.bold,
-    fontSize: FontSize.md,
+    lineHeight: 20,
   },
 });
