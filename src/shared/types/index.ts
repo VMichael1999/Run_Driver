@@ -107,5 +107,7 @@ export interface TripDiscount {
 
 export interface TaxiTrip {
   request: TaxiRequest;
+  /** `driver.price` es lo que cobra el conductor, sin descuento. */
   driver: DriverAlert;
+  discount?: TripDiscount | null;
 }
