@@ -319,6 +319,7 @@ export function SolicitudTaxiScreen() {
       origin: request?.origin ?? null,
       destination: request?.destination ?? null,
       stops: request?.stops,
+      routePoints: request?.routePoints,
       service: { id: service.id, name: service.name, price: service.price, currency: service.currency },
       paymentMode: paymentMethod.mode,
       scheduledFor: date.getTime(),

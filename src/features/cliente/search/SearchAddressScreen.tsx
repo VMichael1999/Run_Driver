@@ -23,6 +23,7 @@ import { formatDistance } from '@shared/utils/mapUtils';
 import { useRideDraftStore } from '@store/useRideDraftStore';
 import { useFavoriteAddressesStore } from '@store/useFavoriteAddressesStore';
 import { useTaxiStore } from '@store/useTaxiStore';
+import { useScheduledTripsStore } from '@store/useScheduledTripsStore';
 import { Colors } from '@theme/colors';
 import { useAppTheme } from '@theme/useAppTheme';
 import { FontFamily, FontSize } from '@theme/fonts';
@@ -57,6 +58,8 @@ export function SearchAddressScreen({ route, navigation }: Props) {
   const target = route.params.target;
   const saveFavorite = route.params.saveFavorite === true;
   const editing = route.params.editing === true;
+  const scheduledTripId = route.params.scheduledTripId;
+  const addScheduledStop = useScheduledTripsStore((s) => s.addStop);
 
   const origin = useRideDraftStore((s) => s.origin);
   const destination = useRideDraftStore((s) => s.destination);
@@ -120,7 +123,8 @@ export function SearchAddressScreen({ route, navigation }: Props) {
         setRoutePoints([]);
         navigation.goBack();
       } else if (target === 'extra-stop') {
-        addExtraStop(place);
+        if (scheduledTripId) addScheduledStop(scheduledTripId, place);
+        else addExtraStop(place);
         navigation.goBack();
       } else {
         setDestination(place);
@@ -226,7 +230,8 @@ export function SearchAddressScreen({ route, navigation }: Props) {
         <Text style={[styles.hdrTitle, { color: theme.text }]}>{title}</Text>
       </View>
 
-      {saveFavorite ? (
+      {/* Para un favorito o una parada de un viaje programado basta con el buscador. */}
+      {saveFavorite || scheduledTripId ? (
         activeInput
       ) : (
         <View style={styles.addr}>
@@ -315,7 +320,7 @@ export function SearchAddressScreen({ route, navigation }: Props) {
         ListFooterComponent={
           <TouchableOpacity
             style={[styles.linkRow, items.length > 0 && styles.mapLink]}
-            onPress={() => navigation.navigate('SelectAddressOnMap', { target, saveFavorite, editing })}
+            onPress={() => navigation.navigate('SelectAddressOnMap', { target, saveFavorite, editing, scheduledTripId })}
             activeOpacity={0.75}
             accessibilityRole="button"
             accessibilityLabel="Elegir en el mapa"

@@ -20,8 +20,9 @@ export type AuthStackParamList = {
 export type ClienteStackParamList = {
   ClienteHome: undefined;
   /** editing: se abrió desde la solicitud para cambiar un punto; al elegir, vuelve a ella. */
-  SearchAddress: { target: SearchTarget; saveFavorite?: boolean; editing?: boolean };
-  SelectAddressOnMap: { target: SearchTarget; saveFavorite?: boolean; editing?: boolean };
+  /** scheduledTripId: agrega la parada a ese viaje programado en lugar de al viaje que se está pidiendo. */
+  SearchAddress: { target: SearchTarget; saveFavorite?: boolean; editing?: boolean; scheduledTripId?: string };
+  SelectAddressOnMap: { target: SearchTarget; saveFavorite?: boolean; editing?: boolean; scheduledTripId?: string };
   /** autoSearchServiceId: viaje programado que llegó a su hora; busca conductor de inmediato. */
   SolicitudTaxi: { autoSearchServiceId?: string } | undefined;
   TrayectoTaxi: undefined;
@@ -31,10 +32,11 @@ export type ClienteStackParamList = {
   Configuracion: undefined;
   Perfil: undefined;
   /** forRide: elige el método del viaje en curso y vuelve; sin él, cambia la preferencia. */
-  MetodosPago: { forRide?: boolean } | undefined;
+  MetodosPago: { forRide?: boolean; scheduledTripId?: string } | undefined;
   Promociones: undefined;
   Favoritas: undefined;
   ProgramarViaje: undefined;
+  DetalleViajeProgramado: { tripId: string };
 };
 
 // Conductor bottom tabs

@@ -1,4 +1,4 @@
-import type { LocationMarker, PaymentMode } from '@shared/types';
+import type { Coordinates, LocationMarker, PaymentMode } from '@shared/types';
 
 /** Servicio elegido al programar; a la hora del viaje se busca conductor con él. */
 export interface ScheduledTripService {
@@ -13,6 +13,8 @@ export interface ScheduledTrip {
   origin: LocationMarker | null;
   destination: LocationMarker | null;
   stops?: LocationMarker[];
+  /** Ruta trazada por las paradas; se borra al cambiarlas y el detalle la vuelve a calcular. */
+  routePoints?: Coordinates[];
   service?: ScheduledTripService;
   paymentMode?: PaymentMode;
   scheduledFor: number;
