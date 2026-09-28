@@ -94,7 +94,20 @@ export interface TaxiRequest {
   comment?: string;
 }
 
+/**
+ * Descuento que paga la empresa: el conductor cobra su precio completo y el pasajero
+ * paga ese precio menos `percent`. Los descuentos no se acumulan; se usa el mayor.
+ */
+export interface TripDiscount {
+  source: 'coupon' | 'promotion';
+  /** Código del cupón (RUN10) o título de la promoción. */
+  label: string;
+  percent: number;
+}
+
 export interface TaxiTrip {
   request: TaxiRequest;
+  /** `driver.price` es lo que cobra el conductor, sin descuento. */
   driver: DriverAlert;
+  discount?: TripDiscount | null;
 }

@@ -9,7 +9,8 @@ import Animated, {
   useSharedValue,
   withSpring,
 } from 'react-native-reanimated';
-import type { PaymentMethod } from '@shared/types';
+import type { PaymentMethod, TripDiscount } from '@shared/types';
+import { applyDiscount } from '@features/cliente/promociones/utils/descuentos';
 import { useAppTheme } from '@theme/useAppTheme';
 import { FontFamily, FontSize } from '@theme/fonts';
 import { BorderRadius, Shadow } from '@theme/spacing';
@@ -41,6 +42,8 @@ interface ServiceSelectionSheetProps {
   durationMin?: number;
   onSubmit: () => void;
   onSchedulePress?: () => void;
+  /** Descuento vigente: rebaja lo que paga el pasajero en todos los servicios. */
+  discount?: TripDiscount | null;
   /**
    * Se llama mientras se arrastra la hoja (`settled` = false) y una vez cuando termina de
    * acomodarse (`settled` = true), para reencuadrar la ruta en el mapa.
@@ -52,16 +55,18 @@ interface ServiceSelectionSheetProps {
 const ROW_HEIGHT = 62;
 // Handle, encabezado, fila de pago, botón y espacios entre ellos.
 const SHEET_CHROME = 10 + 4 + 12 + 24 + 12 + 12 + 52 + 12 + 56 + 18;
+// Línea "RUN10: 10 % menos en este viaje" y su espacio.
+const DISCOUNT_NOTE_HEIGHT = 18 + 12;
 const SPRING = { damping: 22, stiffness: 220, mass: 0.9 };
 
 /**
  * Alturas de la hoja. La mínima muestra ~2.5 servicios; la expandida crece solo hasta
  * mostrar toda la lista (`listHeight`), con tope en el alto de pantalla disponible.
  */
-export function useServiceSheetHeights(listHeight?: number) {
+export function useServiceSheetHeights(listHeight?: number, hasDiscount = false) {
   const { height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
-  const chrome = SHEET_CHROME + insets.bottom;
+  const chrome = SHEET_CHROME + (hasDiscount ? DISCOUNT_NOTE_HEIGHT : 0) + insets.bottom;
   const maxExpanded = Math.round(height - insets.top - 72);
   // +4 absorbe el redondeo de alturas de texto para que la lista completa no quede con scroll.
   const fitsAll = listHeight ? Math.round(chrome + listHeight + 4) : maxExpanded;
@@ -83,12 +88,13 @@ export function ServiceSelectionSheet({
   durationMin,
   onSubmit,
   onSchedulePress,
+  discount,
   onHeightChange,
 }: ServiceSelectionSheetProps) {
   const theme = useAppTheme();
   const insets = useSafeAreaInsets();
   const [listHeight, setListHeight] = React.useState<number | undefined>(undefined);
-  const { collapsed, expanded } = useServiceSheetHeights(listHeight);
+  const { collapsed, expanded } = useServiceSheetHeights(listHeight, Boolean(discount));
 
   const sheetHeight = useSharedValue(collapsed);
   const dragStart = useSharedValue(collapsed);
@@ -155,7 +161,7 @@ export function ServiceSelectionSheet({
 
   const submitLabel = isAuction
     ? 'Proponer mi precio'
-    : `Pedir ${selectedService?.name ?? 'viaje'} · S/ ${(selectedService?.price ?? 0).toFixed(2)}`;
+    : `Pedir ${selectedService?.name ?? 'viaje'} · S/ ${applyDiscount(selectedService?.price ?? 0, discount).toFixed(2)}`;
 
   return (
     <Animated.View
@@ -184,6 +190,15 @@ export function ServiceSelectionSheet({
               </Text>
             ) : null}
           </View>
+          {discount ? (
+            <View style={styles.discountNote}>
+              <AppIcon name="tag" size="s" color={theme.online} />
+              <Text style={[styles.discountText, { color: theme.text }]} numberOfLines={1}>
+                {discount.source === 'coupon' ? `${discount.label}: ` : ''}
+                {discount.percent} % menos en este viaje
+              </Text>
+            </View>
+          ) : null}
         </View>
       </GestureDetector>
 
@@ -196,6 +211,7 @@ export function ServiceSelectionSheet({
       >
         {services.map((item) => {
           const isSelected = item.id === selectedId;
+          const finalPrice = applyDiscount(item.price, discount);
           return (
             <TouchableOpacity
               key={item.id}
@@ -208,7 +224,11 @@ export function ServiceSelectionSheet({
               accessibilityRole="radio"
               accessibilityState={{ selected: isSelected }}
               accessibilityLabel={`${item.name}, ${
-                item.isAuction ? 'tú propones el precio' : `${item.currency} ${item.price.toFixed(2)}, llega en ${item.etaMinutes} minutos`
+                item.isAuction
+                  ? `tú propones el precio${discount ? `, pagas ${discount.percent} % menos` : ''}`
+                  : `${item.currency} ${finalPrice.toFixed(2)}${
+                      discount ? `, antes ${item.currency} ${item.price.toFixed(2)}` : ''
+                    }, llega en ${item.etaMinutes} minutos`
               }`}
             >
               <Image source={item.image} style={styles.svcImage} resizeMode="contain" />
@@ -223,9 +243,16 @@ export function ServiceSelectionSheet({
                   <Text style={[styles.youText, { color: theme.onSig }]}>Tú propones</Text>
                 </View>
               ) : (
-                <Text style={[styles.price, { color: theme.text }]}>
-                  {item.currency} {item.price.toFixed(2)}
-                </Text>
+                <View style={styles.priceBlock}>
+                  {discount ? (
+                    <Text style={[styles.priceBefore, { color: theme.textMuted }]}>
+                      {item.currency} {item.price.toFixed(2)}
+                    </Text>
+                  ) : null}
+                  <Text style={[styles.price, { color: theme.text }]}>
+                    {item.currency} {finalPrice.toFixed(2)}
+                  </Text>
+                </View>
               )}
             </TouchableOpacity>
           );
@@ -331,10 +358,29 @@ const styles = StyleSheet.create({
     fontFamily: FontFamily.regular,
     fontSize: FontSize.xs,
   },
+  priceBlock: {
+    alignItems: 'flex-end',
+  },
   price: {
     fontFamily: FontFamily.bold,
     fontSize: FontSize.md,
     textAlign: 'right',
+  },
+  priceBefore: {
+    fontFamily: FontFamily.regular,
+    fontSize: FontSize.xs,
+    textDecorationLine: 'line-through',
+  },
+  discountNote: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    height: 18,
+  },
+  discountText: {
+    flex: 1,
+    fontFamily: FontFamily.medium,
+    fontSize: FontSize.caption,
   },
   youPill: {
     paddingHorizontal: 9,

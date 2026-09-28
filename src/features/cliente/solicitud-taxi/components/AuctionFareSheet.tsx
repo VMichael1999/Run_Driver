@@ -2,7 +2,8 @@ import React from 'react';
 import { BackHandler, Image, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { SlideInRight, SlideOutRight } from 'react-native-reanimated';
-import type { PaymentMode } from '@shared/types';
+import type { PaymentMode, TripDiscount } from '@shared/types';
+import { applyDiscount } from '@features/cliente/promociones/utils/descuentos';
 import { Colors } from '@theme/colors';
 import { useAppTheme } from '@theme/useAppTheme';
 import { FontFamily, FontSize } from '@theme/fonts';
@@ -25,6 +26,8 @@ interface AuctionFareSheetProps {
   /** "6.1 km", siempre visible al final de la ruta. */
   routeDistance?: string;
   paymentMode: PaymentMode;
+  /** El conductor recibe `fare` completo; el pasajero paga con el descuento. */
+  discount?: TripDiscount | null;
   onOpenPayment: () => void;
   onChangeFare: (newFare: number) => void;
   onConfirm: (fare: number) => void;
@@ -49,6 +52,7 @@ export function AuctionFareSheet({
   routeLabel,
   routeDistance,
   paymentMode,
+  discount,
   onOpenPayment,
   onChangeFare,
   onConfirm,
@@ -111,6 +115,17 @@ export function AuctionFareSheet({
           decimals={2}
           currency="S/"
         />
+
+        {discount ? (
+          <View style={[styles.discountRow, { backgroundColor: theme.onlineSoft }]}>
+            <AppIcon name="tag" size="s" color={theme.online} />
+            <Text style={[styles.discountText, { color: theme.text }]}>
+              Pagas <Text style={styles.bold}>S/ {applyDiscount(fare, discount).toFixed(2)}</Text> (
+              {discount.source === 'coupon' ? `${discount.label}, ` : ''}
+              {discount.percent} % menos). El conductor recibe tus S/ {fare.toFixed(2)}.
+            </Text>
+          </View>
+        ) : null}
 
         {/* Barra de rango: la zona verde es donde los conductores suelen responder */}
         <View
@@ -260,6 +275,19 @@ const styles = StyleSheet.create({
     fontFamily: FontFamily.regular,
     fontSize: FontSize.meta,
     lineHeight: 18,
+  },
+  discountRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: BorderRadius.lg,
+  },
+  discountText: {
+    flex: 1,
+    fontFamily: FontFamily.regular,
+    fontSize: FontSize.caption,
   },
   bold: {
     fontFamily: FontFamily.semibold,

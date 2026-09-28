@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import type { TaxiTrip } from '@shared/types';
 import type { TripHistoryItem } from '@features/historial/types';
+import { applyDiscount } from '@features/cliente/promociones/utils/descuentos';
 
 interface TripHistoryState {
   trips: TripHistoryItem[];
@@ -8,7 +9,7 @@ interface TripHistoryState {
 }
 
 function buildCompletedTrip(trip: TaxiTrip): TripHistoryItem {
-  const { request, driver } = trip;
+  const { request, driver, discount = null } = trip;
 
   return {
     id: `trip-${Date.now()}`,
@@ -29,9 +30,10 @@ function buildCompletedTrip(trip: TaxiTrip): TripHistoryItem {
       address: request.destination.placeName,
     },
     extraStop: null,
-    price: driver.price,
+    price: applyDiscount(driver.price, discount),
     currency: driver.currency,
     status: 'completed',
+    ...(discount ? { originalPrice: driver.price, discount } : {}),
   };
 }
 

@@ -41,6 +41,26 @@ describe('useTaxiStore', () => {
     expect(activeTrip?.driver).toEqual(MOCK_DRIVER);
   });
 
+  it('acceptOffer guarda el descuento del viaje', () => {
+    const discount = { source: 'coupon' as const, label: 'RUN10', percent: 10 };
+    act(() => {
+      useTaxiStore.getState().setRequest(MOCK_REQUEST);
+      useTaxiStore.getState().acceptOffer(MOCK_DRIVER, discount);
+    });
+    const { activeTrip } = useTaxiStore.getState();
+    expect(activeTrip?.discount).toEqual(discount);
+    // El conductor sigue cobrando su precio completo.
+    expect(activeTrip?.driver.price).toBe(15);
+  });
+
+  it('acceptOffer sin descuento lo deja en null', () => {
+    act(() => {
+      useTaxiStore.getState().setRequest(MOCK_REQUEST);
+      useTaxiStore.getState().acceptOffer(MOCK_DRIVER);
+    });
+    expect(useTaxiStore.getState().activeTrip?.discount).toBeNull();
+  });
+
   it('endTrip reinicia el estado', () => {
     act(() => {
       useTaxiStore.getState().setRequest(MOCK_REQUEST);

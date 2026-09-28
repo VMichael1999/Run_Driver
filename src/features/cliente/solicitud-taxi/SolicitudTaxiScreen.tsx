@@ -18,6 +18,7 @@ import { useThemeStore } from '@store/useThemeStore';
 import { AppIcon } from '@shared/components/ui/AppIcon';
 import { getMapStyle } from '@theme/mapStyles';
 import { useRideDraftStore } from '@store/useRideDraftStore';
+import { useDescuentoVigente } from '@features/cliente/promociones/hooks/useDescuentoVigente';
 import { Colors } from '@theme/colors';
 import { useAppTheme } from '@theme/useAppTheme';
 import { BorderRadius, Shadow } from '@theme/spacing';
@@ -128,7 +129,9 @@ export function SolicitudTaxiScreen() {
   const insets = useSafeAreaInsets();
   const theme = useAppTheme();
   const isDark = useThemeStore((s) => s.isDark);
-  const sheetHeights = useServiceSheetHeights();
+  // Se fija al aceptar el viaje; el conductor cobra su precio y la diferencia la pone la empresa.
+  const discount = useDescuentoVigente();
+  const sheetHeights = useServiceSheetHeights(undefined, Boolean(discount));
   const mapRef = useRef<MapView | null>(null);
 
   // Stores
@@ -234,7 +237,7 @@ export function SolicitudTaxiScreen() {
         currency: selected.currency,
         etaMinutes: selected.etaMinutes,
         distanceKm: 1.2,
-      });
+      }, discount);
       navigation.replace('TrayectoTaxi');
     }
   };
@@ -294,7 +297,7 @@ export function SolicitudTaxiScreen() {
     const offer = auction.offers.find((o) => o.id === offerId);
     if (!offer) return;
     auction.acceptOffer(offerId);
-    acceptOffer(offer.driver);
+    acceptOffer(offer.driver, discount);
     setIsAuctionRequestMode(false);
     navigation.replace('TrayectoTaxi');
   };
@@ -414,6 +417,7 @@ export function SolicitudTaxiScreen() {
           originName={request?.origin.placeName ?? 'Tu ubicación'}
           destinationName={request?.destination.placeName ?? ''}
           paymentMode={paymentMethod.mode}
+          discount={discount}
           autoAccept={autoAccept}
           onToggleAutoAccept={setAutoAccept}
           onCancelRequest={handleCancelAuction}
@@ -439,6 +443,7 @@ export function SolicitudTaxiScreen() {
           durationMin={durationMin}
           onSubmit={handleServiceSubmit}
           onSchedulePress={() => setScheduleModalVisible(true)}
+          discount={discount}
           onHeightChange={fitRoute}
         />
       )}
@@ -451,6 +456,7 @@ export function SolicitudTaxiScreen() {
         routeLabel={auctionRouteLabel}
         routeDistance={`${distanceKm.toFixed(1)} km`}
         paymentMode={paymentMethod.mode}
+        discount={discount}
         onOpenPayment={openPaymentMethods}
         onChangeFare={setAuctionFare}
         onConfirm={handleConfirmAuctionFare}

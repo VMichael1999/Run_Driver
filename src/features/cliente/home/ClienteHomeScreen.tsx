@@ -20,6 +20,7 @@ import { SwipeableFavoriteItem } from './components/SwipeableFavoriteItem';
 import { AppDrawer } from '@shared/components/drawer/AppDrawer';
 import { AppIcon, type AppIconName } from '@shared/components/ui/AppIcon';
 import { useAuthStore } from '@store/useAuthStore';
+import { useDescuentoVigente } from '@features/cliente/promociones/hooks/useDescuentoVigente';
 import { useThemeStore } from '@store/useThemeStore';
 import { useFavoriteAddressesStore } from '@store/useFavoriteAddressesStore';
 import { getCurrentLocationMarker, getQuickCurrentLocationMarker } from '@shared/utils/locationUtils';
@@ -77,6 +78,13 @@ export function ClienteHomeScreen() {
   const navigation = useNavigation<Nav>();
   const insets = useSafeAreaInsets();
   const theme = useAppTheme();
+  // Solo anuncia un descuento si hoy se aplicaría al pedir; si no, lleva a ver las promociones.
+  const discount = useDescuentoVigente();
+  const promoLabel = !discount
+    ? 'Promociones'
+    : discount.source === 'coupon'
+      ? `${discount.label} · ${discount.percent} % menos`
+      : `Hoy ${discount.percent} % menos`;
   const isDark = useThemeStore((s) => s.isDark);
   const { width } = useWindowDimensions();
   const mapRef = React.useRef<MapView | null>(null);
@@ -257,10 +265,10 @@ export function ClienteHomeScreen() {
               activeOpacity={0.85}
               onPress={() => navigation.navigate('Promociones')}
               accessibilityRole="button"
-              accessibilityLabel="Hoy 15 % menos. Ver promociones"
+              accessibilityLabel={`${promoLabel}. Ver promociones`}
             >
               <AppIcon name="tag" size="s" color={theme.online} />
-              <Text style={[styles.promoPillText, { color: theme.text }]}>Hoy 15 % menos</Text>
+              <Text style={[styles.promoPillText, { color: theme.text }]}>{promoLabel}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity

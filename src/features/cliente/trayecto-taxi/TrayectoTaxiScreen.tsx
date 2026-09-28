@@ -24,6 +24,8 @@ import type { ClienteStackParamList } from '@navigation/types';
 import { useRideDraftStore } from '@store/useRideDraftStore';
 import { useTaxiStore } from '@store/useTaxiStore';
 import { useTripHistoryStore } from '@store/useTripHistoryStore';
+import { usePromotionsStore } from '@store/usePromotionsStore';
+import { applyDiscount } from '@features/cliente/promociones/utils/descuentos';
 import { useThemeStore } from '@store/useThemeStore';
 import { CalificacionModal, type Calificacion } from '@shared/components/card/CalificacionModal';
 import { UserNetworkAvatar } from '@shared/components/avatar/UserNetworkAvatar';
@@ -69,12 +71,14 @@ export function TrayectoTaxiScreen() {
   const { activeTrip, endTrip } = useTaxiStore();
   const resetDraft = useRideDraftStore((state) => state.resetDraft);
   const addCompletedTrip = useTripHistoryStore((state) => state.addCompletedTrip);
+  const clearCoupon = usePromotionsStore((state) => state.clearCoupon);
 
   const [tripPhase, setTripPhase] = React.useState<TripPhase>('arriving');
   const [ratingVisible, setRatingVisible] = React.useState(false);
 
   const driver = activeTrip?.driver;
   const request = activeTrip?.request;
+  const discount = activeTrip?.discount ?? null;
   const mapRef = React.useRef<MapView | null>(null);
   const allowTripExitRef = React.useRef(false);
 
@@ -316,6 +320,12 @@ export function TrayectoTaxiScreen() {
   const handleRatingComplete = (_calificacion?: Calificacion) => {
     if (activeTrip) {
       addCompletedTrip(activeTrip);
+      // El cupón es para un viaje: se gasta al terminarlo (si se cancela, sigue guardado).
+      // Solo se borra si es el mismo que se usó, por si se aplicó otro durante el viaje.
+      const usedCoupon = activeTrip.discount?.source === 'coupon' ? activeTrip.discount.label : null;
+      if (usedCoupon && usePromotionsStore.getState().appliedCoupon?.code === usedCoupon) {
+        clearCoupon();
+      }
     }
     allowTripExitRef.current = true;
     setRatingVisible(false);
@@ -595,9 +605,16 @@ export function TrayectoTaxiScreen() {
                   {request.paymentMethod.mode}
                 </Text>
               </View>
-              <Text style={[styles.farePriceText, { color: theme.text }]}>
-                {request.paymentMethod.currency} {driver.price.toFixed(2)}
-              </Text>
+              <View style={styles.farePriceBlock}>
+                {discount ? (
+                  <Text style={[styles.farePriceBefore, { color: theme.textMuted }]}>
+                    {request.paymentMethod.currency} {driver.price.toFixed(2)}
+                  </Text>
+                ) : null}
+                <Text style={[styles.farePriceText, { color: theme.text }]}>
+                  {request.paymentMethod.currency} {applyDiscount(driver.price, discount).toFixed(2)}
+                </Text>
+              </View>
             </View>
           </View>
 
@@ -650,7 +667,7 @@ export function TrayectoTaxiScreen() {
         origin={request.origin.placeName}
         destination={request.destination.placeName}
         paymentMethod={request.paymentMethod.mode}
-        fareAmount={driver.price}
+        fareAmount={applyDiscount(driver.price, discount)}
         currency={request.paymentMethod.currency}
         durationMinutes={Math.round(driver.etaMinutes || 19)}
         vehicleImageSource={LegacyImages.carEstandar}
@@ -938,6 +955,14 @@ const styles = StyleSheet.create({
   paymentMethodName: {
     fontFamily: FontFamily.medium,
     fontSize: FontSize.sm,
+  },
+  farePriceBlock: {
+    alignItems: 'flex-end',
+  },
+  farePriceBefore: {
+    fontFamily: FontFamily.regular,
+    fontSize: FontSize.xs,
+    textDecorationLine: 'line-through',
   },
   farePriceText: {
     fontFamily: FontFamily.bold,
