@@ -11,6 +11,7 @@ import DateTimePicker, { type DateTimePickerEvent } from '@react-native-communit
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '@theme/colors';
 import { useAppTheme } from '@theme/useAppTheme';
+import { useThemeStore } from '@store/useThemeStore';
 import { FontFamily, FontSize } from '@theme/fonts';
 import { Spacing, BorderRadius, Shadow } from '@theme/spacing';
 import { AppButton } from '@shared/components/ui/AppButton';
@@ -18,6 +19,8 @@ import { AppButton } from '@shared/components/ui/AppButton';
 interface TripScheduleModalProps {
   visible: boolean;
   initialDate?: Date;
+  /** Fecha más temprana que se puede elegir; por defecto, ahora. */
+  minimumDate?: Date;
   onConfirm: (date: Date) => void;
   onClose: () => void;
 }
@@ -25,10 +28,12 @@ interface TripScheduleModalProps {
 export function TripScheduleModal({
   visible,
   initialDate,
+  minimumDate,
   onConfirm,
   onClose,
 }: TripScheduleModalProps) {
   const theme = useAppTheme();
+  const isDark = useThemeStore((s) => s.isDark);
   const insets = useSafeAreaInsets();
   const [date, setDate] = useState<Date>(initialDate ?? new Date(Date.now() + 30 * 60 * 1000));
   const [mode, setMode] = useState<'date' | 'time'>('date');
@@ -68,7 +73,11 @@ export function TripScheduleModal({
               mode={mode}
               display={Platform.OS === 'ios' ? 'spinner' : 'default'}
               onChange={onChange}
-              minimumDate={new Date()}
+              minimumDate={minimumDate ?? new Date()}
+              // Sin esto, en modo oscuro la rueda de iOS dibuja el texto negro sobre fondo oscuro.
+              themeVariant={isDark ? 'dark' : 'light'}
+              textColor={theme.text}
+              locale="es-PE"
             />
           </View>
 

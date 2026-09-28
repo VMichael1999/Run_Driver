@@ -22,6 +22,10 @@ import { AppIcon, type AppIconName } from '@shared/components/ui/AppIcon';
 import { useAuthStore } from '@store/useAuthStore';
 import { useDescuentoVigente } from '@features/cliente/promociones/hooks/useDescuentoVigente';
 import { useThemeStore } from '@store/useThemeStore';
+import { useRideDraftStore, type RequestEntryMode } from '@store/useRideDraftStore';
+import { useTaxiStore } from '@store/useTaxiStore';
+import { useScheduledTripRunner } from '@features/cliente/programar-viaje/hooks/useScheduledTripRunner';
+import { buildTaxiRequest } from '@features/cliente/solicitud-taxi/utils/routeRequest';
 import { useFavoriteAddressesStore } from '@store/useFavoriteAddressesStore';
 import { getCurrentLocationMarker, getQuickCurrentLocationMarker } from '@shared/utils/locationUtils';
 import { useAppTheme } from '@theme/useAppTheme';
@@ -90,6 +94,36 @@ export function ClienteHomeScreen() {
   const mapRef = React.useRef<MapView | null>(null);
   const [isCenteringMap, setIsCenteringMap] = React.useState(false);
   const [selectedFavoriteId, setSelectedFavoriteId] = React.useState<string | null>(null);
+  const setEntryMode = useRideDraftStore((s) => s.setEntryMode);
+  const clearExtraStops = useRideDraftStore((s) => s.clearExtraStops);
+  // Cada pedido desde el inicio empieza sin paradas y con el modo de la tarjeta que se tocó.
+  const startRequest = (mode: RequestEntryMode) => {
+    setEntryMode(mode);
+    clearExtraStops();
+  };
+
+  // A la hora de un viaje programado se busca conductor con el servicio que se eligió.
+  useScheduledTripRunner((trip) => {
+    if (!trip.origin || !trip.destination || !trip.service) return;
+    const draft = useRideDraftStore.getState();
+    const { origin: tripOrigin, destination: tripDestination, service } = trip;
+    startRequest('choose');
+    draft.setOrigin(tripOrigin);
+    draft.setDestination(tripDestination);
+    trip.stops?.forEach(draft.addExtraStop);
+    const paymentMethod = trip.paymentMode ? { ...draft.paymentMethod, mode: trip.paymentMode } : draft.paymentMethod;
+    draft.setPaymentMethod(paymentMethod);
+    void buildTaxiRequest({
+      origin: tripOrigin,
+      destination: tripDestination,
+      stops: trip.stops,
+      paymentMethod,
+      comment: trip.notes,
+    }).then((request) => {
+      useTaxiStore.getState().setRequest(request);
+      navigation.navigate('SolicitudTaxi', { autoSearchServiceId: service.id });
+    });
+  });
 
   const {
     origin,
@@ -185,6 +219,7 @@ export function ClienteHomeScreen() {
   );
 
   const handleSearchPress = () => {
+    startRequest('choose');
     navigation.navigate('SearchAddress', { target: 'destination' });
   };
 
@@ -194,11 +229,8 @@ export function ClienteHomeScreen() {
 
   const handleServiceCardPress = (action: HomeServiceAction) => {
     setSelectedHomeTab(action.id);
-    if (action.id === 'outstation') {
-      navigation.navigate('ProgramarViaje');
-    } else {
-      navigation.navigate('SearchAddress', { target: 'destination' });
-    }
+    startRequest(action.id === 'ride' ? 'ride' : action.id === 'rental' ? 'auction' : 'schedule');
+    navigation.navigate('SearchAddress', { target: 'destination' });
   };
 
   const handleCenterMap = async () => {
@@ -327,6 +359,7 @@ export function ClienteHomeScreen() {
                     onPress={async () => {
                       if (selectedFavoriteId) return;
                       setSelectedFavoriteId(favorite.id);
+                      startRequest('choose');
                       try {
                         const selectedOrigin = origin ?? (await getQuickCurrentLocationMarker());
                         if (!selectedOrigin) return;

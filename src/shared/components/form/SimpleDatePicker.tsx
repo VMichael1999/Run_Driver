@@ -2,6 +2,7 @@ import React from 'react';
 import { Alert, Platform } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { PressableField } from './PressableField';
+import { useThemeStore } from '@store/useThemeStore';
 
 interface Props {
   labelText: string;
@@ -14,6 +15,7 @@ interface Props {
 
 export function SimpleDatePicker({ labelText, text, currentTime, minTime, maxTime, onConfirm }: Props) {
   const [open, setOpen] = React.useState(false);
+  const isDark = useThemeStore((s) => s.isDark);
 
   if (Platform.OS === 'web') {
     return (
@@ -33,6 +35,7 @@ export function SimpleDatePicker({ labelText, text, currentTime, minTime, maxTim
         <DateTimePicker
           value={currentTime || new Date()}
           mode="date"
+          themeVariant={isDark ? 'dark' : 'light'}
           minimumDate={minTime}
           maximumDate={maxTime}
           onChange={(_, selectedDate) => {

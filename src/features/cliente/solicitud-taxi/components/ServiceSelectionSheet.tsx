@@ -3,6 +3,7 @@ import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View, useWindowD
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
+  type SharedValue,
   runOnJS,
   useAnimatedReaction,
   useAnimatedStyle,
@@ -49,6 +50,14 @@ interface ServiceSelectionSheetProps {
    * acomodarse (`settled` = true), para reencuadrar la ruta en el mapa.
    */
   onHeightChange?: (height: number, settled: boolean) => void;
+  /** Título de la hoja; por defecto "Elige cómo viajar". */
+  title?: string;
+  /** Texto del botón principal; por defecto "Pedir …" o "Proponer mi precio". */
+  submitLabel?: string;
+  /** Con un solo servicio fijo: muestra "Otros servicios" para volver a la lista completa. */
+  onShowAllServices?: () => void;
+  /** Alto animado de la hoja; se pasa para que otros elementos (la flecha de volver) la sigan. */
+  heightValue?: SharedValue<number>;
 }
 
 // Alto de cada fila de servicio (imagen 48 + padding 6*2) más el espacio entre filas.
@@ -90,13 +99,18 @@ export function ServiceSelectionSheet({
   onSchedulePress,
   discount,
   onHeightChange,
+  title = 'Elige cómo viajar',
+  submitLabel: submitLabelOverride,
+  onShowAllServices,
+  heightValue,
 }: ServiceSelectionSheetProps) {
   const theme = useAppTheme();
   const insets = useSafeAreaInsets();
   const [listHeight, setListHeight] = React.useState<number | undefined>(undefined);
   const { collapsed, expanded } = useServiceSheetHeights(listHeight, Boolean(discount));
 
-  const sheetHeight = useSharedValue(collapsed);
+  const ownHeight = useSharedValue(collapsed);
+  const sheetHeight = heightValue ?? ownHeight;
   const dragStart = useSharedValue(collapsed);
   const isDragging = useSharedValue(false);
   const [isExpanded, setIsExpanded] = React.useState(false);
@@ -159,9 +173,9 @@ export function ServiceSelectionSheet({
   const selectedService = services.find((s) => s.id === selectedId) ?? services[0];
   const isAuction = selectedService?.isAuction === true;
 
-  const submitLabel = isAuction
+  const submitLabel = submitLabelOverride ?? (isAuction
     ? 'Proponer mi precio'
-    : `Pedir ${selectedService?.name ?? 'viaje'} · S/ ${applyDiscount(selectedService?.price ?? 0, discount).toFixed(2)}`;
+    : `Pedir ${selectedService?.name ?? 'viaje'} · S/ ${applyDiscount(selectedService?.price ?? 0, discount).toFixed(2)}`);
 
   return (
     <Animated.View
@@ -183,8 +197,17 @@ export function ServiceSelectionSheet({
         >
           <View style={[styles.handle, { backgroundColor: theme.line }]} />
           <View style={styles.headerRow}>
-            <Text style={[styles.title, { color: theme.text }]}>Elige cómo viajar</Text>
-            {distanceKm && durationMin ? (
+            <Text style={[styles.title, { color: theme.text }]}>{title}</Text>
+            {onShowAllServices ? (
+              <TouchableOpacity
+                onPress={onShowAllServices}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel="Ver otros servicios"
+              >
+                <Text style={[styles.link, { color: theme.text }]}>Otros servicios</Text>
+              </TouchableOpacity>
+            ) : distanceKm && durationMin ? (
               <Text style={[styles.meta, { color: theme.textMuted }]}>
                 {distanceKm.toFixed(1)} km · {durationMin} min
               </Text>
@@ -320,6 +343,11 @@ const styles = StyleSheet.create({
   title: {
     fontFamily: FontFamily.semibold,
     fontSize: FontSize.lead,
+  },
+  link: {
+    fontFamily: FontFamily.semibold,
+    fontSize: FontSize.caption,
+    textDecorationLine: 'underline',
   },
   meta: {
     fontFamily: FontFamily.regular,

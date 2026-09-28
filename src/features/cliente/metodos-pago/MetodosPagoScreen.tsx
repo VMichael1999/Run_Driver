@@ -7,6 +7,7 @@ import type { ClienteStackParamList } from '@navigation/types';
 import type { PaymentMode } from '@shared/types';
 import { usePaymentSelectionStore } from '@store/usePaymentSelectionStore';
 import { useRideDraftStore } from '@store/useRideDraftStore';
+import { useScheduledTripsStore } from '@store/useScheduledTripsStore';
 import { PAYMENT_METHODS, type PaymentMethodId } from '@shared/data/paymentMethods';
 import { PageHeader } from '@shared/components/ui/PageHeader';
 import { useAppTheme } from '@theme/useAppTheme';
@@ -22,16 +23,29 @@ export function MetodosPagoScreen({ navigation, route }: Props) {
   const insets = useSafeAreaInsets();
   const theme = useAppTheme();
   const forRide = route.params?.forRide === true;
+  const scheduledTripId = route.params?.scheduledTripId;
+  const scheduledTrip = useScheduledTripsStore((s) => s.trips.find((t) => t.id === scheduledTripId));
+  const updateScheduledTrip = useScheduledTripsStore((s) => s.updateTrip);
 
   const preferredId = usePaymentSelectionStore((s) => s.selectedId);
   const setPreferred = usePaymentSelectionStore((s) => s.setSelected);
   const ridePayment = useRideDraftStore((s) => s.paymentMethod);
   const setRidePayment = useRideDraftStore((s) => s.setPaymentMethod);
 
-  const selectedId = forRide ? ID_BY_MODE[ridePayment.mode] : preferredId;
+  const selectedId = scheduledTripId
+    ? ID_BY_MODE[scheduledTrip?.paymentMode ?? 'Efectivo']
+    : forRide
+    ? ID_BY_MODE[ridePayment.mode]
+    : preferredId;
 
   const handleSelect = (id: PaymentMethodId) => {
     void Haptics.selectionAsync();
+    if (scheduledTripId) {
+      // Desde un viaje programado: cambia solo el pago de ese viaje.
+      updateScheduledTrip(scheduledTripId, { paymentMode: MODE_BY_ID[id] });
+      navigation.goBack();
+      return;
+    }
     if (forRide) {
       // Desde la solicitud de viaje: se aplica al viaje y se vuelve a la lista de servicios.
       setRidePayment({ ...ridePayment, mode: MODE_BY_ID[id] });
@@ -50,7 +64,7 @@ export function MetodosPagoScreen({ navigation, route }: Props) {
         <PageHeader title="Métodos de pago" onBack={() => navigation.goBack()} />
 
         <Text style={[styles.lead, { color: theme.textMuted }]}>
-          {forRide
+          {forRide || scheduledTripId
             ? 'Elige cómo vas a pagar este viaje.'
             : 'El que elijas se usará en tus próximos viajes. Puedes cambiarlo antes de pedir.'}
         </Text>

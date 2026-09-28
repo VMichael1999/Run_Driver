@@ -25,6 +25,8 @@ interface AuctionFareSheetProps {
   routeLabel?: string;
   /** "6.1 km", siempre visible al final de la ruta. */
   routeDistance?: string;
+  /** Tarjeta con origen, paradas y destino; si se pasa, reemplaza a `routeLabel`. */
+  routeCard?: React.ReactNode;
   paymentMode: PaymentMode;
   /** El conductor recibe `fare` completo; el pasajero paga con el descuento. */
   discount?: TripDiscount | null;
@@ -51,6 +53,7 @@ export function AuctionFareSheet({
   baseFare = 25,
   routeLabel,
   routeDistance,
+  routeCard,
   paymentMode,
   discount,
   onOpenPayment,
@@ -94,7 +97,7 @@ export function AuctionFareSheet({
 
         <View style={styles.titleBlock}>
           <Text style={[styles.question, { color: theme.text }]}>¿Cuánto quieres pagar?</Text>
-          {routeLabel ? (
+          {routeLabel && !routeCard ? (
             <View style={styles.routeRow}>
               <Text style={[styles.route, styles.routeName, { color: theme.textMuted }]} numberOfLines={1}>
                 {routeLabel}
@@ -105,6 +108,8 @@ export function AuctionFareSheet({
             </View>
           ) : null}
         </View>
+
+        {routeCard}
 
         <PriceStepper
           value={fare}

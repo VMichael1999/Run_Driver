@@ -86,11 +86,19 @@ export async function getPlaceDetails(placeId: string, sessionToken: string): Pr
   };
 }
 
-export async function getRoutePolyline(origin: Coordinates, destination: Coordinates): Promise<Coordinates[]> {
+/** `waypoints`: paradas intermedias, en orden; la ruta pasa por cada una. */
+export async function getRoutePolyline(
+  origin: Coordinates,
+  destination: Coordinates,
+  waypoints: Coordinates[] = [],
+): Promise<Coordinates[]> {
   const response = await axios.get(DIRECTIONS_URL, {
     params: {
       origin: `${origin.latitude},${origin.longitude}`,
       destination: `${destination.latitude},${destination.longitude}`,
+      ...(waypoints.length
+        ? { waypoints: waypoints.map((p) => `${p.latitude},${p.longitude}`).join('|') }
+        : {}),
       key: GOOGLE_MAPS_API_KEY,
       language: 'es',
       mode: 'driving',

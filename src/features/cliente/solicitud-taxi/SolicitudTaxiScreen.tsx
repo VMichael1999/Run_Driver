@@ -6,11 +6,19 @@ import {
   Alert,
   Animated,
   Image,
+  useWindowDimensions,
 } from 'react-native';
+import Reanimated, {
+  interpolate,
+  runOnJS,
+  useAnimatedReaction,
+  useAnimatedStyle,
+  useSharedValue,
+} from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MapView, { Marker, PROVIDER_GOOGLE, type Region } from 'react-native-maps';
 import { RoutePolyline } from '@shared/components/map/RoutePolyline';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { ClienteStackParamList } from '@navigation/types';
 import { useTaxiStore } from '@store/useTaxiStore';
@@ -18,27 +26,45 @@ import { useThemeStore } from '@store/useThemeStore';
 import { AppIcon } from '@shared/components/ui/AppIcon';
 import { getMapStyle } from '@theme/mapStyles';
 import { useRideDraftStore } from '@store/useRideDraftStore';
+import { useScheduledTripsStore } from '@store/useScheduledTripsStore';
+import { applyDiscount } from '@features/cliente/promociones/utils/descuentos';
 import { useDescuentoVigente } from '@features/cliente/promociones/hooks/useDescuentoVigente';
 import { Colors } from '@theme/colors';
 import { useAppTheme } from '@theme/useAppTheme';
 import { BorderRadius, Shadow } from '@theme/spacing';
-import { calculateDistance } from '@shared/utils/mapUtils';
 import { getPlaceNameFromCoordinates } from '@shared/utils/locationUtils';
 import {
   ServiceSelectionSheet,
   useServiceSheetHeights,
-  type VehicleServiceOption,
   AuctionFareSheet,
   getAuctionRange,
   AuctionOffersView,
   AuctionPickupSheet,
   TripNotesModal,
   TripScheduleModal,
+  RouteStopsCard,
+  RideSearchView,
   useAuctionSimulation,
   SEARCH_WINDOW_SECONDS,
 } from './components';
+import { MAX_EXTRA_STOPS, buildTaxiRequest, routeKey, tripDistanceKm } from './utils/routeRequest';
+import { VEHICLE_SERVICES } from './data/services';
 
 type Nav = NativeStackNavigationProp<ClienteStackParamList, 'SolicitudTaxi'>;
+
+/** Servicio con el que va directo la tarjeta "Viaje" del inicio. */
+const DEFAULT_RIDE_SERVICE_ID = 'confort';
+/** Servicio con el que va directo la tarjeta "Programar" del inicio. */
+const DEFAULT_SCHEDULE_SERVICE_ID = 'espera_ahorra';
+/** Simulación: tiempo hasta que un conductor toma un viaje de precio fijo. */
+const RIDE_MATCH_DELAY_MS = 4500;
+/** Un viaje se programa con al menos esta anticipación. */
+const MIN_SCHEDULE_AHEAD_MS = 15 * 60 * 1000;
+/** Flecha de volver sobre la hoja: 44 de alto + 12 de separación con el borde de la hoja. */
+const BACK_BUTTON_SIZE = 44;
+const BACK_DOCK_GAP = 12;
+/** Recorrido en el que la flecha se desvanece al acercarse a la tarjeta de direcciones. */
+const BACK_FADE_DISTANCE = 48;
 
 const ORIGIN_PIN = require('../../../../assets/legacy/images/location_origen.png');
 const DESTINATION_PIN = require('../../../../assets/legacy/images/location_destino.png');
@@ -50,88 +76,14 @@ const LIMA_REGION: Region = {
   longitudeDelta: 0.05,
 };
 
-const VEHICLE_SERVICES: VehicleServiceOption[] = [
-  {
-    id: 'subasta',
-    name: 'Subasta',
-    subtitle: 'Tú propones el precio',
-    price: 0,
-    currency: 'S/',
-    etaMinutes: 4,
-    seats: 4,
-    image: require('../../../../assets/servicios/recorte/subasta.png'),
-    isAuction: true,
-  },
-  {
-    id: 'xlcab_go',
-    name: 'XLCAB GO',
-    subtitle: 'Rápido y económico',
-    price: 25.5,
-    currency: 'S/',
-    etaMinutes: 4,
-    seats: 4,
-    image: require('../../../../assets/servicios/recorte/xlcab-go.png'),
-  },
-  {
-    id: 'confort',
-    name: 'Confort',
-    subtitle: 'Autos nuevos con aire acondicionado',
-    price: 35.0,
-    currency: 'S/',
-    etaMinutes: 5,
-    seats: 4,
-    image: require('../../../../assets/servicios/recorte/confort.png'),
-  },
-  {
-    id: 'premium',
-    name: 'Premium',
-    subtitle: 'Sedanes ejecutivos de alta gama',
-    price: 54.0,
-    currency: 'S/',
-    etaMinutes: 8,
-    seats: 4,
-    image: require('../../../../assets/servicios/recorte/premium.png'),
-  },
-  {
-    id: 'xl',
-    name: 'XL',
-    subtitle: 'Camionetas y vans familiares',
-    price: 64.0,
-    currency: 'S/',
-    etaMinutes: 10,
-    seats: 6,
-    image: require('../../../../assets/servicios/recorte/xl.png'),
-  },
-  {
-    id: 'pet',
-    name: 'Pet',
-    subtitle: 'Viaja seguro con tu mascota',
-    price: 48.0,
-    currency: 'S/',
-    etaMinutes: 7,
-    seats: 4,
-    image: require('../../../../assets/servicios/recorte/pet.png'),
-  },
-  {
-    id: 'espera_ahorra',
-    name: 'Espera y Ahorra',
-    subtitle: 'Tarifa reducida esperando unos minutos más',
-    price: 42.0,
-    currency: 'S/',
-    etaMinutes: 6,
-    seats: 4,
-    image: require('../../../../assets/servicios/recorte/espera-ahorra.png'),
-  },
-];
-
 export function SolicitudTaxiScreen() {
   const navigation = useNavigation<Nav>();
+  const autoSearchServiceId = useRoute<RouteProp<ClienteStackParamList, 'SolicitudTaxi'>>().params?.autoSearchServiceId;
   const insets = useSafeAreaInsets();
   const theme = useAppTheme();
   const isDark = useThemeStore((s) => s.isDark);
   // Se fija al aceptar el viaje; el conductor cobra su precio y la diferencia la pone la empresa.
   const discount = useDescuentoVigente();
-  const sheetHeights = useServiceSheetHeights(undefined, Boolean(discount));
   const mapRef = useRef<MapView | null>(null);
 
   // Stores
@@ -140,18 +92,64 @@ export function SolicitudTaxiScreen() {
   const paymentMethod = useRideDraftStore((s) => s.paymentMethod);
   const tripNotes = useRideDraftStore((s) => s.comment);
   const setTripNotes = useRideDraftStore((s) => s.setComment);
+  const entryMode = useRideDraftStore((s) => s.entryMode);
+  const draftOrigin = useRideDraftStore((s) => s.origin);
+  const draftDestination = useRideDraftStore((s) => s.destination);
+  const extraStops = useRideDraftStore((s) => s.extraStops);
+  const removeExtraStop = useRideDraftStore((s) => s.removeExtraStop);
+  const addExtraStop = useRideDraftStore((s) => s.addExtraStop);
+  const setRequest = useTaxiStore((s) => s.setRequest);
+  const scheduleTrip = useScheduledTripsStore((s) => s.scheduleTrip);
 
   // Subasta simulation
   const auction = useAuctionSimulation();
 
   // Estados locales de selección
-  const [selectedServiceId, setSelectedServiceId] = useState('subasta');
+  // "Viaje" muestra solo Confort y "Programar" solo Espera y Ahorra, hasta que se pide ver los demás.
+  const [showAllServices, setShowAllServices] = useState(false);
+  const isScheduleMode = entryMode === 'schedule';
+  const isRideMode = entryMode === 'ride' && !showAllServices;
+  const isSingleService = (entryMode === 'ride' || isScheduleMode) && !showAllServices;
+  const isAuctionEntry = entryMode === 'auction';
+  const [selectedServiceId, setSelectedServiceId] = useState(
+    autoSearchServiceId ??
+      (entryMode === 'ride' ? DEFAULT_RIDE_SERVICE_ID : isScheduleMode ? DEFAULT_SCHEDULE_SERVICE_ID : 'subasta'),
+  );
+  // Búsqueda de conductor de un viaje de precio fijo (id del servicio pedido).
+  const [rideSearchServiceId, setRideSearchServiceId] = useState<string | null>(autoSearchServiceId ?? null);
+  const [routeCardHeight, setRouteCardHeight] = useState(0);
+  // Con un solo servicio la hoja es más baja; se usa el alto de una fila (62) para el mapa.
+  const sheetHeights = useServiceSheetHeights(
+    isSingleService ? 62 : undefined,
+    Boolean(discount),
+  );
   const [auctionFare, setAuctionFare] = useState(25);
   const [auctionFareVisible, setAuctionFareVisible] = useState(false);
   const [isAuctionPickupMode, setIsAuctionPickupMode] = useState(false);
   const [isAuctionRequestMode, setIsAuctionRequestMode] = useState(false);
   const [searchStartedAt, setSearchStartedAt] = useState(0);
   const [autoAccept, setAutoAccept] = useState(false);
+
+  // Con la hoja de servicios, la flecha de volver flota sobre ella y la acompaña al arrastrarla;
+  // se desvanece al acercarse a la tarjeta de direcciones y vuelve a aparecer al bajar la hoja.
+  const showsServiceSheet = !rideSearchServiceId && !isAuctionRequestMode && !isAuctionPickupMode;
+  const { height: windowHeight } = useWindowDimensions();
+  const sheetHeightValue = useSharedValue(sheetHeights.collapsed);
+  const [backHidden, setBackHidden] = useState(false);
+  const backCollisionY = insets.top + 6 + routeCardHeight + 8;
+  const backDockStyle = useAnimatedStyle(() => {
+    const top = windowHeight - sheetHeightValue.value - BACK_DOCK_GAP - BACK_BUTTON_SIZE;
+    const visible = interpolate(top, [backCollisionY, backCollisionY + BACK_FADE_DISTANCE], [0, 1], 'clamp');
+    return { top, opacity: visible, transform: [{ scale: 0.8 + 0.2 * visible }] };
+  });
+  // Oculta del todo, no se puede tocar.
+  useAnimatedReaction(
+    () => windowHeight - sheetHeightValue.value - BACK_DOCK_GAP - BACK_BUTTON_SIZE < backCollisionY + 4,
+    (hidden, previous) => {
+      if (hidden !== previous) runOnJS(setBackHidden)(hidden);
+    },
+    [windowHeight, backCollisionY],
+  );
 
   // Modales
   const [notesModalVisible, setNotesModalVisible] = useState(false);
@@ -164,9 +162,16 @@ export function SolicitudTaxiScreen() {
   const [isConfirmingPickup, setIsConfirmingPickup] = useState(false);
   const pinLift = useRef(new Animated.Value(0)).current;
 
+  const stops = request?.stops ?? [];
+  const sheetServices = isSingleService
+    ? VEHICLE_SERVICES.filter((s) => s.id === (isScheduleMode ? DEFAULT_SCHEDULE_SERVICE_ID : DEFAULT_RIDE_SERVICE_ID))
+    : isScheduleMode
+    ? VEHICLE_SERVICES.filter((s) => !s.isAuction)
+    : VEHICLE_SERVICES;
+
   // Distancia y tiempo calculados
   const distanceKm = request?.origin && request?.destination
-    ? calculateDistance(request.origin.position, request.destination.position)
+    ? tripDistanceKm(request.origin, request.destination, stops)
     : 6.1;
   const durationMin = Math.round(distanceKm * 2.8);
   const auctionBaseFare = Math.round(distanceKm * 2.8 + 8);
@@ -176,6 +181,47 @@ export function SolicitudTaxiScreen() {
     : undefined;
   const openPaymentMethods = () => navigation.navigate('MetodosPago', { forRide: true });
 
+  // Al cambiar origen, destino o paradas desde la tarjeta superior, se recalcula la ruta.
+  const draftRouteKey = routeKey(draftOrigin, draftDestination, extraStops);
+  const requestRouteKey = routeKey(request?.origin, request?.destination, request?.stops);
+  useEffect(() => {
+    if (!draftOrigin || !draftDestination || draftRouteKey === requestRouteKey) return;
+    let cancelled = false;
+    void buildTaxiRequest({
+      origin: draftOrigin,
+      destination: draftDestination,
+      stops: extraStops,
+      paymentMethod,
+      comment: tripNotes,
+    }).then((next) => {
+      if (!cancelled) setRequest(next);
+    });
+    return () => {
+      cancelled = true;
+    };
+    // Solo interesa el recorrido; el resto de la solicitud se toma tal como está al recalcular.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draftRouteKey, requestRouteKey]);
+
+  const editOrigin = () => navigation.navigate('SearchAddress', { target: 'origin', editing: true });
+  const editDestination = () => navigation.navigate('SearchAddress', { target: 'destination', editing: true });
+  const renderRouteCard = (variant: 'floating' | 'inline') => (
+    <RouteStopsCard
+      origin={draftOrigin ?? request?.origin}
+      destination={draftDestination ?? request?.destination}
+      stops={extraStops}
+      durationMin={durationMin}
+      onEditOrigin={editOrigin}
+      onEditDestination={editDestination}
+      canAddStop={extraStops.length < MAX_EXTRA_STOPS}
+      onAddStop={addExtraStop}
+      onPickStopOnMap={() => navigation.navigate('SelectAddressOnMap', { target: 'extra-stop', editing: true })}
+      onRemoveStop={removeExtraStop}
+      searchBias={(draftDestination ?? request?.destination)?.position}
+      variant={variant}
+    />
+  );
+
   // Animación del pin en pickup mode
   const animatePin = useCallback((toValue: number) => {
     Animated.timing(pinLift, {
@@ -184,6 +230,20 @@ export function SolicitudTaxiScreen() {
       useNativeDriver: true,
     }).start();
   }, [pinLift]);
+
+  // Al fijar el punto de partida, el mapa se acerca al origen para ajustarlo con precisión.
+  useEffect(() => {
+    const start = request?.origin;
+    if (!isAuctionPickupMode || !start) return;
+    setPickupPoint(start.position);
+    setPickupAddress(start.placeName);
+    mapRef.current?.animateToRegion(
+      { ...start.position, latitudeDelta: 0.004, longitudeDelta: 0.004 },
+      450,
+    );
+    // Solo al entrar en el modo; luego el pasajero mueve el mapa a su gusto.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuctionPickupMode]);
 
   // Al salir de la solicitud, lo que se configuró para este viaje (nota) se descarta:
   // la próxima búsqueda empieza de cero.
@@ -201,21 +261,39 @@ export function SolicitudTaxiScreen() {
         if (now - lastDragFitRef.current < 120) return;
         lastDragFitRef.current = now;
       }
+      // mapPadding ya reserva la altura mínima de la hoja; aquí solo se suma lo que crece al arrastrarla.
+      // Arriba se deja libre la tarjeta de origen, paradas y destino.
+      let top = 24 + routeCardHeight;
+      let bottom = Math.max(0, sheetHeight - sheetHeights.collapsed) + 16;
+      // Si la hoja y la tarjeta casi se juntan, el mapa se alejaría hasta mostrar el continente:
+      // los márgenes se reducen para dejar siempre una franja donde encuadrar la ruta.
+      const mapArea = windowHeight - (insets.top + 8) - sheetHeights.collapsed;
+      const maxPadding = Math.max(0, mapArea - 80);
+      if (top + bottom > maxPadding) {
+        const ratio = maxPadding / (top + bottom);
+        top *= ratio;
+        bottom *= ratio;
+      }
       mapRef.current?.fitToCoordinates(
-        [request.origin.position, request.destination.position, ...(request.routePoints ?? [])],
+        [
+          request.origin.position,
+          request.destination.position,
+          ...(request.stops ?? []).map((stop) => stop.position),
+          ...(request.routePoints ?? []),
+        ],
         {
-          // mapPadding ya reserva la altura mínima de la hoja; aquí solo se suma lo que crece al arrastrarla.
-          edgePadding: { top: 24, right: 40, bottom: Math.max(0, sheetHeight - sheetHeights.collapsed) + 16, left: 40 },
+          edgePadding: { top, right: 40, bottom, left: 40 },
           animated: settled,
         },
       );
     },
-    [request, isAuctionPickupMode, sheetHeights.collapsed],
+    [request, isAuctionPickupMode, sheetHeights.collapsed, routeCardHeight, windowHeight, insets.top],
   );
 
+  // Al cambiar la ruta o la tarjeta, se encuadra con la hoja en la altura que tenga en ese momento.
   useEffect(() => {
-    fitRoute(sheetHeights.collapsed);
-  }, [fitRoute, sheetHeights.collapsed]);
+    fitRoute(sheetHeightValue.value);
+  }, [fitRoute, sheetHeightValue]);
 
   // Submit desde el sheet de selección de servicio
   const handleServiceSubmit = () => {
@@ -224,25 +302,92 @@ export function SolicitudTaxiScreen() {
       // Empieza en el mínimo sugerido, donde los conductores suelen responder.
       setAuctionFare(getAuctionRange(auctionBaseFare).suggestedMin);
       setAuctionFareVisible(true);
+    } else if (isScheduleMode) {
+      setScheduleModalVisible(true);
     } else {
+      setRideSearchServiceId(selected.id);
+    }
+  };
+
+  // Simulación: pasado un momento, un conductor toma el viaje de precio fijo.
+  useEffect(() => {
+    if (!rideSearchServiceId) return;
+    const service = VEHICLE_SERVICES.find((s) => s.id === rideSearchServiceId) ?? VEHICLE_SERVICES[1];
+    const timer = setTimeout(() => {
       acceptOffer({
         driverName: 'Conductor asignado',
         phone: '+51 999 888 777',
         rating: 4.9,
         vehiclePlate: 'ABC-123',
-        vehicleModel: selected.name,
+        vehicleModel: service.name,
         vehicleColor: 'Plata',
         imageUrl: 'https://i.pravatar.cc/100?img=11',
-        price: selected.price,
-        currency: selected.currency,
-        etaMinutes: selected.etaMinutes,
+        price: service.price,
+        currency: service.currency,
+        etaMinutes: service.etaMinutes,
         distanceKm: 1.2,
       }, discount);
       navigation.replace('TrayectoTaxi');
-    }
+    }, RIDE_MATCH_DELAY_MS);
+    return () => clearTimeout(timer);
+    // El descuento queda fijado al empezar la búsqueda.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rideSearchServiceId]);
+
+  const handleCancelRideSearch = () => {
+    Alert.alert('Cancelar solicitud', '¿Quieres dejar de buscar conductor?', [
+      { text: 'Seguir buscando', style: 'cancel' },
+      { text: 'Cancelar solicitud', style: 'destructive', onPress: () => setRideSearchServiceId(null) },
+    ]);
   };
 
-  const closeAuctionFare = useCallback(() => setAuctionFareVisible(false), []);
+  // Tarjeta "Subasta" del inicio: se abre directo la pantalla para proponer el precio.
+  const openedAuctionEntryRef = useRef(false);
+  useEffect(() => {
+    if (!isAuctionEntry || openedAuctionEntryRef.current || !request) return;
+    openedAuctionEntryRef.current = true;
+    setSelectedServiceId('subasta');
+    setAuctionFare(getAuctionRange(auctionBaseFare).suggestedMin);
+    setAuctionFareVisible(true);
+  }, [isAuctionEntry, request, auctionBaseFare]);
+
+  // Si se entró por "Subasta", cerrar su pantalla es salir de la solicitud.
+  const closeAuctionFare = useCallback(() => {
+    if (isAuctionEntry) navigation.goBack();
+    else setAuctionFareVisible(false);
+  }, [isAuctionEntry, navigation]);
+
+  // Al salir de la recogida o cancelar la búsqueda, "Subasta" vuelve a su pantalla de precio.
+  const leavePickupMode = () => {
+    setIsAuctionPickupMode(false);
+    if (isAuctionEntry) setAuctionFareVisible(true);
+  };
+
+  const handleScheduleConfirm = (date: Date) => {
+    if (date.getTime() - Date.now() < MIN_SCHEDULE_AHEAD_MS) {
+      Alert.alert('Hora no válida', 'Programa el viaje con al menos 15 minutos de anticipación.');
+      return;
+    }
+    const service = VEHICLE_SERVICES.find((s) => s.id === selectedServiceId && !s.isAuction)
+      ?? VEHICLE_SERVICES.find((s) => s.id === DEFAULT_SCHEDULE_SERVICE_ID)!;
+    scheduleTrip({
+      origin: request?.origin ?? null,
+      destination: request?.destination ?? null,
+      stops: request?.stops,
+      routePoints: request?.routePoints,
+      service: { id: service.id, name: service.name, price: service.price, currency: service.currency },
+      paymentMode: paymentMethod.mode,
+      scheduledFor: date.getTime(),
+      notes: tripNotes || undefined,
+    });
+    const when = date.toLocaleString('es-PE', { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
+    Alert.alert('Viaje programado', `Buscaremos tu ${service.name} el ${when}`, [
+      {
+        text: 'Ver viajes programados',
+        onPress: () => navigation.reset({ index: 1, routes: [{ name: 'ClienteHome' }, { name: 'ProgramarViaje' }] }),
+      },
+    ]);
+  };
 
   // Confirmar tarifa en la pantalla de Subasta
   const handleConfirmAuctionFare = (fare: number) => {
@@ -286,6 +431,7 @@ export function SolicitudTaxiScreen() {
             setAutoAccept(false);
             // Lo editado durante la búsqueda no se conserva: la próxima vez parte del precio base.
             setAuctionFare(getAuctionRange(auctionBaseFare).suggestedMin);
+            if (isAuctionEntry) setAuctionFareVisible(true);
           },
         },
       ],
@@ -320,7 +466,17 @@ export function SolicitudTaxiScreen() {
         provider={PROVIDER_GOOGLE}
         customMapStyle={getMapStyle(isDark)}
         // En modo recogida el pin fijo está en el centro de la pantalla, así que no se desplaza el centro del mapa.
-        mapPadding={isAuctionPickupMode ? { top: 0, right: 0, bottom: 0, left: 0 } : { top: insets.top + 8, right: 0, bottom: sheetHeights.collapsed, left: 0 }}
+        // Con la flecha sobre la hoja, el logo de Google sube por encima de ella para no quedar tapado.
+        mapPadding={
+          isAuctionPickupMode
+            ? { top: 0, right: 0, bottom: 0, left: 0 }
+            : {
+                top: insets.top + 8,
+                right: 0,
+                bottom: sheetHeights.collapsed + (showsServiceSheet ? BACK_BUTTON_SIZE + BACK_DOCK_GAP : 0),
+                left: 0,
+              }
+        }
         userInterfaceStyle={isDark ? 'dark' : 'light'}
         initialRegion={LIMA_REGION}
         showsUserLocation={false}
@@ -348,6 +504,21 @@ export function SolicitudTaxiScreen() {
           </Marker>
         ) : null}
 
+        {!isAuctionPickupMode
+          ? stops.map((stop, index) => (
+              <Marker
+                key={`stop-${index}`}
+                coordinate={stop.position}
+                anchor={{ x: 0.5, y: 0.5 }}
+                title={`Parada ${index + 1}`}
+              >
+                <View style={[styles.stopMarker, { backgroundColor: theme.surface, borderColor: Colors.pinRing }]}>
+                  <View style={[styles.stopMarkerDot, { backgroundColor: theme.text }]} />
+                </View>
+              </Marker>
+            ))
+          : null}
+
         {request?.destination && !isAuctionPickupMode ? (
           <Marker coordinate={request.destination.position} anchor={{ x: 0.5, y: 1 }} title="Destino">
             <Image source={DESTINATION_PIN} style={styles.mapPin} resizeMode="contain" />
@@ -359,32 +530,65 @@ export function SolicitudTaxiScreen() {
         ) : null}
       </MapView>
 
-      {/* Botón flotante para retroceder */}
-      <TouchableOpacity
-        style={[
-          styles.floatingBackBtn,
-          {
-            top: insets.top + 6,
-            backgroundColor: theme.surface,
-          },
-          Shadow.raise,
-        ]}
-        onPress={() => {
-          if (isAuctionRequestMode) {
-            handleCancelAuction();
-          } else if (isAuctionPickupMode) {
-            setIsAuctionPickupMode(false);
-          } else {
-            navigation.goBack();
-          }
-        }}
-        activeOpacity={0.8}
-        accessible
-        accessibilityRole="button"
-        accessibilityLabel="Volver"
-      >
-        <AppIcon name="back" color={theme.text} />
-      </TouchableOpacity>
+      {/* Flecha de volver sobre la hoja de servicios */}
+      {showsServiceSheet && !auctionFareVisible ? (
+        <Reanimated.View
+          style={[styles.dockedBackWrap, backDockStyle]}
+          pointerEvents={backHidden ? 'none' : 'box-none'}
+        >
+          <TouchableOpacity
+            style={[styles.backButton, { backgroundColor: theme.surface }, Shadow.raise]}
+            onPress={() => navigation.goBack()}
+            activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel="Volver"
+            accessibilityElementsHidden={backHidden}
+          >
+            <AppIcon name="back" color={theme.text} />
+          </TouchableOpacity>
+        </Reanimated.View>
+      ) : null}
+
+      {/* Botón flotante para retroceder en los demás modos; la pantalla de Subasta tiene el suyo */}
+      {!showsServiceSheet && !auctionFareVisible ? (
+        <TouchableOpacity
+          style={[
+            styles.floatingBackBtn,
+            {
+              top: insets.top + 6,
+              backgroundColor: theme.surface,
+            },
+            Shadow.raise,
+          ]}
+          onPress={() => {
+            if (rideSearchServiceId) {
+              handleCancelRideSearch();
+            } else if (isAuctionRequestMode) {
+              handleCancelAuction();
+            } else if (isAuctionPickupMode) {
+              leavePickupMode();
+            } else {
+              navigation.goBack();
+            }
+          }}
+          activeOpacity={0.8}
+          accessible
+          accessibilityRole="button"
+          accessibilityLabel="Volver"
+        >
+          <AppIcon name="back" color={theme.text} />
+        </TouchableOpacity>
+      ) : null}
+
+      {/* Origen, paradas y destino; tocar un punto lo cambia */}
+      {showsServiceSheet ? (
+        <View
+          style={[styles.routeCardWrap, { top: insets.top + 6 }]}
+          onLayout={(e) => setRouteCardHeight(e.nativeEvent.layout.height)}
+        >
+          {renderRouteCard('floating')}
+        </View>
+      ) : null}
 
       {/* Pin interactivo en modo pickup */}
       {isAuctionPickupMode ? (
@@ -400,7 +604,24 @@ export function SolicitudTaxiScreen() {
       ) : null}
 
       {/* Capa de interfaz según modo activo */}
-      {isAuctionRequestMode ? (
+      {rideSearchServiceId ? (
+        (() => {
+          const service = VEHICLE_SERVICES.find((s) => s.id === rideSearchServiceId) ?? VEHICLE_SERVICES[1];
+          return (
+            <RideSearchView
+              serviceName={service.name}
+              serviceImage={service.image}
+              price={applyDiscount(service.price, discount)}
+              currency={service.currency}
+              origin={request?.origin}
+              destination={request?.destination}
+              stops={stops}
+              paymentMode={paymentMethod.mode}
+              onCancel={handleCancelRideSearch}
+            />
+          );
+        })()
+      ) : isAuctionRequestMode ? (
         <AuctionOffersView
           offers={auction.offers}
           requestedFare={auctionFare}
@@ -428,11 +649,19 @@ export function SolicitudTaxiScreen() {
           isResolving={isResolvingPickup}
           isConfirming={isConfirmingPickup}
           onConfirmPickup={() => void handleConfirmPickup()}
-          onCancel={() => setIsAuctionPickupMode(false)}
+          onCancel={leavePickupMode}
         />
       ) : (
         <ServiceSelectionSheet
-          services={VEHICLE_SERVICES}
+          key={isSingleService ? 'single' : 'all'}
+          services={sheetServices}
+          title={isRideMode ? 'Tu viaje' : isScheduleMode ? 'Programa tu viaje' : undefined}
+          submitLabel={
+            isScheduleMode
+              ? `Elegir fecha y hora · ${sheetServices.find((s) => s.id === selectedServiceId)?.name ?? 'Espera y Ahorra'}`
+              : undefined
+          }
+          onShowAllServices={isSingleService ? () => setShowAllServices(true) : undefined}
           selectedId={selectedServiceId}
           onSelectService={setSelectedServiceId}
           paymentMethod={paymentMethod}
@@ -442,9 +671,14 @@ export function SolicitudTaxiScreen() {
           distanceKm={distanceKm}
           durationMin={durationMin}
           onSubmit={handleServiceSubmit}
-          onSchedulePress={() => setScheduleModalVisible(true)}
+          onSchedulePress={
+            isScheduleMode || VEHICLE_SERVICES.find((s) => s.id === selectedServiceId)?.isAuction
+              ? undefined
+              : () => setScheduleModalVisible(true)
+          }
           discount={discount}
           onHeightChange={fitRoute}
+          heightValue={sheetHeightValue}
         />
       )}
 
@@ -455,6 +689,7 @@ export function SolicitudTaxiScreen() {
         baseFare={auctionBaseFare}
         routeLabel={auctionRouteLabel}
         routeDistance={`${distanceKm.toFixed(1)} km`}
+        routeCard={renderRouteCard('inline')}
         paymentMode={paymentMethod.mode}
         discount={discount}
         onOpenPayment={openPaymentMethods}
@@ -472,9 +707,9 @@ export function SolicitudTaxiScreen() {
 
       <TripScheduleModal
         visible={scheduleModalVisible}
-        onConfirm={() => {
-          Alert.alert('Viaje programado', 'Tu viaje ha sido programado con éxito.');
-        }}
+        initialDate={new Date(Date.now() + 30 * 60 * 1000)}
+        minimumDate={new Date(Date.now() + MIN_SCHEDULE_AHEAD_MS)}
+        onConfirm={handleScheduleConfirm}
         onClose={() => setScheduleModalVisible(false)}
       />
     </View>
@@ -496,6 +731,38 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     // Por encima de la capa de ofertas y su degradado.
     zIndex: 40,
+  },
+  routeCardWrap: {
+    position: 'absolute',
+    left: 12,
+    right: 12,
+    zIndex: 30,
+  },
+  // La posición vertical la anima backDockStyle, siguiendo el borde superior de la hoja.
+  dockedBackWrap: {
+    position: 'absolute',
+    left: 12,
+    zIndex: 25,
+  },
+  backButton: {
+    width: BACK_BUTTON_SIZE,
+    height: BACK_BUTTON_SIZE,
+    borderRadius: BorderRadius.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stopMarker: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    borderWidth: 3,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stopMarkerDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
   },
   mapPin: {
     width: 28,

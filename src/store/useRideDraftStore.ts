@@ -3,6 +3,15 @@ import type { Coordinates, LocationMarker, PaymentMethod } from '@shared/types';
 
 type HomeTab = 'ride' | 'rental' | 'outstation';
 
+/**
+ * Cómo se llegó a pedir el viaje desde el inicio:
+ * - choose: desde "¿A dónde vas?" o un favorito; se elige el servicio de la lista.
+ * - ride: tarjeta "Viaje"; va directo con Confort.
+ * - auction: tarjeta "Subasta"; va directo a proponer el precio.
+ * - schedule: tarjeta "Programar"; se elige servicio y fecha, y el viaje queda guardado.
+ */
+export type RequestEntryMode = 'choose' | 'ride' | 'auction' | 'schedule';
+
 interface RideDraftState {
   origin: LocationMarker | null;
   destination: LocationMarker | null;
@@ -11,6 +20,7 @@ interface RideDraftState {
   comment: string;
   selectedHomeTab: HomeTab;
   routePoints: Coordinates[];
+  entryMode: RequestEntryMode;
   setOrigin: (origin: LocationMarker | null) => void;
   setDestination: (destination: LocationMarker | null) => void;
   addExtraStop: (stop: LocationMarker) => void;
@@ -20,6 +30,7 @@ interface RideDraftState {
   setComment: (comment: string) => void;
   setSelectedHomeTab: (selectedHomeTab: HomeTab) => void;
   setRoutePoints: (routePoints: Coordinates[]) => void;
+  setEntryMode: (entryMode: RequestEntryMode) => void;
   resetDraft: () => void;
 }
 
@@ -31,6 +42,7 @@ export const useRideDraftStore = create<RideDraftState>((set) => ({
   comment: '',
   selectedHomeTab: 'ride',
   routePoints: [],
+  entryMode: 'choose',
   setOrigin: (origin) => set({ origin }),
   setDestination: (destination) => set({ destination }),
   addExtraStop: (stop) => set((state) => ({ extraStops: [...state.extraStops, stop] })),
@@ -40,6 +52,7 @@ export const useRideDraftStore = create<RideDraftState>((set) => ({
   setComment: (comment) => set({ comment }),
   setSelectedHomeTab: (selectedHomeTab) => set({ selectedHomeTab }),
   setRoutePoints: (routePoints) => set({ routePoints }),
+  setEntryMode: (entryMode) => set({ entryMode }),
   resetDraft: () => set({
     destination: null,
     extraStops: [],
