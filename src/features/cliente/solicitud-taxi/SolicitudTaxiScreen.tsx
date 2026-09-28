@@ -33,6 +33,7 @@ import {
   TripNotesModal,
   TripScheduleModal,
   useAuctionSimulation,
+  SEARCH_WINDOW_SECONDS,
 } from './components';
 
 type Nav = NativeStackNavigationProp<ClienteStackParamList, 'SolicitudTaxi'>;
@@ -145,6 +146,7 @@ export function SolicitudTaxiScreen() {
   const [auctionFareVisible, setAuctionFareVisible] = useState(false);
   const [isAuctionPickupMode, setIsAuctionPickupMode] = useState(false);
   const [isAuctionRequestMode, setIsAuctionRequestMode] = useState(false);
+  const [searchStartedAt, setSearchStartedAt] = useState(0);
 
   // Modales
   const [notesModalVisible, setNotesModalVisible] = useState(false);
@@ -177,6 +179,10 @@ export function SolicitudTaxiScreen() {
       useNativeDriver: true,
     }).start();
   }, [pinLift]);
+
+  // Al salir de la solicitud, lo que se configuró para este viaje (nota) se descarta:
+  // la próxima búsqueda empieza de cero.
+  useEffect(() => () => setTripNotes(''), [setTripNotes]);
 
   // Encuadra la ruta en el espacio del mapa que deja libre la hoja inferior.
   const lastDragFitRef = useRef(0);
@@ -240,13 +246,20 @@ export function SolicitudTaxiScreen() {
     setIsAuctionPickupMode(true);
   };
 
+  // Lanza (o relanza) la búsqueda: descarta las ofertas anteriores y reinicia la ventana de 30 s.
+  const startAuctionSearch = (fare: number) => {
+    setAuctionFare(fare);
+    setSearchStartedAt(Date.now());
+    auction.startSimulation(fare);
+  };
+
   // Confirmar punto de partida y lanzar subasta
   const handleConfirmPickup = async () => {
     setIsConfirmingPickup(true);
     try {
       setIsAuctionPickupMode(false);
       setIsAuctionRequestMode(true);
-      auction.startSimulation(auctionFare);
+      startAuctionSearch(auctionFare);
     } finally {
       setIsConfirmingPickup(false);
     }
@@ -263,8 +276,10 @@ export function SolicitudTaxiScreen() {
           text: 'Sí, cancelar',
           style: 'destructive',
           onPress: () => {
-            auction.stopSimulation();
+            auction.reset();
             setIsAuctionRequestMode(false);
+            // Lo editado durante la búsqueda no se conserva: la próxima vez parte del precio base.
+            setAuctionFare(getAuctionRange(auctionBaseFare).suggestedMin);
           },
         },
       ],
@@ -390,13 +405,16 @@ export function SolicitudTaxiScreen() {
       {/* Capa de interfaz según modo activo */}
       {isAuctionRequestMode ? (
         <AuctionOffersView
-          status={auction.status === 'completed' ? 'completed' : 'searching'}
           offers={auction.offers}
-          currentFare={auctionFare}
+          requestedFare={auctionFare}
+          searchStartedAt={searchStartedAt}
+          searchWindowSeconds={SEARCH_WINDOW_SECONDS}
+          minFare={getAuctionRange(auctionBaseFare).trackMin}
+          maxFare={getAuctionRange(auctionBaseFare).trackMax}
           onAcceptOffer={handleAcceptOffer}
           onRejectOffer={auction.rejectOffer}
-          onCancelAuction={handleCancelAuction}
-          onRaiseFare={() => setAuctionFare((prev) => prev + 1)}
+          onExpireOffer={auction.expireOffer}
+          onRestartSearch={startAuctionSearch}
         />
       ) : isAuctionPickupMode ? (
         <AuctionPickupSheet

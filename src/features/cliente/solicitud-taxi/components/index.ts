@@ -10,4 +10,4 @@ export { ServiceSelectionSheet, useServiceSheetHeights } from './ServiceSelectio
 export type { VehicleServiceOption } from './ServiceSelectionSheet';
 export { AuctionOffersView } from './AuctionOffersView';
 export type { AuctionOfferItem } from './AuctionOffersView';
-export { useAuctionSimulation } from '../hooks/useAuctionSimulation';
+export { useAuctionSimulation, SEARCH_WINDOW_SECONDS } from '../hooks/useAuctionSimulation';

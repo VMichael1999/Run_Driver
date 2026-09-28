@@ -1,20 +1,11 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  Image,
-  Animated,
-  ActivityIndicator,
-} from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import React from 'react';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import type { DriverAlert } from '@shared/types';
-import { Colors } from '@theme/colors';
 import { useAppTheme } from '@theme/useAppTheme';
 import { FontFamily, FontSize } from '@theme/fonts';
-import { Spacing, BorderRadius, Shadow } from '@theme/spacing';
-import { PlacaVehiculo } from '@shared/components/ui/PlacaVehiculo';
+import { BorderRadius } from '@theme/spacing';
+import { formatDistance } from '@shared/utils/mapUtils';
+import { CountdownButton } from './CountdownButton';
 
 interface DriverOfferCardProps {
   driver: DriverAlert;
@@ -23,307 +14,189 @@ interface DriverOfferCardProps {
   offeredFare: number;
   onAccept: () => void;
   onReject: () => void;
-  onTimeUpdate?: (remainingSeconds: number) => void;
+  /** La oferta venció: la lista la retira. */
   onExpired?: () => void;
 }
 
+function initials(name: string) {
+  return name
+    .replace('.', '')
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join('');
+}
+
+/** Tarjeta de oferta del diseño (.off). El tiempo restante vive en el botón "Aceptar". */
 export function DriverOfferCard({
   driver,
-  totalDurationSeconds = 12,
+  startTime,
+  totalDurationSeconds = 25,
   offeredFare,
   onAccept,
   onReject,
-  onTimeUpdate,
   onExpired,
 }: DriverOfferCardProps) {
   const theme = useAppTheme();
-  const [isAcceptLoading, setIsAcceptLoading] = useState(false);
-  const [isRejectLoading, setIsRejectLoading] = useState(false);
-  const [remainingSeconds, setRemainingSeconds] = useState(totalDurationSeconds);
-  const progressAnim = useRef(new Animated.Value(1)).current;
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const didExpireRef = useRef(false);
+  const startedAt = startTime.getTime();
+  const durationMs = totalDurationSeconds * 1000;
+  const [secondsLeft, setSecondsLeft] = React.useState(() =>
+    Math.max(0, Math.ceil((durationMs - (Date.now() - startedAt)) / 1000)),
+  );
 
-  const priceDiff = driver.price - offeredFare;
-  const isLower = priceDiff < -0.01;
-  const isHigher = priceDiff > 0.01;
-  const isSame = Math.abs(priceDiff) < 0.01;
-
-  useEffect(() => {
-    timerRef.current = setInterval(() => {
-      setRemainingSeconds((current) => {
-        const next = Math.max(0, current - 1);
-        onTimeUpdate?.(next);
-        return next;
-      });
+  React.useEffect(() => {
+    const id = setInterval(() => {
+      setSecondsLeft(Math.max(0, Math.ceil((durationMs - (Date.now() - startedAt)) / 1000)));
     }, 1000);
+    return () => clearInterval(id);
+  }, [durationMs, startedAt]);
 
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-    };
-  }, [onTimeUpdate]);
-
-  useEffect(() => {
-    if (remainingSeconds > 0 || didExpireRef.current) return;
-    didExpireRef.current = true;
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
-    }
-    onExpired?.();
-  }, [onExpired, remainingSeconds]);
-
-  useEffect(() => {
-    Animated.timing(progressAnim, {
-      toValue: Math.max(0, remainingSeconds / totalDurationSeconds),
-      duration: 950,
-      useNativeDriver: false,
-    }).start();
-  }, [progressAnim, remainingSeconds, totalDurationSeconds]);
-
-  const progressWidth = progressAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0%', '100%'],
-  });
-
-  const handleAccept = useCallback(async () => {
-    if (isAcceptLoading || isRejectLoading) return;
-    setIsAcceptLoading(true);
-    try {
-      await onAccept();
-    } finally {
-      setIsAcceptLoading(false);
-    }
-  }, [onAccept, isAcceptLoading, isRejectLoading]);
-
-  const handleReject = useCallback(async () => {
-    if (isAcceptLoading || isRejectLoading) return;
-    setIsRejectLoading(true);
-    try {
-      await onReject();
-    } finally {
-      setIsRejectLoading(false);
-    }
-  }, [onReject, isAcceptLoading, isRejectLoading]);
+  const diff = Number((driver.price - offeredFare).toFixed(2));
+  const isYourPrice = Math.abs(diff) < 0.01;
+  const priceLabel = `${driver.currency} ${driver.price.toFixed(2)}`;
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.surface, borderColor: theme.line }, Shadow.raise]}>
-      {/* Cabecera: Conductor, vehículo y precio */}
-      <View style={styles.topRow}>
-        <Image source={{ uri: driver.imageUrl }} style={styles.avatar} />
-
-        <View style={styles.driverInfo}>
-          <View style={styles.nameRow}>
-            <Text style={[styles.driverName, { color: theme.text }]} numberOfLines={1}>
-              {driver.driverName}
-            </Text>
-            <View style={styles.ratingBadge}>
-              <Ionicons name="star" size={13} color={Colors.star} />
-              <Text style={[styles.ratingText, { color: theme.text }]}>
-                {driver.rating.toFixed(1)}
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.vehicleRow}>
-            <Text style={[styles.vehicleModel, { color: theme.textMuted }]} numberOfLines={1}>
-              {driver.vehicleModel}
-            </Text>
-            <PlacaVehiculo plate={driver.vehiclePlate} size="sm" />
-          </View>
+    <View
+      style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.line }]}
+      accessible={false}
+    >
+      <View style={styles.top}>
+        <View style={[styles.avatar, { backgroundColor: theme.text }]}>
+          <Text style={[styles.avatarText, { color: theme.surface }]}>{initials(driver.driverName)}</Text>
         </View>
-
-        <View style={styles.priceColumn}>
-          <Text style={[styles.priceValue, { color: theme.text }]}>
-            {driver.currency} {driver.price.toFixed(2)}
+        <View style={styles.info}>
+          <Text style={[styles.name, { color: theme.text }]} numberOfLines={1}>
+            {driver.driverName}
           </Text>
-          {isSame ? (
-            <View style={[styles.diffBadge, { backgroundColor: theme.surfaceMuted }]}>
-              <Text style={[styles.diffText, { color: theme.textMuted }]}>Tu oferta</Text>
-            </View>
-          ) : isLower ? (
-            <View style={[styles.diffBadge, { backgroundColor: theme.onlineSoft }]}>
-              <Text style={[styles.diffText, { color: theme.online }]}>
-                −{driver.currency} {Math.abs(priceDiff).toFixed(0)}
-              </Text>
-            </View>
-          ) : isHigher ? (
-            <View style={[styles.diffBadge, { backgroundColor: theme.surfaceMuted }]}>
-              <Text style={[styles.diffText, { color: theme.textMuted }]}>
-                +{driver.currency} {priceDiff.toFixed(0)}
-              </Text>
-            </View>
-          ) : null}
+          <Text style={[styles.meta, { color: theme.textMuted }]} numberOfLines={1}>
+            ★ {driver.rating.toFixed(1)} · {driver.vehicleModel} {driver.vehicleColor.toLowerCase()} · {driver.vehiclePlate}
+          </Text>
+        </View>
+        <View style={styles.priceBlock}>
+          <Text style={[styles.price, { color: theme.text }]}>{priceLabel}</Text>
+          <View
+            style={[
+              styles.tag,
+              { backgroundColor: isYourPrice ? theme.onlineSoft : theme.background },
+            ]}
+          >
+            <Text style={[styles.tagText, { color: isYourPrice ? theme.online : theme.textMuted }]}>
+              {isYourPrice ? 'Tu precio' : `${diff > 0 ? '+' : '−'} S/ ${Math.abs(diff).toFixed(2)}`}
+            </Text>
+          </View>
         </View>
       </View>
 
-      {/* ETA y distancia */}
-      <View style={styles.metaRow}>
-        <Ionicons name="time-outline" size={14} color={theme.textMuted} />
-        <Text style={[styles.metaText, { color: theme.textMuted }]}>
-          Llega en {driver.etaMinutes} min ({driver.distanceKm.toFixed(1)} km)
+      <View style={styles.row}>
+        <Text style={[styles.small, { color: theme.textMuted }]}>
+          Llega en {driver.etaMinutes} min · {formatDistance(driver.distanceKm)}
+        </Text>
+        <Text style={[styles.small, { color: theme.textMuted }]} accessibilityLabel={`Vence en ${secondsLeft} segundos`}>
+          {secondsLeft} s
         </Text>
       </View>
 
-      {/* Barra regresiva de tiempo en Lima (#D4E838) */}
-      <View style={[styles.timerTrack, { backgroundColor: theme.line }]}>
-        <Animated.View style={[styles.timerBar, { width: progressWidth, backgroundColor: theme.sig }]} />
-      </View>
-
-      {/* Botones de acción */}
-      <View style={styles.actionsRow}>
+      <View style={styles.actions}>
         <TouchableOpacity
-          style={[styles.rejectBtn, { borderColor: theme.line, backgroundColor: theme.surface }]}
-          onPress={handleReject}
-          disabled={isAcceptLoading || isRejectLoading}
+          style={[styles.ignore, { borderColor: theme.line }]}
+          onPress={onReject}
           activeOpacity={0.8}
-          accessible
           accessibilityRole="button"
-          accessibilityLabel={`Rechazar oferta de ${driver.driverName}`}
+          accessibilityLabel={`Ignorar oferta de ${driver.driverName}`}
         >
-          {isRejectLoading ? (
-            <ActivityIndicator size="small" color={theme.textMuted} />
-          ) : (
-            <Text style={[styles.rejectText, { color: theme.textMuted }]}>Rechazar</Text>
-          )}
+          <Text style={[styles.ignoreText, { color: theme.textMuted }]}>Ignorar</Text>
         </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.acceptBtn, { backgroundColor: theme.sig }]}
-          onPress={handleAccept}
-          disabled={isAcceptLoading || isRejectLoading}
-          activeOpacity={0.85}
-          accessible
-          accessibilityRole="button"
-          accessibilityLabel={`Aceptar oferta de ${driver.driverName} por ${driver.currency} ${driver.price.toFixed(2)}`}
-        >
-          {isAcceptLoading ? (
-            <ActivityIndicator size="small" color={theme.onSig} />
-          ) : (
-            <Text style={[styles.acceptText, { color: theme.onSig }]}>
-              Aceptar por {driver.currency} {driver.price.toFixed(2)}
-            </Text>
-          )}
-        </TouchableOpacity>
+        <CountdownButton
+          style={styles.accept}
+          label={`Aceptar ${priceLabel}`}
+          accessibilityLabel={`Aceptar oferta de ${driver.driverName} por ${priceLabel}. Vence en ${secondsLeft} segundos`}
+          onPress={onAccept}
+          startedAt={startedAt}
+          durationMs={durationMs}
+          onExpire={onExpired}
+        />
       </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  card: {
     borderRadius: BorderRadius.xl,
-    padding: Spacing.md,
     borderWidth: 1,
-    gap: Spacing.sm,
-    marginBottom: Spacing.sm,
+    padding: 12,
+    gap: 10,
   },
-  topRow: {
+  top: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.md,
+    gap: 10,
   },
   avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-  },
-  driverInfo: {
-    flex: 1,
-    gap: 2,
-  },
-  nameRow: {
-    flexDirection: 'row',
+    width: 40,
+    height: 40,
+    borderRadius: BorderRadius.md,
     alignItems: 'center',
-    gap: 6,
+    justifyContent: 'center',
   },
-  driverName: {
+  avatarText: {
     fontFamily: FontFamily.bold,
-    fontSize: FontSize.md - 1,
+    fontSize: FontSize.sm,
   },
-  ratingBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
+  info: {
+    flex: 1,
   },
-  ratingText: {
+  name: {
     fontFamily: FontFamily.semibold,
-    fontSize: FontSize.xs,
+    fontSize: FontSize.body,
   },
-  vehicleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  vehicleModel: {
+  meta: {
     fontFamily: FontFamily.regular,
     fontSize: FontSize.xs,
-    maxWidth: 90,
   },
-  priceColumn: {
+  priceBlock: {
     alignItems: 'flex-end',
     gap: 2,
   },
-  priceValue: {
+  price: {
     fontFamily: FontFamily.bold,
-    fontSize: FontSize.lg,
-    fontVariant: ['tabular-nums'],
+    fontSize: FontSize.xl,
   },
-  diffBadge: {
-    paddingHorizontal: 6,
-    paddingVertical: 1.5,
+  tag: {
+    paddingHorizontal: 7,
+    paddingVertical: 2,
     borderRadius: BorderRadius.full,
   },
-  diffText: {
+  tagText: {
     fontFamily: FontFamily.semibold,
     fontSize: FontSize['2xs'],
   },
-  metaRow: {
+  row: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
+    justifyContent: 'space-between',
   },
-  metaText: {
+  small: {
     fontFamily: FontFamily.regular,
-    fontSize: FontSize.xs,
+    fontSize: FontSize.caption,
   },
-  timerTrack: {
-    height: 4,
-    borderRadius: 2,
-    overflow: 'hidden',
-    marginVertical: 2,
-  },
-  timerBar: {
-    height: '100%',
-    borderRadius: 2,
-  },
-  actionsRow: {
+  actions: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-    marginTop: 2,
+    gap: 8,
   },
-  rejectBtn: {
+  ignore: {
     flex: 1,
     height: 42,
-    borderRadius: BorderRadius.md,
+    borderRadius: 12,
     borderWidth: 1.5,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  rejectText: {
+  ignoreText: {
     fontFamily: FontFamily.semibold,
     fontSize: FontSize.sm,
   },
-  acceptBtn: {
+  accept: {
     flex: 1.6,
-    height: 42,
-    borderRadius: BorderRadius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  acceptText: {
-    fontFamily: FontFamily.bold,
-    fontSize: FontSize.sm,
   },
 });

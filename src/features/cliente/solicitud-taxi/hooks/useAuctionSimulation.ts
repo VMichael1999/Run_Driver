@@ -21,6 +21,8 @@ interface AuctionSimulationActions {
   stopSimulation: () => void;
   acceptOffer: (offerId: string) => void;
   rejectOffer: (offerId: string) => void;
+  /** Quita una oferta cuyo tiempo se agotó. */
+  expireOffer: (offerId: string) => void;
   reset: () => void;
 }
 
@@ -82,15 +84,17 @@ const SIMULATED_DRIVERS = [
   },
 ];
 
-const DELAY_ARRIVALS = [2000, 4000, 6000, 8000, 10000];
-const OFFER_DURATION_SECONDS = 10;
+// Las ofertas llegan dentro de la ventana de búsqueda de 30 s.
+export const SEARCH_WINDOW_SECONDS = 30;
+const DELAY_ARRIVALS = [2000, 5000, 9000, 14000, 20000];
+const OFFER_DURATION_SECONDS = 25;
 
 function generateOfferId(): string {
   return Math.random().toString(36).substring(2, 15);
 }
 
 function generatePriceVariation(basePrice: number, index: number): number {
-  const increments = [0, 3, 5, 8, 10];
+  const increments = [0, 2.5, 4, 6, 8];
   const increment = increments[index % increments.length];
   return Number((Math.max(0, basePrice) + increment).toFixed(2));
 }
@@ -156,7 +160,7 @@ export function useAuctionSimulation(): AuctionSimulationState & AuctionSimulati
 
       const completionTimer = setTimeout(() => {
         setStatus('completed');
-      }, DELAY_ARRIVALS[SIMULATED_DRIVERS.length - 1] + 2000);
+      }, SEARCH_WINDOW_SECONDS * 1000);
 
       timersRef.current.push(completionTimer);
     },
@@ -170,10 +174,11 @@ export function useAuctionSimulation(): AuctionSimulationState & AuctionSimulati
 
   const rejectOffer = useCallback((offerId: string) => {
     setOffers((prev) => prev.filter((offer) => offer.id !== offerId));
-    if (offers.length === 1) {
-      setStatus('completed');
-    }
-  }, [offers.length]);
+  }, []);
+
+  const expireOffer = useCallback((offerId: string) => {
+    setOffers((prev) => prev.filter((offer) => offer.id !== offerId));
+  }, []);
 
   useEffect(() => {
     return () => clearAllTimers();
@@ -187,6 +192,7 @@ export function useAuctionSimulation(): AuctionSimulationState & AuctionSimulati
     stopSimulation,
     acceptOffer,
     rejectOffer,
+    expireOffer,
     reset,
   };
 }
