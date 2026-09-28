@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Animated, Dimensions, Easing, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors } from '@theme/colors';
+import { useAppTheme } from '@theme/useAppTheme';
 import { FontFamily, FontSize } from '@theme/fonts';
 import { Spacing, BorderRadius, Shadow } from '@theme/spacing';
 
@@ -14,6 +14,7 @@ interface SearchingDriversUIProps {
 }
 
 export function SearchingDriversUI({ isSearching, onCancel, subtitle }: SearchingDriversUIProps) {
+  const theme = useAppTheme();
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const rotateAnim = useRef(new Animated.Value(0)).current;
   const rippleAnim = useRef(new Animated.Value(0)).current;
@@ -92,22 +93,23 @@ export function SearchingDriversUI({ isSearching, onCancel, subtitle }: Searchin
 
   return (
     <View style={styles.container}>
-      <View style={styles.searchingCard}>
+      <View style={[styles.searchingCard, { backgroundColor: theme.surface }]}>
         <Animated.View
           style={[
             styles.rippleCircle,
+            { backgroundColor: theme.auction },
             { transform: [{ scale: rippleScale }], opacity: rippleOpacity },
           ]}
         />
 
         <Animated.View
-          style={[styles.searchingCircle, { transform: [{ scale }, { rotate }] }]}
+          style={[styles.searchingCircle, { backgroundColor: theme.auction, transform: [{ scale }, { rotate }] }]}
         >
-          <Ionicons name="search" size={28} color={Colors.white} />
+          <Ionicons name="search" size={28} color={theme.onAuction} />
         </Animated.View>
 
-        <Text style={styles.title}>Buscando conductores</Text>
-        <Text style={styles.subtitle}>
+        <Text style={[styles.title, { color: theme.text }]}>Buscando conductores</Text>
+        <Text style={[styles.subtitle, { color: theme.textMuted }]}>
           Espera un momento mientras encontramos un conductor
         </Text>
       </View>
@@ -118,17 +120,18 @@ export function SearchingDriversUI({ isSearching, onCancel, subtitle }: Searchin
             key={i}
             style={[
               styles.driverAvatarPlaceholder,
+              { backgroundColor: theme.textDisabled },
               { opacity: 0.3 + i * 0.15 },
             ]}
           >
-            <Ionicons name="person" size={20} color={Colors.white} />
+            <Ionicons name="person" size={20} color={theme.surface} />
           </Animated.View>
         ))}
       </View>
 
       {onCancel && (
         <View style={styles.cancelSection}>
-          <Text style={styles.cancelText}>o cancela para buscar más tarde</Text>
+          <Text style={[styles.cancelText, { color: theme.textMuted }]}>o cancela para buscar más tarde</Text>
         </View>
       )}
     </View>
@@ -147,7 +150,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg,
   },
   searchingCard: {
-    backgroundColor: Colors.white,
     borderRadius: BorderRadius.xl,
     padding: Spacing['2xl'],
     alignItems: 'center',
@@ -159,13 +161,11 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: '#1d5fa8',
   },
   searchingCircle: {
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: '#1d5fa8',
     alignItems: 'center',
     justifyContent: 'center',
     ...Shadow.md,
@@ -173,14 +173,12 @@ const styles = StyleSheet.create({
   title: {
     fontFamily: FontFamily.bold,
     fontSize: FontSize.lg,
-    color: '#1f2937',
     marginTop: Spacing.lg,
     marginBottom: Spacing.xs,
   },
   subtitle: {
     fontFamily: FontFamily.regular,
     fontSize: FontSize.sm,
-    color: '#64748b',
     textAlign: 'center',
   },
   driverAvatarsRow: {
@@ -192,7 +190,6 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#94a3b8',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -202,6 +199,5 @@ const styles = StyleSheet.create({
   cancelText: {
     fontFamily: FontFamily.regular,
     fontSize: FontSize.sm,
-    color: '#94a3b8',
   },
 });

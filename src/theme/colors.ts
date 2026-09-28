@@ -47,12 +47,23 @@ export const Colors = {
   // Backward-compatibility aliases
   error: '#C8261B',
   success: '#157A45',
-  warning: '#F59E0B',
+  warning: '#B7791F',
+  warningSoft: '#FBEFD9',
+
+  // Superficies superpuestas
+  splash: '#0B0B0C',
+  scrim: 'rgba(5, 8, 10, 0.55)',
+  scrimSoft: 'rgba(5, 8, 10, 0.25)',
+  onDarkHigh: 'rgba(255, 255, 255, 0.7)',
+  onDarkMuted: 'rgba(255, 255, 255, 0.5)',
+  onDarkLine: 'rgba(255, 255, 255, 0.15)',
+  dangerOnDark: '#FF7A6E',
+  originHalo: 'rgba(21, 122, 69, 0.25)',
 
   // Peripherals & UI Elements
   divider: '#D5DADF',
   shadow: 'rgba(17, 21, 25, 0.14)',
-  star: '#F59E0B',
+  star: '#E8A317',
   plateBlue: '#1C4FA0',
 } as const;
 
@@ -88,6 +99,8 @@ export const ThemeColors = {
     dangerSoft: Colors.dangerSoft,
     cash: Colors.cash,
     cashSoft: Colors.cashSoft,
+    warning: Colors.warning,
+    warningSoft: Colors.warningSoft,
 
     // Colores semánticos del dominio
     origin: '#157A45',
@@ -133,6 +146,8 @@ export const ThemeColors = {
     dangerSoft: '#3A1916',
     cash: '#3DCB7E',
     cashSoft: '#15301F',
+    warning: '#F2C14E',
+    warningSoft: '#3A2E10',
 
     // Colores semánticos del dominio
     origin: '#3DCB7E',

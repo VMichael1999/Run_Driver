@@ -14,8 +14,6 @@ interface Props {
   onAddStop?: () => void;
 }
 
-const ACCENT = '#1d5fa8';
-
 export function TripTimeline({ pickup, dropoff, extraStop, onAddStop }: Props) {
   const theme = useAppTheme();
 
@@ -79,26 +77,26 @@ const styles = StyleSheet.create({
     width: 14,
     height: 14,
     borderRadius: 7,
-    backgroundColor: ACCENT,
+    backgroundColor: Colors.destination,
   },
   dotSmall: {
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: ACCENT,
+    backgroundColor: Colors.destination,
   },
   dotRing: {
     width: 14,
     height: 14,
     borderRadius: 7,
     borderWidth: 3,
-    borderColor: ACCENT,
+    borderColor: Colors.destination,
     backgroundColor: Colors.white,
   },
   connector: {
     flex: 1,
     width: 2,
-    backgroundColor: ACCENT,
+    backgroundColor: Colors.destination,
     marginVertical: 4,
     minHeight: 24,
   },
@@ -117,7 +115,7 @@ const styles = StyleSheet.create({
   addStop: {
     fontFamily: FontFamily.bold,
     fontSize: FontSize.sm,
-    color: ACCENT,
+    color: Colors.destination,
   },
   addStopRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
 });

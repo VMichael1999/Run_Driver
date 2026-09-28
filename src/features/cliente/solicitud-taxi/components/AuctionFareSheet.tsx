@@ -8,6 +8,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Colors } from '@theme/colors';
 import { useAppTheme } from '@theme/useAppTheme';
 import { FontFamily, FontSize } from '@theme/fonts';
 import { Spacing, BorderRadius, Shadow } from '@theme/spacing';
@@ -88,7 +89,7 @@ export function AuctionFareSheet({
               <Text
                 style={[
                   styles.rangeStatus,
-                  { color: isOptimal ? theme.online : isUnderSuggested ? '#EAB308' : theme.text },
+                  { color: isOptimal ? theme.online : isUnderSuggested ? theme.warning : theme.text },
                 ]}
               >
                 {isOptimal
@@ -127,7 +128,7 @@ export function AuctionFareSheet({
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(5, 8, 10, 0.55)',
+    backgroundColor: Colors.scrim,
     justifyContent: 'flex-end',
   },
   sheet: {

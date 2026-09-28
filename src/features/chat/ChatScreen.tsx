@@ -47,7 +47,7 @@ function MessageBubble({ message }: { message: ChatMessage }) {
         style={[
           styles.bubbleTime,
           message.isSentByMe
-            ? [styles.bubbleTimeSent, { color: 'rgba(255,255,255,0.7)' }]
+            ? [styles.bubbleTimeSent, { color: Colors.onDarkHigh }]
             : [styles.bubbleTimeReceived, { color: theme.textMuted }],
         ]}
       >

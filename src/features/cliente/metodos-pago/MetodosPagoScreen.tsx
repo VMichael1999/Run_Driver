@@ -66,7 +66,7 @@ export function MetodosPagoScreen() {
                 accessibilityState={{ checked: isSelected }}
                 accessibilityLabel={`${method.label}: ${method.description}${isSelected ? ', seleccionado' : ''}`}
               >
-                <View style={styles.iconContainer}>
+                <View style={[styles.iconContainer, { backgroundColor: theme.surfaceMuted }]}>
                   <Image
                     source={method.image}
                     style={styles.paymentLogo}
@@ -136,7 +136,6 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: BorderRadius.lg,
-    backgroundColor: '#F7F8F9',
     alignItems: 'center',
     justifyContent: 'center',
     padding: 6,

@@ -16,6 +16,7 @@ import { useRideDraftStore } from '@store/useRideDraftStore';
 import { useFavoriteAddressesStore } from '@store/useFavoriteAddressesStore';
 import { useTaxiStore } from '@store/useTaxiStore';
 import { getCurrentLocationMarker, getPlaceNameFromCoordinates } from '@shared/utils/locationUtils';
+import { Colors } from '@theme/colors';
 import { useAppTheme } from '@theme/useAppTheme';
 import { FontFamily, FontSize } from '@theme/fonts';
 import { BorderRadius, Shadow, Spacing } from '@theme/spacing';
@@ -288,7 +289,7 @@ const styles = StyleSheet.create({
     width: 12,
     height: 4,
     borderRadius: 6,
-    backgroundColor: 'rgba(0,0,0,0.25)',
+    backgroundColor: Colors.scrimSoft,
     marginTop: 2,
   },
   bottomCardWrap: {

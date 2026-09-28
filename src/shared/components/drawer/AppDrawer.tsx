@@ -181,8 +181,8 @@ export function AppDrawer({ visible, onClose, onNavigate, onLogout, phoneLabel }
 
             <View style={styles.divider} />
             <TouchableOpacity style={styles.logoutButton} onPress={handleLogout} activeOpacity={0.8}>
-              <Ionicons name="log-out-outline" size={22} color="#ff6b6b" />
-              <Text style={styles.logoutText}>Cerrar sesion</Text>
+              <Ionicons name="log-out-outline" size={22} color={Colors.dangerOnDark} />
+              <Text style={styles.logoutText}>Cerrar sesión</Text>
             </TouchableOpacity>
             <Text style={styles.versionLabel}>Version {APP_VERSION}</Text>
           </SafeAreaView>
@@ -198,7 +198,7 @@ const styles = StyleSheet.create({
   },
   backdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.08)',
+    backgroundColor: Colors.scrimSoft,
   },
   panel: {
     position: 'absolute',
@@ -206,7 +206,6 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     width: DRAWER_WIDTH,
-    backgroundColor: '#1a2f4e',
   },
   safeArea: {
     flex: 1,
@@ -222,7 +221,7 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: Colors.onDarkLine,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -236,13 +235,13 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   profilePhone: {
-    color: 'rgba(255,255,255,0.7)',
+    color: Colors.onDarkHigh,
     fontFamily: FontFamily.regular,
     fontSize: FontSize.sm,
   },
   divider: {
     height: 1,
-    backgroundColor: 'rgba(255,255,255,0.15)',
+    backgroundColor: Colors.onDarkLine,
     marginVertical: Spacing.sm,
   },
   sectionsWrap: {
@@ -256,7 +255,7 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.md,
   },
   sectionLabel: {
-    color: 'rgba(255,255,255,0.5)',
+    color: Colors.onDarkMuted,
     fontFamily: FontFamily.bold,
     fontSize: FontSize.xs,
     paddingHorizontal: Spacing.md,
@@ -284,12 +283,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
   },
   logoutText: {
-    color: '#ff6b6b',
+    color: Colors.dangerOnDark,
     fontFamily: FontFamily.bold,
     fontSize: FontSize.md,
   },
   versionLabel: {
-    color: 'rgba(255,255,255,0.5)',
+    color: Colors.onDarkMuted,
     fontFamily: FontFamily.regular,
     fontSize: FontSize.xs,
     textAlign: 'center',

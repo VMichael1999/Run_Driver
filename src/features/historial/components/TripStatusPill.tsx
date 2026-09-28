@@ -16,15 +16,9 @@ const STATUS_LABEL: Record<TripStatus, string> = {
   in_progress: 'En curso',
 };
 
-const STATUS_COLOR: Record<TripStatus, string> = {
-  completed: '#1a2f4e',
-  cancelled: '#7f1d1d',
-  in_progress: '#0f766e',
-};
-
 export function TripStatusPill({ status }: Props) {
   const theme = useAppTheme();
-  const backgroundColor = status === 'completed' ? theme.drawer : STATUS_COLOR[status];
+  const backgroundColor = { completed: theme.drawer, cancelled: theme.danger, in_progress: theme.onTrip }[status];
 
   return (
     <View style={[styles.pill, { backgroundColor }]}>

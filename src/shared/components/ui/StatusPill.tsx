@@ -23,7 +23,7 @@ export function StatusPill({ label, status = 'online', onPress, style }: StatusP
       case 'pickup':
         return { dot: theme.pickup, halo: theme.pickupSoft };
       case 'warning':
-        return { dot: '#F59E0B', halo: 'rgba(245, 158, 11, 0.15)' };
+        return { dot: theme.warning, halo: theme.warningSoft };
       case 'offline':
       default:
         return { dot: theme.textMuted, halo: 'transparent' };

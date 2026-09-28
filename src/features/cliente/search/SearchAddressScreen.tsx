@@ -22,6 +22,7 @@ import { getRoutePolyline } from '@shared/services/googleMapsService';
 import { useRideDraftStore } from '@store/useRideDraftStore';
 import { useFavoriteAddressesStore } from '@store/useFavoriteAddressesStore';
 import { useTaxiStore } from '@store/useTaxiStore';
+import { Colors } from '@theme/colors';
 import { useAppTheme } from '@theme/useAppTheme';
 import { FontFamily, FontSize } from '@theme/fonts';
 import { BorderRadius, Shadow, Spacing } from '@theme/spacing';
@@ -399,7 +400,7 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingTop: 4,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(0,0,0,0.05)',
+    borderTopColor: Colors.divider,
   },
   addStopText: {
     fontFamily: FontFamily.semibold,

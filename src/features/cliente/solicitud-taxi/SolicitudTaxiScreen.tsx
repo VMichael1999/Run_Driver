@@ -15,6 +15,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { ClienteStackParamList } from '@navigation/types';
 import { useTaxiStore } from '@store/useTaxiStore';
 import { useRideDraftStore } from '@store/useRideDraftStore';
+import { Colors } from '@theme/colors';
 import { useAppTheme } from '@theme/useAppTheme';
 import { Spacing, BorderRadius, Shadow } from '@theme/spacing';
 import { calculateDistance, formatDistance, formatEta } from '@shared/utils/mapUtils';
@@ -437,7 +438,7 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#fff',
+    backgroundColor: Colors.white,
   },
   markerSquare: {
     width: 24,
@@ -451,7 +452,7 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 1,
-    backgroundColor: '#fff',
+    backgroundColor: Colors.white,
   },
   centerPinWrap: {
     position: 'absolute',
@@ -487,7 +488,7 @@ const styles = StyleSheet.create({
     width: 12,
     height: 4,
     borderRadius: 6,
-    backgroundColor: 'rgba(0,0,0,0.25)',
+    backgroundColor: Colors.scrimSoft,
     marginTop: 2,
   },
 });

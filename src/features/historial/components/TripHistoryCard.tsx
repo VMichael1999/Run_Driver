@@ -93,7 +93,7 @@ const styles = StyleSheet.create({
   driverMeta: { fontFamily: FontFamily.regular, fontSize: FontSize.xs, color: Colors.textSecondary },
   divider: {
     height: 1,
-    backgroundColor: '#eef2f7',
+    backgroundColor: Colors.divider,
   },
   footerRow: {
     flexDirection: 'row',
