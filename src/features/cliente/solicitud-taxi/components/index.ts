@@ -1,7 +1,5 @@
 export { DriverOfferCard } from './DriverOfferCard';
 export { SearchingDriversUI } from './SearchingDriversUI';
-export { PaymentSelectionModal } from './PaymentSelectionModal';
-export type { SupportedPaymentMode } from './PaymentSelectionModal';
 export { TripNotesModal } from './TripNotesModal';
 export { TripScheduleModal } from './TripScheduleModal';
 export { AuctionFareSheet, getAuctionRange } from './AuctionFareSheet';
