@@ -86,7 +86,7 @@ export function PerfilScreen() {
               <UserNetworkAvatar imageUrl={profile?.avatarUrl ?? ''} radius={44} />
             </View>
             <Text style={[styles.userNameHeading, { color: theme.text }]}>
-              {profile?.fullName || 'Pasajero RunSubasta'}
+              {profile?.fullName || 'Pasajero Run Rider'}
             </Text>
             <Text style={[styles.phoneLabel, { color: theme.textMuted }]}>
               {profile?.countryCode} {profile?.phone}

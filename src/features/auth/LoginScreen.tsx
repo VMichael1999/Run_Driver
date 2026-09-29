@@ -153,7 +153,7 @@ export function LoginScreen() {
             onTerminos={() =>
               Alert.alert(
                 'Términos de uso',
-                'Al utilizar RunSubasta aceptas las condiciones del servicio de transporte en Lima.'
+                'Al utilizar Run Rider aceptas las condiciones del servicio de transporte en Lima.'
               )
             }
             onPoliticas={() =>
