@@ -4,9 +4,6 @@ module.exports = function (api) {
   return {
     presets: ['babel-preset-expo'],
     plugins: [
-      ...(isTest
-        ? []
-        : ['react-native-reanimated/plugin']),
       [
         'module-resolver',
         {
@@ -23,6 +20,9 @@ module.exports = function (api) {
           },
         },
       ],
+      ...(isTest
+        ? []
+        : ['react-native-reanimated/plugin']),
     ],
   };
 };

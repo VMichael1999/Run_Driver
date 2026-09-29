@@ -7,7 +7,10 @@ import * as SplashScreen from 'expo-splash-screen';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { RootNavigator } from './src/navigation/RootNavigator';
 import { useAppTheme } from './src/theme';
+import { LogBox } from 'react-native';
 import { useThemeStore } from './src/store/useThemeStore';
+
+LogBox.ignoreAllLogs();
 
 // Mantiene el splash nativo (fondo negro) hasta que las fuentes estén listas, en vez de una pantalla en blanco.
 void SplashScreen.preventAutoHideAsync();

@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { GOOGLE_MAPS_API_KEY } from '@config/maps';
 import type { Coordinates, LocationMarker } from '@shared/types';
-import { decodePolyline } from '@shared/utils/mapUtils';
+import { calculateDistance, decodePolyline } from '@shared/utils/mapUtils';
 
 const PLACES_AUTOCOMPLETE_URL = 'https://maps.googleapis.com/maps/api/place/autocomplete/json';
 const PLACE_DETAILS_URL = 'https://maps.googleapis.com/maps/api/place/details/json';
@@ -110,6 +110,36 @@ export async function getRoutePolyline(
   }
 
   const route = response.data.routes?.[0];
-  const encoded = route?.overview_polyline?.points;
+  if (!route) return [];
+
+  // Extraer los puntos detallados paso a paso de cada tramo (leg/step)
+  // para preservar las esquinas exactas y giros de 90° sin la simplificación Douglas-Peucker de overview_polyline.
+  const detailedPoints: Coordinates[] = [];
+  if (route.legs && Array.isArray(route.legs)) {
+    for (const leg of route.legs) {
+      if (leg.steps && Array.isArray(leg.steps)) {
+        for (const step of leg.steps) {
+          if (step.polyline?.points) {
+            const stepDecoded = decodePolyline(step.polyline.points);
+            for (const pt of stepDecoded) {
+              if (
+                detailedPoints.length === 0 ||
+                calculateDistance(detailedPoints[detailedPoints.length - 1], pt) >= 0.001
+              ) {
+                detailedPoints.push(pt);
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  if (detailedPoints.length >= 2) {
+    return detailedPoints;
+  }
+
+  // Fallback a overview_polyline si no vinieran steps
+  const encoded = route.overview_polyline?.points;
   return decodePolyline(encoded || '');
 }

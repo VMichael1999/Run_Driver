@@ -34,6 +34,11 @@ import { VehiculoIlustracion } from '@shared/components/ui/VehiculoIlustracion';
 import { AppButton } from '@shared/components/ui/AppButton';
 import { LegacyImages } from '@shared/assets/legacyAssets';
 import { calculateBearing } from '@shared/utils/mapUtils';
+import { MovingCarMarker } from './components/MovingCarMarker';
+import { DestinationBanner } from './components/DestinationBanner';
+import { sanitizeRoutePoints } from './utils/routeInterpolation';
+import { MOCK_ACTIVE_TRIP } from './data/mockRouteData';
+
 import { Colors } from '@theme/colors';
 import { useAppTheme } from '@theme/useAppTheme';
 import { getMapStyle } from '@theme/mapStyles';
@@ -75,15 +80,17 @@ export function TrayectoTaxiScreen() {
   const addCompletedTrip = useTripHistoryStore((state) => state.addCompletedTrip);
   const clearCoupon = usePromotionsStore((state) => state.clearCoupon);
 
-  const [tripPhase, setTripPhase] = React.useState<TripPhase>('arriving');
+  const [tripPhase, setTripPhase] = React.useState<TripPhase>('on_trip');
   const [ratingVisible, setRatingVisible] = React.useState(false);
+  const mapStyle = React.useMemo(() => getMapStyle(isDark), [isDark]);
   // Desde "Ya estoy en el auto" hasta "Finalizar viaje": lo que duró el trayecto.
   const tripStartedAtRef = React.useRef<number | null>(null);
   const [tripMinutes, setTripMinutes] = React.useState(1);
 
-  const driver = activeTrip?.driver;
-  const request = activeTrip?.request;
-  const discount = activeTrip?.discount ?? null;
+  const currentTrip = activeTrip || MOCK_ACTIVE_TRIP;
+  const driver = currentTrip?.driver;
+  const request = currentTrip?.request;
+  const discount = currentTrip?.discount ?? null;
   const mapRef = React.useRef<MapView | null>(null);
   const allowTripExitRef = React.useRef(false);
 
@@ -107,12 +114,18 @@ export function TrayectoTaxiScreen() {
 
   const routeCoords: LatLng[] = React.useMemo(() => {
     if (!request) return [];
-    return [
+    if (request.routePoints && request.routePoints.length >= 2) {
+      return sanitizeRoutePoints(request.routePoints);
+    }
+    return sanitizeRoutePoints([
       request.origin.position,
-      ...request.routePoints,
       request.destination.position,
-    ];
+    ]);
   }, [request]);
+
+
+
+
 
   const fitRouteToMap = React.useCallback(
     (activeSheetHeight?: number) => {
@@ -191,7 +204,7 @@ export function TrayectoTaxiScreen() {
     [animateSheet, sheetHeight]
   );
 
-  if (!activeTrip || !driver || !request) return null;
+  if (!currentTrip || !driver || !request) return null;
 
   const region = {
     latitude: request.origin.position.latitude,
@@ -200,19 +213,16 @@ export function TrayectoTaxiScreen() {
     longitudeDelta: 0.012,
   };
 
-  // Driver car position & bearing calculation
-  const carPosition =
-    tripPhase === 'arriving'
-      ? request.routePoints[0] || {
+  // Driver car position & bearing calculation para fase 'arriving'
+  const carArrivingPosition =
+    request.routePoints && request.routePoints.length > 0
+      ? request.routePoints[0]
+      : {
           latitude: request.origin.position.latitude - 0.003,
           longitude: request.origin.position.longitude - 0.002,
-        }
-      : request.routePoints[Math.min(1, request.routePoints.length - 1)] ||
-        request.destination.position;
+        };
+  const carArrivingBearing = calculateBearing(carArrivingPosition, request.origin.position);
 
-  const targetCoord =
-    tripPhase === 'arriving' ? request.origin.position : request.destination.position;
-  const carBearing = calculateBearing(carPosition, targetCoord);
 
   // Safety SOS Handler
   const handleSOS = () => {
@@ -247,7 +257,7 @@ export function TrayectoTaxiScreen() {
     Haptics.selectionAsync();
     try {
       await Share.share({
-        message: `Sigue mi viaje en RunSubasta: Conductor ${driver.driverName}, auto ${driver.vehicleModel} (${driver.vehicleColor}), placa ${driver.vehiclePlate}. Destino: ${request.destination.placeName}.`,
+        message: `Sigue mi viaje en Run Rider: Conductor ${driver.driverName}, auto ${driver.vehicleModel} (${driver.vehicleColor}), placa ${driver.vehiclePlate}. Destino: ${request.destination.placeName}.`,
       });
     } catch {
       // Ignorar si el usuario descarta compartir
@@ -353,35 +363,49 @@ export function TrayectoTaxiScreen() {
         initialRegion={region}
         showsUserLocation={false}
         showsMyLocationButton={false}
-        customMapStyle={getMapStyle(isDark)}
+        customMapStyle={mapStyle}
       >
         {/* Marcador de Origen */}
-        <Marker coordinate={request.origin.position} anchor={{ x: 0.5, y: 0.5 }}>
+        <Marker coordinate={request.origin.position} anchor={{ x: 0.5, y: 0.5 }} tracksViewChanges={false} zIndex={1}>
           <View style={[styles.originMarker, { backgroundColor: Colors.origin }]}>
             <View style={styles.markerInnerDot} />
           </View>
         </Marker>
 
         {/* Marcador de Destino */}
-        <Marker coordinate={request.destination.position} anchor={{ x: 0.5, y: 0.5 }}>
+        <Marker coordinate={request.destination.position} anchor={{ x: 0.5, y: 0.5 }} tracksViewChanges={false} zIndex={2}>
           <View style={[styles.destinationMarker, { backgroundColor: Colors.destination }]}>
             <View style={styles.markerInnerDot} />
           </View>
         </Marker>
 
-        {/* Auto del conductor con car_north.png rotado según el bearing */}
-        <Marker
-          coordinate={carPosition}
-          anchor={{ x: 0.5, y: 0.5 }}
-          rotation={carBearing}
-          flat
-        >
-          <Image
-            source={LegacyImages.carNorth}
-            style={styles.carMarkerImage}
-            resizeMode="contain"
+        {/* Auto del conductor */}
+        {tripPhase === 'on_trip' ? (
+          <MovingCarMarker
+            route={routeCoords}
+            isActive={tripPhase === 'on_trip'}
+            durationMs={80000}
+            rotationSmoothing={0.45}
+            loop={false}
+            zIndex={999}
           />
-        </Marker>
+        ) : (
+          <Marker
+            coordinate={carArrivingPosition}
+            anchor={{ x: 0.5, y: 0.5 }}
+            rotation={carArrivingBearing}
+            flat
+            tracksViewChanges={false}
+            zIndex={999}
+          >
+            <Image
+              source={LegacyImages.carNorth}
+              style={styles.carMarkerImage}
+              resizeMode="contain"
+            />
+          </Marker>
+        )}
+
 
         {/* Ruta trazada */}
         {routeCoords.length > 1 ? (
@@ -418,35 +442,12 @@ export function TrayectoTaxiScreen() {
 
       {/* Pantalla 9 (En viaje): Banner flotante de destino y tiempo */}
       {tripPhase === 'on_trip' && (
-        <View
-          style={[
-            styles.destinationBanner,
-            {
-              top: insets.top + 64,
-              backgroundColor: theme.surface,
-              borderColor: theme.divider,
-              ...Shadow.sheet,
-            },
-          ]}
-        >
-          <View style={styles.bannerRow}>
-            <View style={styles.bannerEtaWrap}>
-              <Text style={[styles.bannerEtaTime, { color: theme.text }]}>
-                Llegas en ~{driver.etaMinutes ? Math.round(driver.etaMinutes) : 15} min
-              </Text>
-              <Text style={[styles.bannerEtaDist, { color: theme.textMuted }]}>
-                {driver.distanceKm ? `${driver.distanceKm.toFixed(1)} km` : '4.2 km'}
-              </Text>
-            </View>
-            <View style={styles.bannerStatusPill}>
-              <View style={[styles.liveDot, { backgroundColor: Colors.online }]} />
-              <Text style={styles.bannerStatusText}>En viaje</Text>
-            </View>
-          </View>
-          <Text style={[styles.bannerDestinationText, { color: theme.text }]} numberOfLines={1}>
-            {request.destination.placeName}
-          </Text>
-        </View>
+        <DestinationBanner
+          top={insets.top + 64}
+          destinationName={request.destination.placeName}
+          etaMinutes={driver.etaMinutes ? Math.round(driver.etaMinutes) : 5}
+          distanceKm={driver.distanceKm ?? 1.2}
+        />
       )}
 
       {/* Panel Inferior Flotante (BottomSheet) */}
@@ -733,57 +734,6 @@ const styles = StyleSheet.create({
   sosButtonText: {
     color: Colors.white,
     fontFamily: FontFamily.bold,
-    fontSize: FontSize.sm,
-  },
-  destinationBanner: {
-    position: 'absolute',
-    left: Spacing.lg,
-    right: Spacing.lg,
-    borderRadius: BorderRadius.xl,
-    borderWidth: 1,
-    padding: Spacing.md,
-    zIndex: 9,
-  },
-  bannerRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  bannerEtaWrap: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    gap: 6,
-  },
-  bannerEtaTime: {
-    fontFamily: FontFamily.bold,
-    fontSize: FontSize.lg,
-  },
-  bannerEtaDist: {
-    fontFamily: FontFamily.regular,
-    fontSize: FontSize.xs,
-  },
-  bannerStatusPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.onlineSoft,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: BorderRadius.full,
-    gap: 5,
-  },
-  liveDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-  },
-  bannerStatusText: {
-    fontFamily: FontFamily.semibold,
-    fontSize: FontSize['2xs'],
-    color: Colors.online,
-  },
-  bannerDestinationText: {
-    fontFamily: FontFamily.medium,
     fontSize: FontSize.sm,
   },
   panel: {

@@ -11,8 +11,11 @@ interface RoutePolylineProps {
  * Se pasa strokeColors además de strokeColor porque en iOS con Google Maps solo
  * strokeColors pinta la línea; sin él sale el azul por defecto.
  */
-export function RoutePolyline({ coordinates }: RoutePolylineProps) {
+export const RoutePolyline = React.memo(function RoutePolyline({ coordinates }: RoutePolylineProps) {
   const theme = useAppTheme();
+  const strokeColorsCase = React.useMemo(() => [theme.routeCase], [theme.routeCase]);
+  const strokeColorsRoute = React.useMemo(() => [theme.route], [theme.route]);
+
   if (coordinates.length < 2) return null;
   return (
     <>
@@ -20,7 +23,7 @@ export function RoutePolyline({ coordinates }: RoutePolylineProps) {
         coordinates={coordinates}
         strokeWidth={10}
         strokeColor={theme.routeCase}
-        strokeColors={[theme.routeCase]}
+        strokeColors={strokeColorsCase}
         lineCap="round"
         lineJoin="round"
       />
@@ -28,10 +31,10 @@ export function RoutePolyline({ coordinates }: RoutePolylineProps) {
         coordinates={coordinates}
         strokeWidth={5}
         strokeColor={theme.route}
-        strokeColors={[theme.route]}
+        strokeColors={strokeColorsRoute}
         lineCap="round"
         lineJoin="round"
       />
     </>
   );
-}
+});
