@@ -42,8 +42,6 @@ const LIMA_REGION: Region = {
   longitudeDelta: 0.04,
 };
 
-const ORIGIN_PIN = require('../../../../assets/legacy/images/location_origen.png');
-
 interface HomeServiceAction {
   id: 'ride' | 'rental' | 'outstation';
   label: string;
@@ -269,17 +267,11 @@ export function ClienteHomeScreen() {
             initialRegion={LIMA_REGION}
             rotateEnabled={false}
             pitchEnabled={false}
-            showsUserLocation={false}
+            showsUserLocation={true}
             showsMyLocationButton={false}
             showsCompass={false}
             toolbarEnabled={false}
-          >
-            {origin ? (
-              <Marker coordinate={origin.position} anchor={{ x: 0.5, y: 1 }}>
-                <Image source={ORIGIN_PIN} style={styles.originPin} resizeMode="contain" />
-              </Marker>
-            ) : null}
-          </MapView>
+          />
 
           <View style={[styles.topBar, { top: insets.top + 6 }]}>
             <TouchableOpacity
@@ -436,10 +428,6 @@ const styles = StyleSheet.create({
   },
   mapArea: {
     flex: 1,
-  },
-  originPin: {
-    width: 30,
-    height: 37,
   },
   topBar: {
     position: 'absolute',
