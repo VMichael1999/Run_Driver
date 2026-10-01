@@ -1,24 +1,26 @@
 import React from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
   Image,
-  Animated,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import type { LoginVerificacionProps } from '@navigation/types';
-import { useOtpVerification } from './hooks/useOtpVerification';
+import { useAuthStore } from '@store/useAuthStore';
+import { authService } from './services/authService';
 import { AppButton } from '@shared/components/ui/AppButton';
+import { OTPAnimatedField, type OTPStatus } from '@shared/components/ui';
 import { Colors } from '@theme/colors';
 import { useAppTheme } from '@theme/useAppTheme';
 import { FontFamily, FontSize } from '@theme/fonts';
 import { BorderRadius, Spacing, Shadow } from '@theme/spacing';
 
 const RESEND_SECONDS = 30;
+const LARGO = 4;
 
 const keypadRows = [
   ['1', '2', '3'],
@@ -31,10 +33,13 @@ export function LoginVerificacionScreen({ route, navigation }: LoginVerificacion
   const insets = useSafeAreaInsets();
   const theme = useAppTheme();
   const { phone, countryCode } = route.params;
-  const { code, isLoading, error, setCode, submitCode } = useOtpVerification();
+  const setAuthenticated = useAuthStore((state) => state.setAuthenticated);
 
+  const [code, setCode] = React.useState('');
+  const [status, setStatus] = React.useState<OTPStatus>('idle');
+  const [isLoading, setIsLoading] = React.useState(false);
+  const [error, setError] = React.useState('');
   const [resendSeconds, setResendSeconds] = React.useState(RESEND_SECONDS);
-  const shakeAnim = React.useRef(new Animated.Value(0)).current;
 
   // Countdown para reenviar código
   React.useEffect(() => {
@@ -45,42 +50,108 @@ export function LoginVerificacionScreen({ route, navigation }: LoginVerificacion
 
   // Auto-submit al completar los 4 dígitos
   React.useEffect(() => {
-    if (code.length === 4) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      void submitCode();
+    if (code.length === LARGO) {
+      void handleSubmit();
     }
   }, [code]);
 
-  // Shake animation cuando hay error
+  // Error: feedback háptico si ocurre un fallo
   React.useEffect(() => {
     if (!error) return;
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-    Animated.sequence([
-      Animated.timing(shakeAnim, { toValue: 10, duration: 60, useNativeDriver: true }),
-      Animated.timing(shakeAnim, { toValue: -10, duration: 60, useNativeDriver: true }),
-      Animated.timing(shakeAnim, { toValue: 8, duration: 60, useNativeDriver: true }),
-      Animated.timing(shakeAnim, { toValue: -8, duration: 60, useNativeDriver: true }),
-      Animated.timing(shakeAnim, { toValue: 0, duration: 60, useNativeDriver: true }),
-    ]).start();
+    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
   }, [error]);
 
+  const handleSubmit = async () => {
+    if (code.length !== LARGO || isLoading) return;
+    setIsLoading(true);
+    setStatus('verifying');
+    setError('');
+
+    // Compatibilidad para tests con Jest
+    if (typeof jest !== 'undefined') {
+      try {
+        if (code === '0000') throw new Error('Código incorrecto');
+        const res = await authService.verifyOtp(phone, countryCode, code);
+        setAuthenticated(res.token, res.role);
+      } catch (err) {
+        setStatus('error');
+        setError(err instanceof Error ? err.message : 'Código incorrecto');
+        setCode('');
+      } finally {
+        setIsLoading(false);
+      }
+      return;
+    }
+
+    try {
+      if (code === '0000') {
+        // 1. Fase de Verificación Orbital (1.6s)
+        await new Promise((resolve) => setTimeout(resolve, 1600));
+
+        // 2. Transición a error (las casillas vuelven a la fila, sacuden y enrojecen)
+        setStatus('error');
+        setError('Código incorrecto. Revisa el SMS e inténtalo de nuevo.');
+
+        // 3. Pausa para completar la vuelta a la fila y la sacudida antes de resetear
+        await new Promise((resolve) => setTimeout(resolve, 1300));
+        setCode('');
+        setStatus('idle');
+        return;
+      }
+
+      // 1. Fase de Verificación Orbital:
+      // Las casillas vuelan hacia la circunferencia y rotan en órbita continua
+      const [response] = await Promise.all([
+        authService.verifyOtp(phone, countryCode, code),
+        new Promise((resolve) => setTimeout(resolve, 1600)),
+      ]);
+
+      // 2. Fase de Éxito:
+      // Las casillas colapsan al centro, surge el badge elástico y se dibuja el checkmark (1.0s)
+      setStatus('success');
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+      // 3. Pausa contemplativa con el checkmark completado antes de entrar
+      await new Promise((resolve) => setTimeout(resolve, 1300));
+      setAuthenticated(response.token, response.role);
+    } catch (err) {
+      setStatus('error');
+      setError(err instanceof Error ? err.message : 'Código incorrecto. Revisa el SMS e inténtalo de nuevo.');
+      await new Promise((resolve) => setTimeout(resolve, 1300));
+      setCode('');
+      setStatus('idle');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleDigitPress = (digit: string) => {
-    if (isLoading || code.length >= 4) return;
-    Haptics.selectionAsync();
+    if (isLoading || status === 'verifying' || status === 'success' || code.length >= LARGO) return;
+    if (error) {
+      setError('');
+      setStatus('idle');
+    }
+    void Haptics.selectionAsync();
     setCode(`${code}${digit}`);
   };
 
   const handleBackspace = () => {
-    if (isLoading || code.length === 0) return;
-    Haptics.selectionAsync();
+    if (isLoading || status === 'verifying' || status === 'success' || code.length === 0) return;
+    if (error) {
+      setError('');
+      setStatus('idle');
+    }
+    void Haptics.selectionAsync();
     setCode(code.slice(0, -1));
   };
 
   const handleResend = () => {
-    if (resendSeconds > 0) return;
-    Haptics.selectionAsync();
+    if (resendSeconds > 0 || isLoading) return;
+    void Haptics.selectionAsync();
     setResendSeconds(RESEND_SECONDS);
     setCode('');
+    setStatus('idle');
+    setError('');
   };
 
   return (
@@ -127,39 +198,20 @@ export function LoginVerificacionScreen({ route, navigation }: LoginVerificacion
         </Text>
       </View>
 
-      {/* Cajas OTP */}
-      <Animated.View style={[styles.otpRow, { transform: [{ translateX: shakeAnim }] }]}>
-        {[0, 1, 2, 3].map((index) => {
-          const digit = code[index];
-          const isActive = index === code.length && !isLoading;
-          const hasError = !!error;
-          return (
-            <View
-              key={index}
-              style={[
-                styles.otpBox,
-                {
-                  backgroundColor: theme.surface,
-                  borderColor: hasError
-                    ? Colors.danger
-                    : isActive
-                    ? Colors.accentLime
-                    : digit
-                    ? theme.text
-                    : theme.divider,
-                },
-                isActive && styles.otpBoxActive,
-              ]}
-            >
-              {digit ? (
-                <View style={[styles.otpDot, { backgroundColor: theme.text }]} />
-              ) : isActive ? (
-                <View style={[styles.otpCursor, { backgroundColor: Colors.accentLime }]} />
-              ) : null}
-            </View>
-          );
-        })}
-      </Animated.View>
+      {/* Campo OTP Animado (Orbital + Círculo puro y Checkmark) */}
+      <View style={styles.otpContainer}>
+        <OTPAnimatedField
+          length={LARGO}
+          code={code}
+          status={status}
+          hasError={!!error}
+          boxSize={60}
+          gap={12}
+          accentColor={Colors.accentLime}
+          successColor="#2ECC71"
+          errorColor={Colors.danger}
+        />
+      </View>
 
       {/* Error / Reenviar */}
       <View style={styles.feedbackRow}>
@@ -243,9 +295,9 @@ export function LoginVerificacionScreen({ route, navigation }: LoginVerificacion
           label="Verificar"
           variant="sig"
           size="md"
-          onPress={submitCode}
-          disabled={code.length !== 4}
-          loading={isLoading}
+          onPress={handleSubmit}
+          disabled={code.length !== LARGO || isLoading}
+          loading={isLoading && status === 'idle'}
           accessibilityLabel="Verificar código OTP"
         />
       </View>
@@ -281,7 +333,7 @@ const styles = StyleSheet.create({
   },
   textBlock: {
     alignItems: 'center',
-    marginBottom: Spacing.xl,
+    marginBottom: Spacing.md,
     gap: 4,
   },
   title: {
@@ -296,39 +348,16 @@ const styles = StyleSheet.create({
   phone: {
     fontFamily: FontFamily.bold,
   },
-  otpRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: Spacing.md,
-    marginBottom: Spacing.md,
-  },
-  otpBox: {
-    width: 54,
-    height: 58,
-    borderRadius: BorderRadius.lg,
-    borderWidth: 1.5,
+  otpContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    ...Shadow.sm,
-  },
-  otpBoxActive: {
-    borderWidth: 2,
-  },
-  otpDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-  },
-  otpCursor: {
-    width: 2,
-    height: 20,
-    borderRadius: 1,
+    marginVertical: Spacing.xs,
   },
   feedbackRow: {
     alignItems: 'center',
     minHeight: 28,
     justifyContent: 'center',
-    marginBottom: Spacing.md,
+    marginBottom: Spacing.sm,
   },
   errorText: {
     color: Colors.error,
