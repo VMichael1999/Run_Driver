@@ -2,7 +2,7 @@
   <img src="app-icons/playstore-icon.png" width="110" height="110" alt="RunSubasta Logo" style="border-radius: 22px;" />
 </p>
 
-<h1 align="center">RunSubasta · Pasajero</h1>
+<h1 align="center">Run Rider · Pasajero</h1>
 
 <p align="center">
   <strong>Aplicación móvil de transporte urbano inteligente y subasta en tiempo real para Lima, Perú.</strong><br>
