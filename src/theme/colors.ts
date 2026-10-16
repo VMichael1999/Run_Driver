@@ -93,11 +93,22 @@ const DeliveryLight = {
   redSoft: '#FBE3E0',
   star: '#E8A317',
   headerGradient: ['#2E3740', '#161B20', '#111519'] as const,
+  // Fondos oscuros del inicio: banner (.hero), ofertas (.deal) y avatar (.av)
+  heroGlow: '#3B4650',
+  dealGlow: '#2B333B',
+  avatarBg: '#2B333B',
+  online: '#3DCB7E',
+  onDark: '#FFFFFF',
+  onDarkHigh: 'rgba(255, 255, 255, 0.85)',
+  onDarkMuted: 'rgba(255, 255, 255, 0.7)',
+  onDarkLine: 'rgba(255, 255, 255, 0.35)',
+  onDarkFill: 'rgba(255, 255, 255, 0.12)',
   // Pantalla de carga del modo (.trans)
   loadingBg: '#0B0B0C',
   loadingTrack: '#26282B',
   loadingText: '#8E969D',
   shadow: '#111519',
+  black: '#000000',
 } as const;
 
 export const DeliveryColors = {
