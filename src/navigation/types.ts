@@ -46,6 +46,7 @@ export type DeliveryStackParamList = {
   DeliveryCarga: undefined;
   DeliveryTabs: NavigatorScreenParams<DeliveryTabParamList> | undefined;
   DeliveryLocal: { restaurantId: string };
+  DeliveryProducto: { productId: string };
 };
 
 export type DeliveryTabParamList = {

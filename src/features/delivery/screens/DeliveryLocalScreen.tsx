@@ -74,7 +74,7 @@ export function DeliveryLocalScreen({ route, navigation }: Props) {
   };
 
   const openCart = () => navigation.navigate('DeliveryTabs', { screen: 'DeliveryCarrito' });
-  const noop = () => undefined;
+  const openProduct = (productId: string) => navigation.navigate('DeliveryProducto', { productId });
 
   if (!restaurant || !details) return null;
 
@@ -122,7 +122,7 @@ export function DeliveryLocalScreen({ route, navigation }: Props) {
             {chunk(details.forYou, 2).map((row) => (
               <View key={row.join('-')} style={styles.gridRow}>
                 {row.map((id) => (
-                  <ProductCard key={id} product={PRODUCTS[id]} onPress={noop} onAdd={noop} />
+                  <ProductCard key={id} product={PRODUCTS[id]} onPress={() => openProduct(id)} onAdd={() => openProduct(id)} />
                 ))}
               </View>
             ))}
@@ -136,7 +136,11 @@ export function DeliveryLocalScreen({ route, navigation }: Props) {
                 </Text>
                 <Text style={[styles.sectionCount, { color: colors.muted }]}>{section.countLabel}</Text>
               </View>
-              <MenuList products={section.productIds.map((id) => PRODUCTS[id])} onPress={noop} onAdd={noop} />
+              <MenuList
+                products={section.productIds.map((id) => PRODUCTS[id])}
+                onPress={(product) => openProduct(product.id)}
+                onAdd={(product) => openProduct(product.id)}
+              />
             </React.Fragment>
           ))}
         </View>

@@ -8,6 +8,7 @@ import { DeliveryInicioScreen } from '@features/delivery/screens/DeliveryInicioS
 import { DeliveryCarritoScreen } from '@features/delivery/screens/DeliveryCarritoScreen';
 import { DeliveryProximamenteScreen } from '@features/delivery/screens/DeliveryProximamenteScreen';
 import { DeliveryLocalScreen } from '@features/delivery/screens/DeliveryLocalScreen';
+import { DeliveryProductoScreen } from '@features/delivery/screens/DeliveryProductoScreen';
 import { DeliveryTabBar } from '@features/delivery/components/DeliveryTabBar';
 
 const Stack = createNativeStackNavigator<DeliveryStackParamList>();
@@ -37,6 +38,7 @@ export function DeliveryNavigator() {
       <Stack.Screen name="DeliveryCarga" component={DeliveryCargaScreen} options={{ animation: 'fade' }} />
       <Stack.Screen name="DeliveryTabs" component={DeliveryTabs} options={{ animation: 'fade' }} />
       <Stack.Screen name="DeliveryLocal" component={DeliveryLocalScreen} />
+      <Stack.Screen name="DeliveryProducto" component={DeliveryProductoScreen} />
     </Stack.Navigator>
   );
 }
