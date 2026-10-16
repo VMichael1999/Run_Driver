@@ -1,12 +1,12 @@
 import React from 'react';
 import { Image, StyleSheet, Text, View } from 'react-native';
-import { StatusBar } from 'expo-status-bar';
 import Reanimated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { DeliveryStackParamList } from '@navigation/types';
 import { FontFamily } from '@theme/fonts';
 import { useDeliveryColors } from '../theme';
 import { preloadDeliveryHome } from '../data/preload';
+import { useStatusBarStyle } from '../hooks/useStatusBarStyle';
 
 type Props = NativeStackScreenProps<DeliveryStackParamList, 'DeliveryCarga'>;
 
@@ -18,6 +18,7 @@ const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 export function DeliveryCargaScreen({ navigation }: Props) {
   const colors = useDeliveryColors();
   const progress = useSharedValue(0);
+  useStatusBarStyle('light');
 
   React.useEffect(() => {
     let active = true;
@@ -41,7 +42,6 @@ export function DeliveryCargaScreen({ navigation }: Props) {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.loadingBg }]}>
-      <StatusBar style="light" />
       <Image source={require('../../../../assets/icon.png')} style={styles.logo} />
       <Text style={[styles.word, { color: colors.lime }]}>Delivery</Text>
       <View style={[styles.track, { backgroundColor: colors.loadingTrack }]}>

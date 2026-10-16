@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRoute } from '@react-navigation/native';
 import { FontFamily } from '@theme/fonts';
 import { DeliveryShadow, useDeliveryColors } from '../theme';
+import { useStatusBarStyle } from '../hooks/useStatusBarStyle';
 
 const TITLES: Record<string, string> = {
   DeliveryGuardados: 'Guardados',
@@ -25,6 +26,8 @@ export function DeliveryProximamenteScreen({ header }: Props) {
   const insets = useSafeAreaInsets();
   const route = useRoute();
   const title = TITLES[route.name] ?? route.name;
+  // Delivery es claro (mockup): texto oscuro aunque la app esté en modo oscuro.
+  useStatusBarStyle('dark');
 
   return (
     <View style={[styles.container, { backgroundColor: colors.bg, paddingTop: insets.top + 6 }]}>

@@ -1,7 +1,6 @@
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { StatusBar } from 'expo-status-bar';
 import type { DeliveryStackParamList, DeliveryTabParamList } from './types';
 import { DeliveryCargaScreen } from '@features/delivery/screens/DeliveryCargaScreen';
 import { DeliveryInicioScreen } from '@features/delivery/screens/DeliveryInicioScreen';
@@ -14,17 +13,13 @@ const Tab = createBottomTabNavigator<DeliveryTabParamList>();
 
 function DeliveryTabs() {
   return (
-    <>
-      {/* Delivery es claro (mockup): texto oscuro en la barra de estado aunque la app esté en oscuro. */}
-      <StatusBar style="dark" />
-      <Tab.Navigator screenOptions={{ headerShown: false }} tabBar={(props) => <DeliveryTabBar {...props} />}>
-        <Tab.Screen name="DeliveryInicio" component={DeliveryInicioScreen} options={{ title: 'Inicio' }} />
-        <Tab.Screen name="DeliveryGuardados" component={DeliveryProximamenteScreen} options={{ title: 'Guardados' }} />
-        <Tab.Screen name="DeliveryCarrito" component={DeliveryCarritoScreen} options={{ title: 'Carrito' }} />
-        <Tab.Screen name="DeliveryOfertas" component={DeliveryProximamenteScreen} options={{ title: 'Ofertas' }} />
-        <Tab.Screen name="DeliveryPerfil" component={DeliveryProximamenteScreen} options={{ title: 'Perfil' }} />
-      </Tab.Navigator>
-    </>
+    <Tab.Navigator screenOptions={{ headerShown: false }} tabBar={(props) => <DeliveryTabBar {...props} />}>
+      <Tab.Screen name="DeliveryInicio" component={DeliveryInicioScreen} options={{ title: 'Inicio' }} />
+      <Tab.Screen name="DeliveryGuardados" component={DeliveryProximamenteScreen} options={{ title: 'Guardados' }} />
+      <Tab.Screen name="DeliveryCarrito" component={DeliveryCarritoScreen} options={{ title: 'Carrito' }} />
+      <Tab.Screen name="DeliveryOfertas" component={DeliveryProximamenteScreen} options={{ title: 'Ofertas' }} />
+      <Tab.Screen name="DeliveryPerfil" component={DeliveryProximamenteScreen} options={{ title: 'Perfil' }} />
+    </Tab.Navigator>
   );
 }
 
