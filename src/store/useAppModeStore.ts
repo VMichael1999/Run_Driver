@@ -1,22 +1,14 @@
 import { create } from 'zustand';
 import { Platform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
-import type { ClienteStackParamList } from '@navigation/types';
 
 export type AppMode = 'viajes' | 'delivery';
-
-type ClienteRoute = keyof ClienteStackParamList;
 
 interface AppModeState {
   mode: AppMode;
   hasHydrated: boolean;
-  /** Pantalla de viajes que se abre al volver desde delivery (se eligió en el menú lateral). */
-  pendingRoute: ClienteRoute | null;
   loadMode: () => Promise<void>;
   setMode: (mode: AppMode) => void;
-  /** Sale de delivery y abre esa pantalla de viajes. */
-  exitToRoute: (route: ClienteRoute) => void;
-  consumePendingRoute: () => ClienteRoute | null;
 }
 
 const MODE_STORAGE_KEY = 'runrider.appMode';
@@ -40,10 +32,9 @@ async function persistMode(mode: AppMode) {
   await SecureStore.setItemAsync(MODE_STORAGE_KEY, mode);
 }
 
-export const useAppModeStore = create<AppModeState>((set, get) => ({
+export const useAppModeStore = create<AppModeState>((set) => ({
   mode: Platform.OS === 'web' ? readModeFromWeb() : 'viajes',
   hasHydrated: Platform.OS === 'web',
-  pendingRoute: null,
   loadMode: async () => {
     if (Platform.OS === 'web') {
       set({ mode: readModeFromWeb(), hasHydrated: true });
@@ -60,14 +51,5 @@ export const useAppModeStore = create<AppModeState>((set, get) => ({
   setMode: (mode) => {
     set({ mode });
     void persistMode(mode);
-  },
-  exitToRoute: (route) => {
-    set({ mode: 'viajes', pendingRoute: route === 'ClienteHome' ? null : route });
-    void persistMode('viajes');
-  },
-  consumePendingRoute: () => {
-    const route = get().pendingRoute;
-    if (route) set({ pendingRoute: null });
-    return route;
   },
 }));

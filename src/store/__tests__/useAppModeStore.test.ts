@@ -14,7 +14,7 @@ describe('useAppModeStore', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     act(() => {
-      useAppModeStore.setState({ mode: 'viajes', hasHydrated: false, pendingRoute: null });
+      useAppModeStore.setState({ mode: 'viajes', hasHydrated: false });
     });
   });
 
@@ -59,24 +59,5 @@ describe('useAppModeStore', () => {
     });
 
     expect(useAppModeStore.getState()).toMatchObject({ mode: 'viajes', hasHydrated: true });
-  });
-
-  it('al salir a una pantalla de viajes la deja pendiente una sola vez', () => {
-    act(() => {
-      useAppModeStore.getState().setMode('delivery');
-      useAppModeStore.getState().exitToRoute('HistorialViaje');
-    });
-
-    expect(useAppModeStore.getState().mode).toBe('viajes');
-    expect(useAppModeStore.getState().consumePendingRoute()).toBe('HistorialViaje');
-    expect(useAppModeStore.getState().consumePendingRoute()).toBeNull();
-  });
-
-  it('salir al mapa no deja pantalla pendiente', () => {
-    act(() => {
-      useAppModeStore.getState().exitToRoute('ClienteHome');
-    });
-
-    expect(useAppModeStore.getState().pendingRoute).toBeNull();
   });
 });
