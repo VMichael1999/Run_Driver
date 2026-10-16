@@ -8,9 +8,7 @@ import { DeliveryShadow, useDeliveryColors } from '../theme';
 import { useStatusBarStyle } from '../hooks/useStatusBarStyle';
 
 const TITLES: Record<string, string> = {
-  DeliveryGuardados: 'Guardados',
-  DeliveryOfertas: 'Ofertas',
-  DeliveryPerfil: 'Perfil',
+  DeliveryFavoritos: 'Favoritos',
   DeliveryInicio: 'Inicio',
   DeliveryCarrito: 'Carrito',
 };

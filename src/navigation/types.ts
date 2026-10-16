@@ -47,14 +47,21 @@ export type DeliveryStackParamList = {
   DeliveryTabs: NavigatorScreenParams<DeliveryTabParamList> | undefined;
   DeliveryLocal: { restaurantId: string };
   DeliveryProducto: { productId: string };
+  // Menú lateral de delivery
+  DeliveryPedidos: undefined;
+  DeliveryCupones: undefined;
+  DeliveryDirecciones: undefined;
+  DeliveryFacturacion: undefined;
+  DeliveryNotificaciones: undefined;
+  Perfil: undefined;
+  MetodosPago: { forRide?: boolean; scheduledTripId?: string } | undefined;
+  Configuracion: undefined;
 };
 
 export type DeliveryTabParamList = {
   DeliveryInicio: undefined;
-  DeliveryGuardados: undefined;
+  DeliveryFavoritos: undefined;
   DeliveryCarrito: undefined;
-  DeliveryOfertas: undefined;
-  DeliveryPerfil: undefined;
 };
 
 // Conductor bottom tabs

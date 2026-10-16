@@ -11,15 +11,13 @@ type IoniconName = keyof typeof Ionicons.glyphMap;
 
 const TAB_ICONS: Record<keyof DeliveryTabParamList, { outline: IoniconName; filled: IoniconName }> = {
   DeliveryInicio: { outline: 'home-outline', filled: 'home' },
-  DeliveryGuardados: { outline: 'heart-outline', filled: 'heart' },
+  DeliveryFavoritos: { outline: 'heart-outline', filled: 'heart' },
   DeliveryCarrito: { outline: 'bag-outline', filled: 'bag' },
-  DeliveryOfertas: { outline: 'ticket-outline', filled: 'ticket' },
-  DeliveryPerfil: { outline: 'person-outline', filled: 'person' },
 };
 
 const ICON_SIZE = 20;
 
-/** Barra de 5 pestañas de .tabbar en docs/delivery/run-delivery-replica.html */
+/** Barra de pestañas (.tabbar del mockup) con Inicio, Favoritos y Carrito. */
 export function DeliveryTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   const colors = useDeliveryColors();
   const insets = useSafeAreaInsets();
