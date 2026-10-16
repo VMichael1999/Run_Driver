@@ -92,6 +92,11 @@ const DeliveryLight = {
   red: '#C8261B',
   redSoft: '#FBE3E0',
   star: '#E8A317',
+  // Fondo oscurecido de hojas y diálogos (.dim) y aro del indicador de carga (.spin)
+  dim: 'rgba(17, 21, 25, 0.45)',
+  spinnerTrack: 'rgba(17, 21, 25, 0.2)',
+  // Caja del método de pago Yape (.pm)
+  yape: '#5B1F7A',
   // Fondo de la foto del producto (.pimg)
   productHero: '#ECEDE7',
   // Grupo de opciones que se está tocando (.grp.hl)

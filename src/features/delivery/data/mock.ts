@@ -211,6 +211,9 @@ export interface Voucher {
   /** Solo los cupones del local tienen "Reclamar" en el mockup. */
   claimable: boolean;
   code?: string;
+  /** Descuento sobre el subtotal y monto mínimo, para los cupones del local. */
+  percent?: number;
+  minSubtotal?: number;
 }
 
 /** Detalle del local (del-05). Solo Burger Ruta tiene carta en el mockup. */
@@ -243,6 +246,8 @@ export const RESTAURANT_DETAILS: Record<
         available: 4,
         issuer: { type: 'store', restaurantId: 'burgerRuta' },
         claimable: true,
+        percent: 15,
+        minSubtotal: 60,
       },
       {
         id: 'enviogratis',
@@ -349,3 +354,17 @@ export const CART_THUMBS: Record<string, { image: ImageSourcePropType; tint: str
 export const APPLIED_DELIVERY_CODE = 'ENVIOGRATIS';
 /** Costo de envío sin cupón. No aparece en el mockup (siempre hay ENVIOGRATIS); falta confirmarlo. */
 export const DELIVERY_FEE = 5;
+
+/** Puntos del mapa del checkout: la casa del pasajero y el local (Burger Ruta – Lince, a 1.2 km). */
+export const MAP_POINTS = {
+  home: { latitude: -12.0838, longitude: -77.0335 },
+  burgerRuta: { latitude: -12.0868, longitude: -77.0425 },
+};
+
+/** Recojo en local (del-11). */
+export const PICKUP_INFO: Record<string, { readyMinutes: number }> = {
+  burgerRuta: { readyMinutes: 15 },
+};
+
+/** Tiempo de entrega que se muestra en el checkout ("Entregar en · ~20 min"). */
+export const DELIVERY_ETA_MINUTES = 20;
