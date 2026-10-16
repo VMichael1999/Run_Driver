@@ -18,6 +18,7 @@ import { Colors } from '@theme/colors';
 import { useAppTheme } from '@theme/useAppTheme';
 import { FontFamily, FontSize } from '@theme/fonts';
 import { Spacing } from '@theme/spacing';
+import type { AppMode } from '@store/useAppModeStore';
 import appJson from '../../../../app.json';
 
 type ClienteRoute = keyof ClienteStackParamList;
@@ -38,6 +39,9 @@ interface AppDrawerProps {
   onNavigate: (route: ClienteRoute) => void;
   onLogout: () => void;
   phoneLabel: string;
+  /** Con él, se muestra el botón para cambiar entre viajes y delivery. */
+  mode?: AppMode;
+  onToggleMode?: () => void;
 }
 
 const SECTION_LABELS: Record<DrawerSection, string> = {
@@ -77,7 +81,7 @@ function groupBySection(options: DrawerOption[]): Array<[DrawerSection, DrawerOp
   });
 }
 
-export function AppDrawer({ visible, onClose, onNavigate, onLogout, phoneLabel }: AppDrawerProps) {
+export function AppDrawer({ visible, onClose, onNavigate, onLogout, phoneLabel, mode, onToggleMode }: AppDrawerProps) {
   const theme = useAppTheme();
   // Dentro de un Modal, SafeAreaView de iOS no recibe los márgenes: se toman del proveedor de la app.
   const insets = useSafeAreaInsets();
@@ -125,6 +129,11 @@ export function AppDrawer({ visible, onClose, onNavigate, onLogout, phoneLabel }
   const handleSelect = (route: ClienteRoute) => {
     onClose();
     setTimeout(() => onNavigate(route), 220);
+  };
+
+  const handleToggleMode = () => {
+    onClose();
+    setTimeout(() => onToggleMode?.(), 220);
   };
 
   const handleLogout = () => {
@@ -184,6 +193,31 @@ export function AppDrawer({ visible, onClose, onNavigate, onLogout, phoneLabel }
                 </View>
               ))}
             </ScrollView>
+
+            {mode && onToggleMode ? (
+              <TouchableOpacity
+                style={[styles.modeButton, mode === 'delivery' && styles.modeButtonBack]}
+                onPress={handleToggleMode}
+                activeOpacity={0.85}
+                accessibilityRole="button"
+                accessibilityLabel={mode === 'delivery' ? 'Volver a viajes' : 'Cambiar a modo delivery'}
+              >
+                <Ionicons
+                  name={mode === 'delivery' ? 'car-outline' : 'bag-outline'}
+                  size={20}
+                  color={mode === 'delivery' ? Colors.white : Colors.onAccentLime}
+                />
+                <Text style={[styles.modeLabel, mode === 'delivery' && styles.modeLabelBack]}>
+                  {mode === 'delivery' ? 'Volver a viajes' : 'Modo delivery'}
+                </Text>
+                <Ionicons
+                  name="chevron-forward"
+                  size={20}
+                  color={mode === 'delivery' ? Colors.white : Colors.onAccentLime}
+                  style={styles.modeArrow}
+                />
+              </TouchableOpacity>
+            ) : null}
 
             <View style={styles.divider} />
             <TouchableOpacity style={styles.logoutButton} onPress={handleLogout} activeOpacity={0.8} accessibilityRole="button">
@@ -280,6 +314,33 @@ const styles = StyleSheet.create({
     color: Colors.white,
     fontFamily: FontFamily.bold,
     fontSize: FontSize.md,
+  },
+  // Medidas de .modebtn en docs/delivery/run-delivery-replica.html
+  modeButton: {
+    height: 52,
+    borderRadius: 14,
+    backgroundColor: Colors.accentLime,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 14,
+    marginTop: Spacing.sm,
+  },
+  modeButtonBack: {
+    backgroundColor: Colors.primary,
+    borderWidth: 1,
+    borderColor: Colors.onDarkLine,
+  },
+  modeLabel: {
+    color: Colors.onAccentLime,
+    fontFamily: FontFamily.semibold,
+    fontSize: 15.5,
+  },
+  modeLabelBack: {
+    color: Colors.white,
+  },
+  modeArrow: {
+    marginLeft: 'auto',
   },
   logoutButton: {
     flexDirection: 'row',
