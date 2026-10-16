@@ -92,6 +92,10 @@ const DeliveryLight = {
   red: '#C8261B',
   redSoft: '#FBE3E0',
   star: '#E8A317',
+  // Fondo de la foto del producto (.pimg)
+  productHero: '#ECEDE7',
+  // Grupo de opciones que se está tocando (.grp.hl)
+  groupActive: '#F6F8EC',
   // Ícono de kcal (.kc .ic)
   flame: '#E8590C',
   headerGradient: ['#2E3740', '#161B20', '#111519'] as const,

@@ -36,12 +36,36 @@ export function useToast() {
 interface DeliveryToastProps {
   toast: ToastMessage | null;
   bottom: number;
+  /** 'low': píldora centrada y más baja (.toast.low), para "3 × … agregados". */
+  variant?: 'card' | 'low';
 }
 
 /** Aviso oscuro (.toast) que entra desde abajo. */
-export function DeliveryToast({ toast, bottom }: DeliveryToastProps) {
+export function DeliveryToast({ toast, bottom, variant = 'card' }: DeliveryToastProps) {
   const colors = useDeliveryColors();
   if (!toast) return null;
+
+  if (variant === 'low') {
+    return (
+      <View style={[styles.lowWrap, { bottom }]} pointerEvents="none">
+        <Reanimated.View
+          key={toast.id}
+          entering={FadeInDown.duration(220)}
+          exiting={FadeOutDown.duration(200)}
+          style={[styles.low, { backgroundColor: colors.ink }]}
+          accessibilityRole="alert"
+          accessibilityLiveRegion="polite"
+        >
+          <View style={[styles.lowIcon, { backgroundColor: colors.lime }]}>
+            <Ionicons name={toast.icon} size={14} color={colors.ink} />
+          </View>
+          <Text style={[styles.lowTitle, { color: colors.onDark }]} numberOfLines={1}>
+            {toast.title}
+          </Text>
+        </Reanimated.View>
+      </View>
+    );
+  }
 
   return (
     <Reanimated.View
@@ -81,6 +105,40 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 24,
     elevation: 10,
+  },
+  lowWrap: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    zIndex: 9,
+    alignItems: 'center',
+  },
+  low: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    borderRadius: 20,
+    paddingTop: 7,
+    paddingBottom: 7,
+    paddingLeft: 8,
+    paddingRight: 14,
+    shadowColor: DeliveryColors.light.shadow,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.3,
+    shadowRadius: 24,
+    elevation: 10,
+  },
+  lowIcon: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  lowTitle: {
+    fontFamily: FontFamily.semibold,
+    fontSize: 12.5,
+    lineHeight: 16.9,
   },
   icon: {
     width: 32,
