@@ -35,13 +35,13 @@ function DeliveryTabs() {
   const count = useCartStore((s) => cartCount(s.items));
 
   return (
-    <Tab.Navigator screenOptions={{ headerShown: false }} tabBar={(props) => <DeliveryTabBar {...props} />}>
+    <Tab.Navigator backBehavior="history" screenOptions={{ headerShown: false }} tabBar={(props) => <DeliveryTabBar {...props} />}>
       <Tab.Screen name="DeliveryInicio" component={DeliveryInicioScreen} options={{ title: 'Inicio' }} />
       <Tab.Screen name="DeliveryFavoritos" component={DeliveryProximamenteScreen} options={{ title: 'Favoritos' }} />
       <Tab.Screen
         name="DeliveryCarrito"
         component={DeliveryCarritoScreen}
-        options={{ title: 'Carrito', tabBarBadge: count > 0 ? count : undefined }}
+        options={{ title: 'Carrito', tabBarBadge: count > 0 ? count : undefined, tabBarStyle: { display: 'none' } }}
       />
     </Tab.Navigator>
   );

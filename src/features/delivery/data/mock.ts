@@ -334,3 +334,18 @@ export const PRODUCT_DETAILS: Record<string, { rating: number; reviews: string; 
     ],
   },
 };
+
+/** Foto y fondo de cada producto en el carrito (.ct). */
+export const CART_THUMBS: Record<string, { image: ImageSourcePropType; tint: string }> = {
+  'combo-ruta': { image: FOOD_IMAGES.hamburguesa, tint: '#F4E3CF' },
+  'alitas-bbq': { image: FOOD_IMAGES.carne, tint: '#F1DFDA' },
+  'torta-tres-leches': { image: FOOD_IMAGES.torta, tint: '#F6E1E4' },
+  'crispy-pollo': { image: FOOD_IMAGES.pollo, tint: '#F6E6D3' },
+  'ruta-clasica': { image: FOOD_IMAGES.hamburguesa, tint: '#F4E3CF' },
+  'papas-fritas': { image: FOOD_IMAGES.papas, tint: '#F6E6D3' },
+};
+
+/** Cupón de envío aplicado al carrito ("ENVIOGRATIS aplicado"). */
+export const APPLIED_DELIVERY_CODE = 'ENVIOGRATIS';
+/** Costo de envío sin cupón. No aparece en el mockup (siempre hay ENVIOGRATIS); falta confirmarlo. */
+export const DELIVERY_FEE = 5;

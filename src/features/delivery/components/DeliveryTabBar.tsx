@@ -21,6 +21,8 @@ const ICON_SIZE = 20;
 export function DeliveryTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   const colors = useDeliveryColors();
   const insets = useSafeAreaInsets();
+  // El carrito tiene su propio pie (Todo · total · Pagar) en lugar de la barra.
+  if (descriptors[state.routes[state.index].key].options.tabBarStyle) return null;
 
   return (
     <View
