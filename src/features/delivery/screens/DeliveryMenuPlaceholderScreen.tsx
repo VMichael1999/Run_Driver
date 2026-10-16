@@ -15,6 +15,7 @@ const TITLES: Record<string, string> = {
   DeliveryDirecciones: 'Direcciones guardadas',
   DeliveryFacturacion: 'Datos de facturación',
   DeliveryNotificaciones: 'Notificaciones',
+  DeliverySeguimiento: 'Seguimiento',
 };
 
 /** Opciones del menú de delivery cuyo diseño está en propuesta. */

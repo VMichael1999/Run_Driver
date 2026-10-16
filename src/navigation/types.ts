@@ -47,6 +47,9 @@ export type DeliveryStackParamList = {
   DeliveryTabs: NavigatorScreenParams<DeliveryTabParamList> | undefined;
   DeliveryLocal: { restaurantId: string };
   DeliveryProducto: { productId: string };
+  DeliveryCheckout: undefined;
+  DeliveryDireccion: undefined;
+  DeliverySeguimiento: undefined;
   // Menú lateral de delivery
   DeliveryPedidos: undefined;
   DeliveryCupones: undefined;

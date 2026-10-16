@@ -10,6 +10,8 @@ import { DeliveryCarritoScreen } from '@features/delivery/screens/DeliveryCarrit
 import { DeliveryProximamenteScreen } from '@features/delivery/screens/DeliveryProximamenteScreen';
 import { DeliveryLocalScreen } from '@features/delivery/screens/DeliveryLocalScreen';
 import { DeliveryProductoScreen } from '@features/delivery/screens/DeliveryProductoScreen';
+import { DeliveryCheckoutScreen } from '@features/delivery/screens/DeliveryCheckoutScreen';
+import { DeliveryDireccionScreen } from '@features/delivery/screens/DeliveryDireccionScreen';
 import { DeliveryMenuPlaceholderScreen } from '@features/delivery/screens/DeliveryMenuPlaceholderScreen';
 import { PerfilScreen } from '@features/cliente/perfil';
 import { MetodosPagoScreen } from '@features/cliente/metodos-pago';
@@ -54,6 +56,10 @@ export function DeliveryNavigator() {
       <Stack.Screen name="DeliveryTabs" component={DeliveryTabs} options={{ animation: 'fade' }} />
       <Stack.Screen name="DeliveryLocal" component={DeliveryLocalScreen} />
       <Stack.Screen name="DeliveryProducto" component={DeliveryProductoScreen} />
+      <Stack.Screen name="DeliveryCheckout" component={DeliveryCheckoutScreen} />
+      <Stack.Screen name="DeliveryDireccion" component={DeliveryDireccionScreen} />
+      {/* El seguimiento (del-16 a del-20) es el siguiente paso. */}
+      <Stack.Screen name="DeliverySeguimiento" component={DeliveryMenuPlaceholderScreen} />
       <Stack.Screen name="DeliveryPedidos" component={DeliveryMenuPlaceholderScreen} />
       <Stack.Screen name="DeliveryCupones" component={DeliveryMenuPlaceholderScreen} />
       <Stack.Screen name="DeliveryDirecciones" component={DeliveryMenuPlaceholderScreen} />
