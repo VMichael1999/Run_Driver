@@ -13,6 +13,7 @@ import { getPaymentMethodById } from '@shared/data/paymentMethods';
 import { useDeliveryColors } from '../theme';
 import { useStatusBarStyle } from '../hooks/useStatusBarStyle';
 import { useCheckoutStore } from '../store/useCheckoutStore';
+import { useActiveOrderStore } from '../store/useActiveOrderStore';
 import { computeCharges } from '../utils/cobro';
 import { formatSoles } from '../utils/money';
 import {
@@ -80,10 +81,25 @@ export function DeliveryCheckoutScreen({ navigation }: Props) {
   });
 
   // Enviando (del-15): el botón muestra el indicador ≈1.2 s y abre el seguimiento.
+  const placeOrder = useActiveOrderStore((s) => s.placeOrder);
+  const removeItem = useCartStore((s) => s.removeItem);
+  const resetCheckout = useCheckoutStore((s) => s.reset);
+
   const confirmOrder = () => {
     setConfirmOpen(false);
     setSending(true);
     setTimeout(() => {
+      placeOrder({
+        restaurantId,
+        items,
+        charges,
+        paymentLabel: payment.label,
+        address,
+        fulfillment,
+      });
+      // Lo pedido sale del carrito; lo que no se marcó se queda.
+      items.forEach((item) => removeItem(item.id));
+      resetCheckout();
       setSending(false);
       navigation.replace('DeliverySeguimiento');
     }, SENDING_MS);
@@ -150,7 +166,7 @@ export function DeliveryCheckoutScreen({ navigation }: Props) {
 
         <CouponRow
           title={coupon ? coupon.title : 'Elige un cupón'}
-          subtitle={coupon ? `Ahorras ${formatSoles(charges.discount)}` : `${usable.length} disponible para este pedido`}
+          subtitle={coupon ? `Ahorras ${formatSoles(charges.discount)}` : usable.length === 0 ? 'Ninguno disponible para este pedido' : `${usable.length} ${usable.length === 1 ? 'disponible' : 'disponibles'} para este pedido`}
           actionLabel={coupon ? 'Cambiar' : 'Elegir'}
           store={coupon ? restaurant : undefined}
           onPress={() => setCouponsOpen(true)}

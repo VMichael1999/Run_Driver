@@ -198,8 +198,8 @@ export function ConfirmDialog({ visible, rows, onCancel, onConfirm }: ConfirmDia
   );
 }
 
-/** Indicador de carga del botón (.spin): aro de 22 con el borde superior en tinta. */
-export function Spinner() {
+/** Indicador de carga (.spin): aro de 22 con el borde superior en tinta; 'soft' es .spin.dk (lima). */
+export function Spinner({ tone = 'ink' }: { tone?: 'ink' | 'soft' }) {
   const colors = useDeliveryColors();
   const rotation = useSharedValue(0);
 
@@ -211,9 +211,15 @@ export function Spinner() {
 
   return (
     <Reanimated.View
-      style={[styles.spinner, { borderColor: colors.spinnerTrack, borderTopColor: colors.ink }, style]}
+      style={[
+        styles.spinner,
+        tone === 'soft'
+          ? { borderColor: colors.limeSoft, borderTopColor: colors.limeStrong }
+          : { borderColor: colors.spinnerTrack, borderTopColor: colors.ink },
+        style,
+      ]}
       accessibilityRole="progressbar"
-      accessibilityLabel="Enviando el pedido"
+      accessibilityLabel={tone === 'soft' ? 'Buscando' : 'Enviando el pedido'}
     />
   );
 }
