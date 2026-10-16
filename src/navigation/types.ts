@@ -7,6 +7,7 @@ export type RootStackParamList = {
   Splash: undefined;
   Auth: undefined;
   ClienteApp: undefined;
+  DeliveryApp: undefined;
   ConductorApp: undefined;
 };
 
@@ -37,6 +38,20 @@ export type ClienteStackParamList = {
   Favoritas: undefined;
   ProgramarViaje: undefined;
   DetalleViajeProgramado: { tripId: string };
+};
+
+// Modo delivery: carga y pestañas
+export type DeliveryStackParamList = {
+  DeliveryCarga: undefined;
+  DeliveryTabs: undefined;
+};
+
+export type DeliveryTabParamList = {
+  DeliveryInicio: undefined;
+  DeliveryGuardados: undefined;
+  DeliveryCarrito: undefined;
+  DeliveryOfertas: undefined;
+  DeliveryPerfil: undefined;
 };
 
 // Conductor bottom tabs
