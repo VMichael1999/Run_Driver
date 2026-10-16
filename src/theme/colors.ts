@@ -75,6 +75,37 @@ export const Colors = {
 
 export type ColorKey = keyof typeof Colors;
 
+/** Tokens del modo delivery (docs/delivery/run-delivery-replica.html, bloque `.app`). */
+const DeliveryLight = {
+  bg: '#F4F5F2',
+  card: '#FFFFFF',
+  ink: '#111519',
+  muted: '#555E66',
+  faint: '#A0A9B1',
+  line: '#E6E8E3',
+  soft: '#EEF0EC',
+  lime: '#D4E838',
+  limeStrong: '#7F8F12',
+  olive: '#5A6900',
+  limeSoft: '#F1F6CC',
+  ok: '#157A45',
+  red: '#C8261B',
+  redSoft: '#FBE3E0',
+  star: '#E8A317',
+  headerGradient: ['#2E3740', '#161B20', '#111519'] as const,
+  // Pantalla de carga del modo (.trans)
+  loadingBg: '#0B0B0C',
+  loadingTrack: '#26282B',
+  loadingText: '#8E969D',
+  shadow: '#111519',
+} as const;
+
+export const DeliveryColors = {
+  light: DeliveryLight,
+  // El mockup solo trae el modo claro; el oscuro se usa cuando se apruebe la propuesta.
+  dark: DeliveryLight,
+} as const;
+
 export const ThemeColors = {
   light: {
     primary: Colors.primary,
@@ -122,6 +153,8 @@ export const ThemeColors = {
     // Map & Route
     route: '#111519',
     routeCase: '#FFFFFF',
+
+    delivery: DeliveryColors.light,
   },
   dark: {
     primary: Colors.accentLime,
@@ -169,6 +202,8 @@ export const ThemeColors = {
     // Map & Route
     route: '#D4E838',
     routeCase: '#101519',
+
+    delivery: DeliveryColors.dark,
   },
 } as const;
 
