@@ -139,3 +139,122 @@ export const ACTIVE_ORDER = {
   arrivesAt: '20:36',
   minutesLeft: { preparando: 17, 'en-camino': 11 },
 };
+
+export interface Product {
+  id: string;
+  restaurantId: string;
+  name: string;
+  price: number;
+  description: string;
+  kcal: number;
+  minutes: number;
+  image: ImageSourcePropType;
+  tint: string;
+}
+
+/** Carta de Burger Ruta. */
+export const PRODUCTS: Record<string, Product> = {
+  'ruta-clasica': {
+    id: 'ruta-clasica',
+    restaurantId: 'burgerRuta',
+    name: 'Ruta Clásica',
+    price: 18.9,
+    description: 'Dos carnes, salsa de la casa, lechuga, queso, pepinillos y cebolla en pan de tres pisos.',
+    kcal: 650,
+    minutes: 12,
+    image: FOOD_IMAGES.hamburguesa,
+    tint: '#F4E3CF',
+  },
+  'crispy-pollo': {
+    id: 'crispy-pollo',
+    restaurantId: 'burgerRuta',
+    name: 'Crispy de pollo',
+    price: 15.9,
+    description: 'Pollo apanado crocante con lechuga y mayonesa cremosa en pan tostado.',
+    kcal: 420,
+    minutes: 12,
+    image: FOOD_IMAGES.pollo,
+    tint: '#F6E6D3',
+  },
+  'papas-fritas': {
+    id: 'papas-fritas',
+    restaurantId: 'burgerRuta',
+    name: 'Papas fritas',
+    price: 9.9,
+    description: '',
+    kcal: 340,
+    minutes: 8,
+    image: FOOD_IMAGES.papas,
+    tint: '#F6E6D3',
+  },
+  'alitas-bbq': {
+    id: 'alitas-bbq',
+    restaurantId: 'burgerRuta',
+    name: 'Alitas BBQ',
+    price: 24.9,
+    description: '',
+    kcal: 520,
+    minutes: 15,
+    image: FOOD_IMAGES.carne,
+    tint: '#F1DFDA',
+  },
+};
+
+export interface Voucher {
+  id: string;
+  title: string;
+  lines: string[];
+  /** Cupones disponibles (el contador xN). */
+  available: number;
+  /** Logo del local, o el boleto de Run si es un cupón de la app. */
+  issuer: { type: 'store'; restaurantId: string } | { type: 'run' };
+  /** Solo los cupones del local tienen "Reclamar" en el mockup. */
+  claimable: boolean;
+  code?: string;
+}
+
+/** Detalle del local (del-05). Solo Burger Ruta tiene carta en el mockup. */
+export const RESTAURANT_DETAILS: Record<
+  string,
+  {
+    reviews: string;
+    cuisine: string;
+    deliveryLabel: string;
+    fromMinutes: number;
+    heroGradient: [string, string, string];
+    groupDiscount: string;
+    vouchers: Voucher[];
+    forYou: string[];
+    sections: { title: string; countLabel: string; productIds: string[] }[];
+  }
+> = {
+  burgerRuta: {
+    reviews: '12.4 mil',
+    cuisine: 'Hamburguesas',
+    deliveryLabel: 'Envío gratis',
+    fromMinutes: 20,
+    heroGradient: ['#F6D7B5', '#C98446', '#7A4521'],
+    groupDiscount: '15% dscto',
+    vouchers: [
+      {
+        id: 'br15',
+        title: '15% dscto',
+        lines: ['Mín. S/ 60.00', 'Solo este local'],
+        available: 4,
+        issuer: { type: 'store', restaurantId: 'burgerRuta' },
+        claimable: true,
+      },
+      {
+        id: 'enviogratis',
+        title: 'Envío gratis',
+        lines: ['Código ENVIOGRATIS'],
+        available: 3,
+        issuer: { type: 'run' },
+        claimable: false,
+        code: 'ENVIOGRATIS',
+      },
+    ],
+    forYou: ['ruta-clasica', 'crispy-pollo', 'papas-fritas', 'alitas-bbq'],
+    sections: [{ title: 'Hamburguesas', countLabel: '4 productos', productIds: ['ruta-clasica', 'crispy-pollo'] }],
+  },
+};

@@ -92,6 +92,8 @@ const DeliveryLight = {
   red: '#C8261B',
   redSoft: '#FBE3E0',
   star: '#E8A317',
+  // Ícono de kcal (.kc .ic)
+  flame: '#E8590C',
   headerGradient: ['#2E3740', '#161B20', '#111519'] as const,
   // Fondos oscuros del inicio: banner (.hero), ofertas (.deal) y avatar (.av)
   heroGlow: '#3B4650',
@@ -103,6 +105,8 @@ const DeliveryLight = {
   onDarkMuted: 'rgba(255, 255, 255, 0.7)',
   onDarkLine: 'rgba(255, 255, 255, 0.35)',
   onDarkFill: 'rgba(255, 255, 255, 0.12)',
+  // Botones sobre la foto del local (.rhero .tb .icb)
+  heroButton: 'rgba(17, 21, 25, 0.35)',
   // Pantalla de carga del modo (.trans)
   loadingBg: '#0B0B0C',
   loadingTrack: '#26282B',
