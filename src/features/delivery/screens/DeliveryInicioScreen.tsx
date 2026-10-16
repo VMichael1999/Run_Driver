@@ -1,4 +1,6 @@
 import React from 'react';
+import { useNavigation, type NavigationProp } from '@react-navigation/native';
+import type { DeliveryStackParamList } from '@navigation/types';
 import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Reanimated, { useAnimatedScrollHandler, useSharedValue } from 'react-native-reanimated';
@@ -9,7 +11,7 @@ import { HomeHeader } from '../components/inicio/HomeHeader';
 import { CategoryStrip, DealStrip, HeroBanner, SectionHeader } from '../components/inicio/HomeBlocks';
 import { OrderPill } from '../components/inicio/OrderPill';
 import { RestaurantCard } from '../components/RestaurantCard';
-import { ACTIVE_ORDER, CATEGORIES, DEALS, HOME_SECTIONS, RESTAURANTS } from '../data/mock';
+import { ACTIVE_ORDER, CATEGORIES, DEALS, HOME_SECTIONS, RESTAURANTS, RESTAURANT_DETAILS } from '../data/mock';
 
 /** Alto de la cabecera abierta sin la barra de estado: 10 + fila de dirección 40 + 12 + buscador 46 + 14. */
 const HEADER_BODY = 122;
@@ -31,6 +33,7 @@ export function DeliveryInicioScreen() {
     scrollY.value = event.contentOffset.y;
   });
 
+  const navigation = useNavigation<NavigationProp<DeliveryStackParamList>>();
   const noop = React.useCallback(() => undefined, []);
 
   return (
@@ -54,7 +57,12 @@ export function DeliveryInicioScreen() {
             <SectionHeader title={section.title} onSeeAll={noop} />
             <View style={styles.grid}>
               {section.restaurantIds.map((id) => (
-                <RestaurantCard key={id} restaurant={RESTAURANTS[id]} />
+                <RestaurantCard
+                  key={id}
+                  restaurant={RESTAURANTS[id]}
+                  // Solo Burger Ruta tiene su página en el mockup.
+                  onPress={RESTAURANT_DETAILS[id] ? () => navigation.navigate('DeliveryLocal', { restaurantId: id }) : undefined}
+                />
               ))}
             </View>
           </React.Fragment>

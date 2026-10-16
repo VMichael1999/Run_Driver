@@ -1,5 +1,6 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
+import type { NavigatorScreenParams } from '@react-navigation/native';
 import type { SearchTarget } from '@shared/types';
 
 // Root stack — decides whether to show auth or main app
@@ -43,7 +44,8 @@ export type ClienteStackParamList = {
 // Modo delivery: carga y pestañas
 export type DeliveryStackParamList = {
   DeliveryCarga: undefined;
-  DeliveryTabs: undefined;
+  DeliveryTabs: NavigatorScreenParams<DeliveryTabParamList> | undefined;
+  DeliveryLocal: { restaurantId: string };
 };
 
 export type DeliveryTabParamList = {
