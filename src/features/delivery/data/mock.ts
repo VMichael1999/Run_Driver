@@ -258,3 +258,79 @@ export const RESTAURANT_DETAILS: Record<
     sections: [{ title: 'Hamburguesas', countLabel: '4 productos', productIds: ['ruta-clasica', 'crispy-pollo'] }],
   },
 };
+
+export interface ProductOption {
+  id: string;
+  label: string;
+  /** Gramos u otro detalle chico al lado del nombre. */
+  detail?: string;
+  price: number;
+}
+
+export interface OptionGroup {
+  id: string;
+  title: string;
+  /** 'single': "Elige 1" (radios, el precio reemplaza al base). 'multi': "Opcional" (casillas, suma). */
+  type: 'single' | 'multi';
+  options: ProductOption[];
+}
+
+/** Calificación y grupos de opciones del producto (del-07 / del-08). Solo el Crispy tiene detalle. */
+export const PRODUCT_DETAILS: Record<string, { rating: number; reviews: string; groups: OptionGroup[] }> = {
+  'crispy-pollo': {
+    rating: 4.7,
+    reviews: '6.9 mil',
+    groups: [
+      {
+        id: 'tamano',
+        title: 'Tamaño',
+        type: 'single',
+        options: [
+          { id: 'regular', label: 'Regular', price: 15.9 },
+          { id: 'grande', label: 'Grande', price: 19.9 },
+          { id: 'combo', label: 'Combo', price: 27.9 },
+        ],
+      },
+      {
+        id: 'adicionales',
+        title: 'Adicionales',
+        type: 'multi',
+        options: [
+          { id: 'queso', label: 'Queso extra', detail: '80 g', price: 3 },
+          { id: 'tomate', label: 'Tomate fresco', detail: '60 g', price: 1.5 },
+          { id: 'aji', label: 'Ají', detail: '30 g', price: 1.5 },
+        ],
+      },
+      {
+        id: 'salsas',
+        title: 'Salsas',
+        type: 'multi',
+        options: [
+          { id: 'bbq', label: 'BBQ', price: 2 },
+          { id: 'aji-casa', label: 'Ají de la casa', price: 2 },
+          { id: 'mayo-ajo', label: 'Mayonesa de ajo', price: 2.5 },
+        ],
+      },
+      {
+        id: 'acompanamientos',
+        title: 'Acompañamientos',
+        type: 'multi',
+        options: [
+          { id: 'papas', label: 'Papas fritas', price: 6 },
+          { id: 'aros', label: 'Aros de cebolla', price: 7.5 },
+          { id: 'col', label: 'Ensalada de col', price: 5 },
+        ],
+      },
+      {
+        id: 'bebidas',
+        title: 'Bebidas',
+        type: 'multi',
+        options: [
+          { id: 'chicha', label: 'Chicha morada', price: 5 },
+          { id: 'limonada', label: 'Limonada', price: 6 },
+          { id: 'agua', label: 'Agua mineral', price: 3 },
+        ],
+      },
+    ],
+  },
+};
