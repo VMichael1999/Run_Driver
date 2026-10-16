@@ -75,6 +75,61 @@ export const Colors = {
 
 export type ColorKey = keyof typeof Colors;
 
+/** Tokens del modo delivery (docs/delivery/run-delivery-replica.html, bloque `.app`). */
+const DeliveryLight = {
+  bg: '#F4F5F2',
+  card: '#FFFFFF',
+  ink: '#111519',
+  muted: '#555E66',
+  faint: '#A0A9B1',
+  line: '#E6E8E3',
+  soft: '#EEF0EC',
+  lime: '#D4E838',
+  limeStrong: '#7F8F12',
+  olive: '#5A6900',
+  limeSoft: '#F1F6CC',
+  ok: '#157A45',
+  red: '#C8261B',
+  redSoft: '#FBE3E0',
+  star: '#E8A317',
+  // Fondo oscurecido de hojas y diálogos (.dim) y aro del indicador de carga (.spin)
+  dim: 'rgba(17, 21, 25, 0.45)',
+  spinnerTrack: 'rgba(17, 21, 25, 0.2)',
+  // Caja del método de pago Yape (.pm)
+  yape: '#5B1F7A',
+  // Fondo de la foto del producto (.pimg)
+  productHero: '#ECEDE7',
+  // Grupo de opciones que se está tocando (.grp.hl)
+  groupActive: '#F6F8EC',
+  // Ícono de kcal (.kc .ic)
+  flame: '#E8590C',
+  headerGradient: ['#2E3740', '#161B20', '#111519'] as const,
+  // Fondos oscuros del inicio: banner (.hero), ofertas (.deal) y avatar (.av)
+  heroGlow: '#3B4650',
+  dealGlow: '#2B333B',
+  avatarBg: '#2B333B',
+  online: '#3DCB7E',
+  onDark: '#FFFFFF',
+  onDarkHigh: 'rgba(255, 255, 255, 0.85)',
+  onDarkMuted: 'rgba(255, 255, 255, 0.7)',
+  onDarkLine: 'rgba(255, 255, 255, 0.35)',
+  onDarkFill: 'rgba(255, 255, 255, 0.12)',
+  // Botones sobre la foto del local (.rhero .tb .icb)
+  heroButton: 'rgba(17, 21, 25, 0.35)',
+  // Pantalla de carga del modo (.trans)
+  loadingBg: '#0B0B0C',
+  loadingTrack: '#26282B',
+  loadingText: '#8E969D',
+  shadow: '#111519',
+  black: '#000000',
+} as const;
+
+export const DeliveryColors = {
+  light: DeliveryLight,
+  // El mockup solo trae el modo claro; el oscuro se usa cuando se apruebe la propuesta.
+  dark: DeliveryLight,
+} as const;
+
 export const ThemeColors = {
   light: {
     primary: Colors.primary,
@@ -122,6 +177,8 @@ export const ThemeColors = {
     // Map & Route
     route: '#111519',
     routeCase: '#FFFFFF',
+
+    delivery: DeliveryColors.light,
   },
   dark: {
     primary: Colors.accentLime,
@@ -169,6 +226,8 @@ export const ThemeColors = {
     // Map & Route
     route: '#D4E838',
     routeCase: '#101519',
+
+    delivery: DeliveryColors.dark,
   },
 } as const;
 

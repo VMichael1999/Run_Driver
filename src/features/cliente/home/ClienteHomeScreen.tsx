@@ -29,6 +29,7 @@ import { buildTaxiRequest } from '@features/cliente/solicitud-taxi/utils/routeRe
 import { useFavoriteAddressesStore } from '@store/useFavoriteAddressesStore';
 import { getCurrentLocationMarker, getQuickCurrentLocationMarker } from '@shared/utils/locationUtils';
 import { useAppTheme } from '@theme/useAppTheme';
+import { useAppModeStore } from '@store/useAppModeStore';
 import { getMapStyle } from '@theme/mapStyles';
 import { FontFamily, FontSize } from '@theme/fonts';
 import { Spacing, BorderRadius, Shadow } from '@theme/spacing';
@@ -139,6 +140,7 @@ export function ClienteHomeScreen() {
   const phone = useAuthStore((s) => s.phone);
   const countryCode = useAuthStore((s) => s.countryCode);
   const [drawerOpen, setDrawerOpen] = React.useState<boolean>(false);
+  const setAppMode = useAppModeStore((s) => s.setMode);
   const drawerProgress = React.useRef(new Animated.Value(0)).current;
 
   const phoneLabel = phone ? `${countryCode} ${phone}` : '+51 999 999 999';
@@ -413,6 +415,8 @@ export function ClienteHomeScreen() {
         onNavigate={(route) => navigation.navigate(route as never)}
         onLogout={logout}
         phoneLabel={phoneLabel}
+        mode="viajes"
+        onToggleMode={() => setAppMode('delivery')}
       />
     </View>
   );

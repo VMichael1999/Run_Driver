@@ -18,26 +18,34 @@ import { Colors } from '@theme/colors';
 import { useAppTheme } from '@theme/useAppTheme';
 import { FontFamily, FontSize } from '@theme/fonts';
 import { Spacing } from '@theme/spacing';
+import type { AppMode } from '@store/useAppModeStore';
 import appJson from '../../../../app.json';
 
 type ClienteRoute = keyof ClienteStackParamList;
 
-type DrawerSection = 'main' | 'wallet' | 'personal' | 'preferences';
+export type DrawerSection = 'main' | 'wallet' | 'personal' | 'preferences';
 
-interface DrawerOption {
+export interface DrawerOption<Route extends string = ClienteRoute> {
   id: string;
   icon: keyof typeof Ionicons.glyphMap;
   label: string;
-  route: ClienteRoute;
+  route: Route;
   section: DrawerSection;
 }
 
-interface AppDrawerProps {
+interface AppDrawerProps<Route extends string> {
   visible: boolean;
   onClose: () => void;
-  onNavigate: (route: ClienteRoute) => void;
+  onNavigate: (route: Route) => void;
+  /** Opciones del menú; por defecto, las de viajes. */
+  options?: DrawerOption<Route>[];
+  /** Pantalla que abre la cabecera "Mi perfil". */
+  profileRoute?: Route;
   onLogout: () => void;
   phoneLabel: string;
+  /** Con él, se muestra el botón para cambiar entre viajes y delivery. */
+  mode?: AppMode;
+  onToggleMode?: () => void;
 }
 
 const SECTION_LABELS: Record<DrawerSection, string> = {
@@ -64,8 +72,8 @@ const APP_VERSION: string = (appJson as { expo: { version: string } }).expo.vers
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const DRAWER_WIDTH = Math.round(SCREEN_WIDTH * 0.78);
 
-function groupBySection(options: DrawerOption[]): Array<[DrawerSection, DrawerOption[]]> {
-  const groups = new Map<DrawerSection, DrawerOption[]>();
+function groupBySection<Route extends string>(options: DrawerOption<Route>[]): Array<[DrawerSection, DrawerOption<Route>[]]> {
+  const groups = new Map<DrawerSection, DrawerOption<Route>[]>();
   for (const option of options) {
     const list = groups.get(option.section) ?? [];
     list.push(option);
@@ -73,11 +81,22 @@ function groupBySection(options: DrawerOption[]): Array<[DrawerSection, DrawerOp
   }
   return SECTION_ORDER.flatMap((section) => {
     const list = groups.get(section);
-    return list ? [[section, list] as [DrawerSection, DrawerOption[]]] : [];
+    return list ? [[section, list] as [DrawerSection, DrawerOption<Route>[]]] : [];
   });
 }
 
-export function AppDrawer({ visible, onClose, onNavigate, onLogout, phoneLabel }: AppDrawerProps) {
+export function AppDrawer<Route extends string = ClienteRoute>({
+  visible,
+  onClose,
+  onNavigate,
+  options,
+  profileRoute,
+  sectionLabels,
+  onLogout,
+  phoneLabel,
+  mode,
+  onToggleMode,
+}: AppDrawerProps<Route> & { sectionLabels?: Partial<Record<DrawerSection, string>> }) {
   const theme = useAppTheme();
   // Dentro de un Modal, SafeAreaView de iOS no recibe los márgenes: se toman del proveedor de la app.
   const insets = useSafeAreaInsets();
@@ -120,11 +139,19 @@ export function AppDrawer({ visible, onClose, onNavigate, onLogout, phoneLabel }
     }
   }, [visible, translateX, backdropOpacity]);
 
-  const sections = React.useMemo(() => groupBySection(DRAWER_OPTIONS), []);
+  const sections = React.useMemo(
+    () => groupBySection(options ?? (DRAWER_OPTIONS as unknown as DrawerOption<Route>[])),
+    [options],
+  );
 
-  const handleSelect = (route: ClienteRoute) => {
+  const handleSelect = (route: Route) => {
     onClose();
     setTimeout(() => onNavigate(route), 220);
+  };
+
+  const handleToggleMode = () => {
+    onClose();
+    setTimeout(() => onToggleMode?.(), 220);
   };
 
   const handleLogout = () => {
@@ -143,7 +170,7 @@ export function AppDrawer({ visible, onClose, onNavigate, onLogout, phoneLabel }
           <View style={[styles.safeArea, { paddingTop: insets.top + 8, paddingBottom: insets.bottom + 8 }]}>
             <TouchableOpacity
               style={styles.profileSection}
-              onPress={() => handleSelect('Perfil')}
+              onPress={() => handleSelect(profileRoute ?? ('Perfil' as Route))}
               accessibilityRole="button"
               accessibilityLabel="Ver perfil"
               activeOpacity={0.85}
@@ -167,7 +194,7 @@ export function AppDrawer({ visible, onClose, onNavigate, onLogout, phoneLabel }
             >
               {sections.map(([section, options]) => (
                 <View key={section} style={styles.sectionWrap}>
-                  <Text style={styles.sectionLabel}>{SECTION_LABELS[section]}</Text>
+                  <Text style={styles.sectionLabel}>{sectionLabels?.[section] ?? SECTION_LABELS[section]}</Text>
                   {options.map((option) => (
                     <TouchableOpacity
                       key={option.id}
@@ -184,6 +211,31 @@ export function AppDrawer({ visible, onClose, onNavigate, onLogout, phoneLabel }
                 </View>
               ))}
             </ScrollView>
+
+            {mode && onToggleMode ? (
+              <TouchableOpacity
+                style={[styles.modeButton, mode === 'delivery' && styles.modeButtonBack]}
+                onPress={handleToggleMode}
+                activeOpacity={0.85}
+                accessibilityRole="button"
+                accessibilityLabel={mode === 'delivery' ? 'Volver a viajes' : 'Cambiar a modo delivery'}
+              >
+                <Ionicons
+                  name={mode === 'delivery' ? 'car-outline' : 'bag-outline'}
+                  size={20}
+                  color={mode === 'delivery' ? Colors.white : Colors.onAccentLime}
+                />
+                <Text style={[styles.modeLabel, mode === 'delivery' && styles.modeLabelBack]}>
+                  {mode === 'delivery' ? 'Volver a viajes' : 'Modo delivery'}
+                </Text>
+                <Ionicons
+                  name="chevron-forward"
+                  size={20}
+                  color={mode === 'delivery' ? Colors.white : Colors.onAccentLime}
+                  style={styles.modeArrow}
+                />
+              </TouchableOpacity>
+            ) : null}
 
             <View style={styles.divider} />
             <TouchableOpacity style={styles.logoutButton} onPress={handleLogout} activeOpacity={0.8} accessibilityRole="button">
@@ -280,6 +332,33 @@ const styles = StyleSheet.create({
     color: Colors.white,
     fontFamily: FontFamily.bold,
     fontSize: FontSize.md,
+  },
+  // Medidas de .modebtn en docs/delivery/run-delivery-replica.html
+  modeButton: {
+    height: 52,
+    borderRadius: 14,
+    backgroundColor: Colors.accentLime,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 14,
+    marginTop: Spacing.sm,
+  },
+  modeButtonBack: {
+    backgroundColor: Colors.primary,
+    borderWidth: 1,
+    borderColor: Colors.onDarkLine,
+  },
+  modeLabel: {
+    color: Colors.onAccentLime,
+    fontFamily: FontFamily.semibold,
+    fontSize: 15.5,
+  },
+  modeLabelBack: {
+    color: Colors.white,
+  },
+  modeArrow: {
+    marginLeft: 'auto',
   },
   logoutButton: {
     flexDirection: 'row',

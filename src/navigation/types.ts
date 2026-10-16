@@ -1,5 +1,6 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
+import type { NavigatorScreenParams } from '@react-navigation/native';
 import type { SearchTarget } from '@shared/types';
 
 // Root stack — decides whether to show auth or main app
@@ -7,6 +8,7 @@ export type RootStackParamList = {
   Splash: undefined;
   Auth: undefined;
   ClienteApp: undefined;
+  DeliveryApp: undefined;
   ConductorApp: undefined;
 };
 
@@ -37,6 +39,32 @@ export type ClienteStackParamList = {
   Favoritas: undefined;
   ProgramarViaje: undefined;
   DetalleViajeProgramado: { tripId: string };
+};
+
+// Modo delivery: carga y pestañas
+export type DeliveryStackParamList = {
+  DeliveryCarga: undefined;
+  DeliveryTabs: NavigatorScreenParams<DeliveryTabParamList> | undefined;
+  DeliveryLocal: { restaurantId: string };
+  DeliveryProducto: { productId: string };
+  DeliveryCheckout: undefined;
+  DeliveryDireccion: undefined;
+  DeliverySeguimiento: undefined;
+  // Menú lateral de delivery
+  DeliveryPedidos: undefined;
+  DeliveryCupones: undefined;
+  DeliveryDirecciones: undefined;
+  DeliveryFacturacion: undefined;
+  DeliveryNotificaciones: undefined;
+  Perfil: undefined;
+  MetodosPago: { forRide?: boolean; scheduledTripId?: string } | undefined;
+  Configuracion: undefined;
+};
+
+export type DeliveryTabParamList = {
+  DeliveryInicio: undefined;
+  DeliveryFavoritos: undefined;
+  DeliveryCarrito: undefined;
 };
 
 // Conductor bottom tabs
