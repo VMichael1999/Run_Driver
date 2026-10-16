@@ -2,7 +2,8 @@ import React from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, type NavigationProp } from '@react-navigation/native';
+import type { DeliveryStackParamList } from '@navigation/types';
 import Reanimated, { FadeOut, LinearTransition } from 'react-native-reanimated';
 import { FontFamily } from '@theme/fonts';
 import { DeliveryColors } from '@theme/colors';
@@ -18,7 +19,7 @@ import { APPLIED_DELIVERY_CODE, DELIVERY_FEE } from '../data/mock';
 export function DeliveryCarritoScreen() {
   const colors = useDeliveryColors();
   const insets = useSafeAreaInsets();
-  const navigation = useNavigation();
+  const navigation = useNavigation<NavigationProp<DeliveryStackParamList>>();
   useStatusBarStyle('dark');
 
   const items = useCartStore((s) => s.items);
@@ -109,6 +110,7 @@ export function DeliveryCarritoScreen() {
           <Text style={[styles.totalNote, { color: colors.olive }]}>{APPLIED_DELIVERY_CODE} aplicado</Text>
         </View>
         <Pressable
+          onPress={() => navigation.navigate('DeliveryCheckout')}
           disabled={charges.count === 0}
           style={[styles.pay, { backgroundColor: colors.lime }, charges.count === 0 && styles.payDisabled]}
           accessibilityRole="button"
