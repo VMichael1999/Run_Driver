@@ -9,6 +9,7 @@ import { RootNavigator } from './src/navigation/RootNavigator';
 import { useAppTheme } from './src/theme';
 import { LogBox } from 'react-native';
 import { useThemeStore } from './src/store/useThemeStore';
+import { useAppModeStore } from './src/store/useAppModeStore';
 
 LogBox.ignoreAllLogs();
 
@@ -19,6 +20,8 @@ export default function App() {
   const theme = useAppTheme();
   const isDark = useThemeStore((state) => state.isDark);
   const loadTheme = useThemeStore((state) => state.loadTheme);
+  const loadMode = useAppModeStore((state) => state.loadMode);
+  const modeHydrated = useAppModeStore((state) => state.hasHydrated);
   const [fontsLoaded, fontError] = useFonts({
     'GeneralSans-Regular': require('./assets/legacy/fonts/GeneralSans-Regular.ttf'),
     'GeneralSans-Italic': require('./assets/legacy/fonts/GeneralSans-Italic.ttf'),
@@ -30,15 +33,17 @@ export default function App() {
 
   React.useEffect(() => {
     void loadTheme();
-  }, [loadTheme]);
+    void loadMode();
+  }, [loadTheme, loadMode]);
 
   React.useEffect(() => {
-    if (fontsLoaded || fontError) {
+    if ((fontsLoaded || fontError) && modeHydrated) {
       void SplashScreen.hideAsync();
     }
-  }, [fontsLoaded, fontError]);
+  }, [fontsLoaded, fontError, modeHydrated]);
 
-  if (!fontsLoaded && !fontError) {
+  // Sin el modo guardado, la app abriría en viajes y luego saltaría a delivery.
+  if ((!fontsLoaded && !fontError) || !modeHydrated) {
     return null;
   }
 
