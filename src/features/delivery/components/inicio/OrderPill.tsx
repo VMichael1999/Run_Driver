@@ -8,24 +8,26 @@ import { ACTIVE_ORDER, COURIER, DELIVERY_ADDRESS, RESTAURANTS, type ActiveOrderS
 
 interface OrderPillProps {
   status: ActiveOrderStatus;
+  minutes: number;
+  arrivesAt: string;
   bottom: number;
   onPress?: () => void;
 }
 
 /** Aviso flotante del pedido en curso (.opill). Con el repartidor en camino, muestra su avatar. */
-export function OrderPill({ status, bottom, onPress }: OrderPillProps) {
+export function OrderPill({ status, minutes, arrivesAt, bottom, onPress }: OrderPillProps) {
   const colors = useDeliveryColors();
   const restaurant = RESTAURANTS[ACTIVE_ORDER.restaurantId];
-  const minutes = ACTIVE_ORDER.minutesLeft[status];
   const onTheWay = status === 'en-camino';
   const title = onTheWay ? `${COURIER.firstName} está en camino` : 'Preparando tu pedido';
   const subtitle = onTheWay
-    ? `A ${DELIVERY_ADDRESS.label} · Llega ${ACTIVE_ORDER.arrivesAt}`
-    : `${restaurant.name.split(' – ')[0]} · Llega ${ACTIVE_ORDER.arrivesAt}`;
+    ? `A ${DELIVERY_ADDRESS.label} · Llega ${arrivesAt}`
+    : `${restaurant.name.split(' – ')[0]} · Llega ${arrivesAt}`;
 
   return (
     <Pressable
       onPress={onPress}
+      disabled={!onPress}
       style={[styles.pill, { backgroundColor: colors.card, bottom }, DeliveryShadow.floating]}
       accessibilityRole="button"
       accessibilityLabel={`${title}. ${subtitle}. Faltan ${minutes} minutos`}

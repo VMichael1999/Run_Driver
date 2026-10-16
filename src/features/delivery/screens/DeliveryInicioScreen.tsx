@@ -6,6 +6,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Reanimated, { useAnimatedScrollHandler, useSharedValue } from 'react-native-reanimated';
 import { useDeliveryColors } from '../theme';
 import { useStatusBarStyle } from '../hooks/useStatusBarStyle';
+import { useOrderSimulation } from '../hooks/useOrderSimulation';
+import { useActiveOrderStore } from '../store/useActiveOrderStore';
+import { formatClock } from '../utils/orderSimulation';
 import { DeliveryDrawer } from '../components/DeliveryDrawer';
 import { HomeHeader } from '../components/inicio/HomeHeader';
 import { CategoryStrip, DealStrip, HeroBanner, SectionHeader } from '../components/inicio/HomeBlocks';
@@ -35,6 +38,19 @@ export function DeliveryInicioScreen() {
 
   const navigation = useNavigation<NavigationProp<DeliveryStackParamList>>();
   const noop = React.useCallback(() => undefined, []);
+
+  // Aviso del pedido en curso: el real si hay uno; si no, el del mockup (del-03).
+  const order = useActiveOrderStore((s) => s.order);
+  const sim = useOrderSimulation(order?.startedAt ?? null);
+  const pill = !order
+    ? { status: ACTIVE_ORDER.status, minutes: ACTIVE_ORDER.minutesLeft[ACTIVE_ORDER.status], arrivesAt: ACTIVE_ORDER.arrivesAt }
+    : sim && sim.phase !== 'entregado'
+    ? {
+        status: (sim.phase === 'recogido' || sim.phase === 'en-camino' ? 'en-camino' : 'preparando') as 'preparando' | 'en-camino',
+        minutes: sim.minutesLeft,
+        arrivesAt: formatClock(new Date(order.startedAt + 20 * 60000)),
+      }
+    : null;
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.bg }]}>
@@ -70,7 +86,15 @@ export function DeliveryInicioScreen() {
       </Reanimated.ScrollView>
 
       <HomeHeader topInset={insets.top} scrollY={scrollY} onAvatarPress={() => setDrawerOpen(true)} />
-      <OrderPill status={ACTIVE_ORDER.status} bottom={PILL_GAP} />
+      {pill ? (
+        <OrderPill
+          status={pill.status}
+          minutes={pill.minutes}
+          arrivesAt={pill.arrivesAt}
+          bottom={PILL_GAP}
+          onPress={order ? () => navigation.navigate('DeliverySeguimiento') : undefined}
+        />
+      ) : null}
       <DeliveryDrawer visible={drawerOpen} onClose={() => setDrawerOpen(false)} />
     </View>
   );
